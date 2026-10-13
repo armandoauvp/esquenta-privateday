@@ -6,7 +6,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-13a">
+    <meta name="app-build" content="2026-10-13b">
     <title>Esquenta AUVP Private Day</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -111,6 +111,20 @@
         .av-card:hover { border-color: rgba(219,121,68,.5); }
         .av-card-on { border-color: #DB7944; background: rgba(219,121,68,.15); box-shadow: 0 0 8px rgba(219,121,68,.4); }
         .av-card-on span { color: #DB7944; font-weight: 600; }
+
+        /* avatar ainda na fila do DiceBear: esqueleto no lugar do círculo vazio.
+           Fica DEPOIS do .av-card img — o `background` de lá zeraria o gradiente. */
+        img[data-av] {
+            background: linear-gradient(100deg, #111 30%, #262626 50%, #111 70%);
+            background-size: 200% 100%;
+            animation: avSkel 1.1s linear infinite;
+        }
+        @keyframes avSkel { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+        .av-entrou:not(.dj-bounce) { animation: avFade .3s ease-out; }
+        @keyframes avFade { from { opacity: 0; } to { opacity: 1; } }
+        @media (prefers-reduced-motion: reduce) {
+            img[data-av], .av-entrou:not(.dj-bounce) { animation: none; }
+        }
 
         /* uma única linha por categoria, navegável no scroll lateral (desktop e mobile)
            !important: o Tailwind CDN injeta os estilos DEPOIS deste bloco — qualquer
@@ -890,14 +904,90 @@
         ];
         const urlDoCard = (chave, valor) => getAvatarUrl({...CARD_BASE, [chave]: valor}, 72);
 
-        // resolve sempre: uma imagem que falha (CDN fora do ar, rede ruim) não pode
-        // prender ninguém na tela de carregamento
-        const carregarImagem = url => new Promise(resolve => {
+        // ── FILA DE IMAGENS DO DICEBEAR ──
+        // A API do DiceBear tem limite de requisições: pedir as ~80 miniaturas de uma
+        // vez rendia HTTP 429 em 1 de cada 4, e esses cards ficavam vazios. A fila
+        // baixa no máximo FILA_LIMITE por vez e tenta de novo com backoff.
+        // Toda imagem do DiceBear passa por aqui (modal, pista, chat, DM, mesa de DJ).
+        const FILA_LIMITE = 6;
+        const FILA_TENTATIVAS = 3;
+        const espera = ms => new Promise(r => setTimeout(r, ms));
+        const imgCarregadas = new Set();   // URLs já baixadas: estão no cache do navegador
+        const imgPendentes = new Map();    // url → promessa em andamento (sem pedido duplicado)
+        const filaImagens = [];
+        let filaAtivas = 0;
+
+        const baixarUmaVez = url => new Promise(res => {
             const img = new Image();
-            img.onload = img.onerror = () => resolve();
+            img.onload = () => res(true);
+            img.onerror = () => res(false);
             img.src = url;
         });
-        const espera = ms => new Promise(r => setTimeout(r, ms));
+        async function baixarComRetentativa(url) {
+            for (let i = 0; i < FILA_TENTATIVAS; i++) {
+                if (await baixarUmaVez(url)) return true;
+                if (i < FILA_TENTATIVAS - 1) await espera(400 * 2 ** i);
+            }
+            return false;
+        }
+        function andarFila() {
+            while (filaAtivas < FILA_LIMITE && filaImagens.length) {
+                const {url, resolve} = filaImagens.shift();
+                filaAtivas++;
+                baixarComRetentativa(url).then(ok => {
+                    filaAtivas--;
+                    if (ok) imgCarregadas.add(url);
+                    imgPendentes.delete(url);
+                    resolve(ok);
+                    andarFila();
+                });
+            }
+        }
+        // Resolve sempre (true = baixou): imagem que falha não pode prender ninguém
+        // na tela de carregamento. `urgente` fura a fila (o que está visível agora).
+        function carregarImagem(url, urgente = false) {
+            if (imgCarregadas.has(url)) return Promise.resolve(true);
+            if (imgPendentes.has(url)) {
+                const i = urgente ? filaImagens.findIndex(it => it.url === url) : -1;
+                if (i > 0) filaImagens.unshift(...filaImagens.splice(i, 1));
+                return imgPendentes.get(url);
+            }
+            const p = new Promise(resolve => {
+                filaImagens[urgente ? 'unshift' : 'push']({url, resolve});
+                andarFila();
+            });
+            imgPendentes.set(url, p);
+            return p;
+        }
+
+        // <img> de avatar para templates: URL já baixada sai pronta; senão nasce como
+        // esqueleto (data-av) e hidratarAvatares() põe o src quando a fila entregar.
+        const PIXEL_VAZIO = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+        const imgAvatar = (url, attrs = '') => imgCarregadas.has(url)
+            ? `<img src="${url}" ${attrs}/>`
+            : `<img src="${PIXEL_VAZIO}" data-av="${url}" ${attrs}/>`;
+        function hidratarAvatares(raiz, urgente = true) {
+            // de trás pra frente: cada urgente entra no INÍCIO da fila, então o lote
+            // termina na ordem da tela (a primeira faixa do modal chega primeiro)
+            [...raiz.querySelectorAll('img[data-av]')].reverse().forEach(img => {
+                const url = img.dataset.av;
+                // falhou nas 3 tentativas: põe o src mesmo assim, como última chance
+                carregarImagem(url, urgente).then(() => {
+                    if (img.dataset.av !== url) return;
+                    img.src = url;
+                    img.removeAttribute('data-av');
+                    img.classList.add('av-entrou');
+                });
+            });
+        }
+        // elementos fixos (preview, header, DM): só troca o src com a imagem já baixada
+        function trocarAvatar(img, url) {
+            if (img.getAttribute('src') === url) return;
+            img.dataset.alvo = url;
+            carregarImagem(url, true).then(() => {
+                if (img.dataset.alvo === url) img.setAttribute('src', url);
+            });
+        }
 
         // Promessa única: a cortina só sobe quando ela resolve (ou quando o teto de
         // tempo estoura). O progresso alimenta a barra da tela de carregamento.
@@ -1038,13 +1128,14 @@
   <!-- DJ atual -->
   ${playing && djName ? `
   <div class="flex items-center gap-2 justify-center mt-1.5">
-    ${djAvatar ? `<img src="${djAvatar}" class="w-7 h-7 rounded-full bg-[#111] ${isMe ? 'dj-bounce' : ''}" style="box-shadow:0 0 8px ${djColor}80"/>` : ''}
+    ${djAvatar ? imgAvatar(djAvatar, `alt="" class="w-7 h-7 rounded-full bg-[#111] ${isMe ? 'dj-bounce' : ''}" style="box-shadow:0 0 8px ${djColor}80"`) : ''}
     <div>
       <p class="text-[8px] text-[#FFF7EB]/40">🎧 Na mesa agora:</p>
       <p class="text-[10px] font-bold truncate max-w-[85px]" style="color:${djColor}">${esc(djName)}${isMe ? ' (Você!)' : ''}</p>
     </div>
   </div>` : `<p class="text-center text-[9px] text-[#FFF7EB]/25 mt-1">Tocando a playlist da casa 🎶</p>`}
 </div>`;
+            hidratarAvatares(el);
         }
 
         // ── INICIALIZAÇÃO DA UI (chamada após auth OK ou em modo offline) ──
@@ -1406,7 +1497,7 @@
     ${isDJ ? `<div class="absolute -bottom-1 -left-2 text-[#ff00cc] z-10" style="width:16px;height:16px;filter:drop-shadow(0 0 4px rgba(255,0,204,.8))">${Icons.headphones}</div>` : ''}
     ${inVipLounge ? `<div class="absolute -bottom-1 -right-2 text-sm z-10" style="filter:drop-shadow(0 0 6px rgba(255,215,0,.9))">🥂</div>` : ''}
     <div class="avatar-hit w-14 h-14 rounded-full overflow-hidden bg-[#111] ${bounce}" style="box-shadow:${shadow}${loungeGlow}${durStyle}">
-      <img src="${getAvatarUrl(u.avatarConfig)}" alt="${esc(u.name)}" class="w-full h-full object-cover"/>
+      ${imgAvatar(getAvatarUrl(u.avatarConfig), `alt="${esc(u.name)}" class="w-full h-full object-cover"`)}
     </div>
   </div>
   <!-- rótulo com teto de largura: nome quilométrico não pode virar uma faixa
@@ -1425,6 +1516,7 @@
                 }
                 layer.appendChild(el);
             });
+            hidratarAvatares(layer);
             updateVipUI();
         }
 
@@ -1458,7 +1550,7 @@
                 div.innerHTML = `
 <div class="flex gap-2">
   <div class="relative shrink-0 mt-0.5">
-    <img src="${getAvatarUrl(autor?.avatarConfig || CARD_BASE)}" alt="" class="w-7 h-7 rounded-full bg-[#111]" style="box-shadow:0 0 0 1.5px ${msg.color}60"/>
+    ${imgAvatar(getAvatarUrl(autor?.avatarConfig || CARD_BASE), `alt="" class="w-7 h-7 rounded-full bg-[#111]" style="box-shadow:0 0 0 1.5px ${msg.color}60"`)}
     ${msg.isVIP ? `<span class="vip-crown" style="width:12px;height:12px;top:-4px;right:-4px">${Icons.crown}</span>` : ''}
   </div>
   <div class="flex-1 min-w-0">
@@ -1474,6 +1566,7 @@
 </div>`;
                 c.appendChild(div);
             });
+            hidratarAvatares(c, false); // histórico do chat cede a vez à pista
             c.scrollTop = c.scrollHeight;
         }
 
@@ -2032,7 +2125,7 @@ ${cd}`;
             if (!u || !currentUser) return;
             dmOpenWith = uid;
             dmReadAt[uid] = Date.now();
-            document.getElementById('dmAvatar').src = getAvatarUrl(u.avatarConfig);
+            trocarAvatar(document.getElementById('dmAvatar'), getAvatarUrl(u.avatarConfig));
             const nameEl = document.getElementById('dmName');
             nameEl.innerText = u.name;
             nameEl.style.color = u.color || '#DB7944';
@@ -2106,7 +2199,7 @@ ${cd}`;
                 return `
 <div class="fade-in-up bg-[#0d0d0d] border border-[#DB7944]/40 rounded-2xl p-3 shadow-2xl">
   <div class="flex items-center gap-2 mb-2">
-    ${u ? `<img src="${getAvatarUrl(u.avatarConfig)}" class="w-8 h-8 rounded-full bg-[#111]"/>` : ''}
+    ${u ? imgAvatar(getAvatarUrl(u.avatarConfig), 'alt="" class="w-8 h-8 rounded-full bg-[#111]"') : ''}
     <p class="flex-1 text-xs text-[#FFF7EB]/85 leading-snug"><span class="font-bold" style="color:${u?.color || '#DB7944'}">${name}</span> quer puxar um papo privado com você 🍸</p>
   </div>
   <div class="flex gap-2">
@@ -2116,6 +2209,7 @@ ${cd}`;
   <p class="text-[8px] text-[#FFF7EB]/30 text-center mt-2 leading-snug">A AUVP não se responsabiliza pelas conversas ocorridas em privado nesta plataforma.</p>
 </div>`;
             }).join('');
+            hidratarAvatares(c);
         }
 
         document.getElementById('dmClose').addEventListener('click', () => {
@@ -2439,14 +2533,13 @@ ${cd}`;
 
         function montarOpcoes() {
             // cada opção é um card com a IMAGEM do avatar usando aquela opção, desenhada
-            // sobre CARD_BASE — URLs fixas, já pré-carregadas antes de a pista abrir.
-            // Sem `loading="lazy"`: as imagens estão na memória e o lazy só adiaria o
-            // desenho das que ficam fora da parte visível da faixa.
+            // sobre CARD_BASE — URLs fixas, pré-carregadas pela fila antes de a pista
+            // abrir. Card que ainda não chegou nasce como esqueleto e é hidratado.
             CATEGORIAS.forEach(([containerId, options, key]) => {
                 document.getElementById(containerId).innerHTML = options.map(opt =>
                     `<button type="button" data-chave="${key}" data-valor="${opt.v}" title="${opt.l}"
                         onclick="window.updateAvatar('${key}','${opt.v}')" class="av-card">
-                        <img src="${urlDoCard(key, opt.v)}" alt="${opt.l}"/>
+                        ${imgAvatar(urlDoCard(key, opt.v), `alt="${opt.l}"`)}
                         <span>${opt.l}</span>
                     </button>`).join('');
             });
@@ -2469,6 +2562,7 @@ ${cd}`;
                     onclick="window.updateProfileColor('${col}')"
                     class="cfg-dot cfg-dot-lg" style="background:${col}"></button>`).join('');
 
+            hidratarAvatares(document.getElementById('avatarSections'));
             opcoesMontadas = true;
         }
 
@@ -2486,14 +2580,8 @@ ${cd}`;
 
         function renderSettingsModal() {
             // o preview grande é a única imagem que muda de URL a cada escolha: carrega
-            // fora da tela e só então troca, pra não piscar um círculo vazio no meio
-            const preview = document.getElementById('avatarPreviewImage');
-            const urlPreview = getAvatarUrl(localProfile.avatarConfig);
-            if (preview.getAttribute('src') !== urlPreview) {
-                const pre = new Image();
-                pre.onload = pre.onerror = () => preview.setAttribute('src', urlPreview);
-                pre.src = urlPreview;
-            }
+            // fora da tela (furando a fila) e só então troca, sem piscar vazio
+            trocarAvatar(document.getElementById('avatarPreviewImage'), getAvatarUrl(localProfile.avatarConfig));
             const c = localProfile.color;
             document.getElementById('avatarPreviewContainer').style.cssText =
                 `box-shadow: 0 0 0 3px ${c}, 0 0 24px ${c}60`;
@@ -2539,7 +2627,7 @@ ${cd}`;
             store.set(PRONTO_KEY, '1');
             updatePresence();
             const ha = document.getElementById('headerAvatar');
-            ha.src = getAvatarUrl(localProfile.avatarConfig);
+            trocarAvatar(ha, getAvatarUrl(localProfile.avatarConfig));
             ha.classList.remove('hidden');
             const hn = document.getElementById('headerName');
             hn.innerText = localProfile.name;
