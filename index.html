@@ -219,6 +219,14 @@
         }
         .chat-bubble { animation: bubble-pop 6s ease forwards; }
 
+        /* silenciar no chat: sempre visível no toque; com mouse, aparece no hover/foco */
+        .chat-mudo { opacity: .55; }
+        @media (hover: hover) {
+            .chat-mudo { opacity: 0; }
+            .group:hover .chat-mudo { opacity: .6; }
+        }
+        .chat-mudo:hover, .chat-mudo:focus-visible { opacity: 1 !important; }
+
         /* ── TOAST ── */
         @keyframes toast-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .toast-in { animation: toast-in .25s ease-out forwards; }
@@ -407,8 +415,11 @@
                 </button>
             </div>
 
-            <div id="secChat" class="flex-1 flex flex-col min-h-0">
-            <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+            <div id="secChat" class="flex-1 flex flex-col min-h-0 relative">
+            <div id="chatMessages" role="log" aria-live="polite" aria-label="Chat ao vivo" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+            <!-- quem está lendo o histórico não é puxado pro fim: um aviso leva até as novas -->
+            <button type="button" id="chatNovasBtn" onclick="window.irParaNovas()"
+                class="hidden absolute left-1/2 -translate-x-1/2 bottom-[68px] z-10 bg-[#DB7944] text-white text-[11px] font-semibold px-3 py-1.5 rounded-full shadow-lg hover:bg-[#c45d1b] transition">↓ Novas mensagens</button>
 
             <div class="p-3 bg-black/30 border-t border-[#FFF7EB]/8">
                 <form id="chatForm" class="flex gap-2">
@@ -1558,17 +1569,25 @@
         document.getElementById('actionBar').addEventListener('click', e => e.stopPropagation());
 
         // ── RENDER USUÁRIOS ──
+        // Reconciliação por uid: cada avatar nasce uma vez e depois só tem a posição (e,
+        // quando o visual muda, o conteúdo) atualizada. Recriar a camada inteira a cada
+        // snapshot fazia o avatar teleportar (a transição de 700 ms nunca rodava),
+        // reiniciava os passinhos e engolia o toque que caía bem na troca do elemento.
+        const avataresNaPista = new Map(); // uid → {el, assinatura}
         function renderUsers() {
             document.getElementById('onlineCount').innerText = `${activeUsers.length} online`;
             const layer = document.getElementById('usersLayer');
-            layer.innerHTML = '';
+            const vistos = new Set();
 
             activeUsers.forEach(u => {
-                const isDJ   = !!(currentVideo?.videoId) && currentVideo?.addedByUid === u.id;
-                const isMe   = u.id === currentUser?.uid;
+                const uid = safeId(u.id);
+                if (!uid) return;
+                vistos.add(uid);
+                const isDJ   = !!(currentVideo?.videoId) && currentVideo?.addedByUid === uid;
+                const isMe   = uid === currentUser?.uid;
                 const posX   = isDJ ? DJ_X : (u.x ?? 50);
                 const posY   = isDJ ? DJ_Y : (u.y ?? 50);
-                const color  = /^#[0-9a-fA-F]{6}$/.test(u.color || '') ? u.color : '#DB7944';
+                const color  = safeColor(u.color);
                 // a aura VIP usa a COR ESCOLHIDA pelo usuário (mais intensa); a coroa marca o VIP
                 const vipGlow = `0 0 22px ${color}b0, 0 0 44px ${color}50, 0 0 0 3px ${color}`;
                 const djGlow  = `0 0 20px rgba(255,0,200,.8), 0 0 40px rgba(255,0,200,.4), 0 0 0 3px #ff00cc`;
@@ -1579,16 +1598,43 @@
                 // passinhos usam a duração da própria animação; DJ/VIP mantêm o override
                 const durStyle = (isDJ || !danceCls) ? `;animation-duration:${isDJ ? '.75s' : '2s'}` : '';
 
-                const unread = (!isMe && currentUser) ? dmUnread(u.id) : 0;
-                const bubble = (chatBubbles[u.id] && chatBubbles[u.id].until > Date.now()) ? chatBubbles[u.id] : null;
+                const unread = (!isMe && currentUser) ? dmUnread(uid) : 0;
+                const bubble = (chatBubbles[uid] && chatBubbles[uid].until > Date.now()) ? chatBubbles[uid] : null;
                 const inVipLounge = !isDJ && userInVipArea(u);
                 const loungeGlow = inVipLounge ? ', 0 0 26px rgba(255,215,0,.55)' : '';
-
-                const el = document.createElement('div');
-                el.className = 'absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-700 ease-out flex flex-col items-center pointer-events-none';
-                el.style.cssText = `left:${posX}%;top:${posY}%;z-index:${bubble?55:isMe?50:isDJ?40:10}`;
+                const conversavel = !isMe && !!currentUser;
+                const urlAvatar = getAvatarUrl(u.avatarConfig);
                 const etiqueta = `${u.name}${isMe ? ' (Você)' : ''}`;
-                el.innerHTML = `
+
+                let reg = avataresNaPista.get(uid);
+                if (!reg) {
+                    const el = document.createElement('div');
+                    el.className = 'absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-700 ease-out flex flex-col items-center pointer-events-none';
+                    // um listener por avatar, na casca (que nunca é trocada): clique e teclado
+                    const abrir = ev => {
+                        if (!ev.target.closest('.avatar-hit') || uid === currentUser?.uid || !currentUser) return;
+                        if (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ') return;
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        window.openDM(uid);
+                    };
+                    el.addEventListener('click', abrir);
+                    el.addEventListener('keydown', abrir);
+                    layer.appendChild(el);
+                    reg = {el, assinatura: ''};
+                    avataresNaPista.set(uid, reg);
+                }
+                // posição sempre: é ela que desliza com a transição
+                reg.el.style.left = `${posX}%`;
+                reg.el.style.top = `${posY}%`;
+                reg.el.style.zIndex = bubble ? 55 : isMe ? 50 : isDJ ? 40 : 10;
+
+                // conteúdo só quando algo visível mudou (refazer reinicia os passinhos)
+                const assinatura = JSON.stringify([urlAvatar, etiqueta, isDJ, !!u.isVIP, color, danceCls,
+                    unread, bubble?.since || 0, inVipLounge, conversavel]);
+                if (assinatura === reg.assinatura) return;
+                reg.assinatura = assinatura;
+                reg.el.innerHTML = `
 <div class="relative flex flex-col items-center">
   <!-- Caixa do avatar: coroa, fones, não-lidas, taça e balão se ancoram AQUI.
        Ancorados na coluna, eles seguiam a largura do rótulo do nome — e um nome
@@ -1601,12 +1647,13 @@
     </div>` : ''}
     <!-- um selo por canto do avatar: não-lidas em cima à esquerda, coroa em cima à
          direita, fones do DJ embaixo à esquerda e taça do lounge embaixo à direita -->
-    ${unread ? `<div class="absolute -top-1.5 -left-1.5 bg-[#ff2d55] text-white text-[9px] font-bold w-5 h-5 rounded-full flex items-center justify-center z-10 shadow-lg">${unread > 9 ? '9+' : unread}</div>` : ''}
+    ${unread ? `<div class="absolute -top-1.5 -left-1.5 bg-[#ff2d55] text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center z-10 shadow-lg" aria-label="${unread} mensagens não lidas">${unread > 9 ? '9+' : unread}</div>` : ''}
     ${u.isVIP ? `<span class="vip-crown z-10" style="width:19px;height:19px;top:-4px;right:-4px">${Icons.crown}</span>` : ''}
     ${isDJ ? `<div class="absolute -bottom-1 -left-2 text-[#ff00cc] z-10" style="width:16px;height:16px;filter:drop-shadow(0 0 4px rgba(255,0,204,.8))">${Icons.headphones}</div>` : ''}
     ${inVipLounge ? `<div class="absolute -bottom-1 -right-2 text-sm z-10" style="filter:drop-shadow(0 0 6px rgba(255,215,0,.9))">🥂</div>` : ''}
-    <div class="avatar-hit w-14 h-14 rounded-full overflow-hidden bg-[#111] ${bounce}" style="box-shadow:${shadow}${loungeGlow}${durStyle}">
-      ${imgAvatar(getAvatarUrl(u.avatarConfig), `alt="${esc(u.name)}" class="w-full h-full object-cover"`)}
+    <div class="avatar-hit w-14 h-14 rounded-full overflow-hidden bg-[#111] ${bounce}" style="box-shadow:${shadow}${loungeGlow}${durStyle}${conversavel ? ';pointer-events:auto;cursor:pointer' : ''}"
+      ${conversavel ? `role="button" tabindex="0" title="Conversar com ${esc(u.name)}" aria-label="Conversar com ${esc(u.name)}"` : ''}>
+      ${imgAvatar(urlAvatar, `alt="${esc(u.name)}" class="w-full h-full object-cover"`)}
     </div>
   </div>
   <!-- rótulo com teto de largura: nome quilométrico não pode virar uma faixa
@@ -1616,58 +1663,49 @@
     <span class="truncate min-w-0">${esc(etiqueta)}</span>${isDJ?'<span class="shrink-0">🎧</span>':''}
   </div>
 </div>`;
-                if (!isMe && currentUser) {
-                    const hit = el.querySelector('.avatar-hit');
-                    hit.style.pointerEvents = 'auto';
-                    hit.style.cursor = 'pointer';
-                    hit.title = `Conversar com ${u.name}`;
-                    hit.addEventListener('click', ev => { ev.stopPropagation(); window.openDM(u.id); });
-                }
-                layer.appendChild(el);
             });
+            // quem saiu da pista some
+            for (const [uid, reg] of avataresNaPista) {
+                if (!vistos.has(uid)) { reg.el.remove(); avataresNaPista.delete(uid); }
+            }
             hidratarAvatares(layer);
             updateVipUI();
+            if (typeof renderPresentes === 'function') renderPresentes();
         }
 
         // ── RENDER CHAT ──
-        function renderChat() {
-            const c = document.getElementById('chatMessages');
-            c.innerHTML = '';
-            if (!chatMessages.length) {
-                c.innerHTML = `<div class="text-center text-[#FFF7EB]/30 text-sm mt-10 font-light">Seja o primeiro a mandar mensagem!</div>`;
-                return;
-            }
-            chatMessages.forEach(msg => {
-                const div = document.createElement('div');
-                div.className = 'fade-in-up group';
-                const uidSeguro = safeId(msg.uid);
-                const cor = safeColor(msg.color);
-                if (msg.uid && mutedUids.includes(msg.uid)) {
-                    div.innerHTML = `<div class="text-[10px] text-[#FFF7EB]/25 italic cursor-pointer hover:text-[#FFF7EB]/50 transition" onclick="window.toggleMute('${uidSeguro}')">🔇 Mensagem de ${esc(msg.name)} oculta — toque para reexibir</div>`;
-                    c.appendChild(div);
-                    return;
-                }
-                const d = new Date(msg.timestamp);
-                const time = d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-                // mensagens de outros dias exibem também a data
-                const isToday = d.toDateString() === new Date().toDateString();
-                const stamp = isToday ? time : `${d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ${time}`;
-                const muteBtn = (msg.uid && currentUser && msg.uid !== currentUser.uid)
-                    ? `<button onclick="window.toggleMute('${uidSeguro}')" title="Silenciar ${esc(msg.name)}" class="text-[9px] opacity-0 group-hover:opacity-50 hover:!opacity-100 transition">🔇</button>` : '';
-                // avatar de quem escreveu: a coroa é um selo no canto dele, não um ícone no nome.
-                // Quem já saiu da pista não tem avatarConfig conhecido — cai no boneco neutro
-                // (CARD_BASE), que já vem pré-carregado e nunca mostra o avatar de outra pessoa.
-                const autor = activeUsers.find(x => x.id === msg.uid);
-                div.innerHTML = `
+        // Também por diferença: cada mensagem vira um nó uma única vez (a chave muda só
+        // quando o desenho dela muda: silenciada, avatar do autor). Antes o chat inteiro
+        // era refeito a cada mensagem: piscava, reanimava as 50 e puxava pro fim quem
+        // estava lendo o histórico.
+        const nosDoChat = new Map(); // id → {el, chave}
+        let chatJaDesenhado = false;
+
+        function htmlDaMensagem(msg, mudo, urlAvatar) {
+            const uidSeguro = safeId(msg.uid);
+            const cor = safeColor(msg.color);
+            if (mudo) return `<button type="button" onclick="window.toggleMute('${uidSeguro}')" class="text-left text-[11px] text-[#FFF7EB]/55 italic hover:text-[#FFF7EB]/80 transition">🔇 Mensagem de ${esc(msg.name)} oculta — toque para reexibir</button>`;
+            const d = new Date(msg.timestamp);
+            const time = d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+            // mensagens de outros dias exibem também a data
+            const isToday = d.toDateString() === new Date().toDateString();
+            const stamp = isToday ? time : `${d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ${time}`;
+            // silenciar: visível no toque; em quem tem mouse, aparece no hover/foco (.chat-mudo)
+            const muteBtn = (msg.uid && currentUser && msg.uid !== currentUser.uid)
+                ? `<button type="button" onclick="window.toggleMute('${uidSeguro}')" title="Silenciar ${esc(msg.name)}" aria-label="Silenciar ${esc(msg.name)}" class="chat-mudo text-[12px] leading-none p-1.5 -m-1 rounded transition">🔇</button>` : '';
+            // avatar de quem escreveu: a coroa é um selo no canto dele, não um ícone no nome.
+            // Quem já saiu da pista não tem avatarConfig conhecido — cai no boneco neutro
+            // (CARD_BASE), que já vem pré-carregado e nunca mostra o avatar de outra pessoa.
+            return `
 <div class="flex gap-2">
   <div class="relative shrink-0 mt-0.5">
-    ${imgAvatar(getAvatarUrl(autor?.avatarConfig || CARD_BASE), `alt="" class="w-7 h-7 rounded-full bg-[#111]" style="box-shadow:0 0 0 1.5px ${cor}60"`)}
+    ${imgAvatar(urlAvatar, `alt="" class="w-7 h-7 rounded-full bg-[#111]" style="box-shadow:0 0 0 1.5px ${cor}60"`)}
     ${msg.isVIP ? `<span class="vip-crown" style="width:12px;height:12px;top:-4px;right:-4px">${Icons.crown}</span>` : ''}
   </div>
   <div class="flex-1 min-w-0">
     <div class="flex items-baseline gap-1.5 mb-0.5">
       <span class="font-semibold text-xs tracking-wide truncate" style="color:${cor}">${esc(msg.name)}</span>
-      <span class="text-[9px] text-[#FFF7EB]/30 shrink-0">${stamp}</span>
+      <span class="text-[10px] text-[#FFF7EB]/50 shrink-0">${stamp}</span>
       ${muteBtn}
     </div>
     <div class="text-xs text-[#FFF7EB]/85 break-words font-light${msg.isVIP?' border-l-2 pl-2':''}" style="${msg.isVIP?`border-color:${cor}`:''}">
@@ -1675,11 +1713,66 @@
     </div>
   </div>
 </div>`;
-                c.appendChild(div);
+        }
+
+        function renderChat() {
+            const c = document.getElementById('chatMessages');
+            const pill = document.getElementById('chatNovasBtn');
+            // quem rolou pra cima pra ler o histórico não é puxado de volta
+            const noFim = c.scrollHeight - c.scrollTop - c.clientHeight < 60;
+            if (!chatMessages.length) {
+                nosDoChat.clear();
+                c.innerHTML = `<div class="text-center text-[#FFF7EB]/55 text-sm mt-10 font-light">Seja o primeiro a mandar mensagem!</div>`;
+                return;
+            }
+            if (!nosDoChat.size) c.innerHTML = ''; // tira o "seja o primeiro"
+
+            const vistos = new Set(chatMessages.map(m => m.id));
+            for (const [id, reg] of nosDoChat) {
+                if (!vistos.has(id)) { reg.el.remove(); nosDoChat.delete(id); }
+            }
+            let novas = 0;
+            let cursor = c.firstChild;
+            chatMessages.forEach(msg => {
+                const autor = activeUsers.find(x => x.id === msg.uid);
+                const urlAvatar = getAvatarUrl(autor?.avatarConfig || CARD_BASE);
+                const mudo = !!(msg.uid && mutedUids.includes(msg.uid));
+                const chave = `${mudo}|${urlAvatar}|${!!currentUser}`;
+                let reg = nosDoChat.get(msg.id);
+                if (!reg) {
+                    reg = {el: document.createElement('div'), chave: ''};
+                    // só as que chegam depois do primeiro desenho entram animadas
+                    reg.el.className = chatJaDesenhado ? 'group fade-in-up' : 'group';
+                    nosDoChat.set(msg.id, reg);
+                    if (chatJaDesenhado && msg.uid !== currentUser?.uid) novas++;
+                }
+                if (reg.chave !== chave) { reg.chave = chave; reg.el.innerHTML = htmlDaMensagem(msg, mudo, urlAvatar); }
+                // só move o que está fora do lugar (reinserir um nó reinicia a animação)
+                if (reg.el === cursor) cursor = cursor.nextSibling;
+                else c.insertBefore(reg.el, cursor);
             });
             hidratarAvatares(c, false); // histórico do chat cede a vez à pista
-            c.scrollTop = c.scrollHeight;
+
+            if (!chatJaDesenhado || noFim || rolarChatAoFim) {
+                c.scrollTop = c.scrollHeight;
+                rolarChatAoFim = false;
+                pill.classList.add('hidden');
+            } else if (novas) {
+                pill.classList.remove('hidden');
+            }
+            chatJaDesenhado = true;
         }
+
+        window.irParaNovas = () => {
+            const c = document.getElementById('chatMessages');
+            c.scrollTo({top: c.scrollHeight, behavior: 'smooth'});
+            document.getElementById('chatNovasBtn').classList.add('hidden');
+        };
+        document.getElementById('chatMessages').addEventListener('scroll', e => {
+            const c = e.currentTarget;
+            if (c.scrollHeight - c.scrollTop - c.clientHeight < 60)
+                document.getElementById('chatNovasBtn').classList.add('hidden');
+        }, {passive: true});
 
         // ── ABAS DA LATERAL (celular) ──
         window.setAbaLateral = aba => {

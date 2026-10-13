@@ -33,6 +33,7 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 
 ## Padrões importantes (não quebrar)
 
+- **Pista e chat por diferença, nunca `innerHTML` da lista inteira**: `renderUsers` mantém `avataresNaPista` (uid → elemento) e só atualiza `left/top` (é isso que faz o avatar deslizar). O conteúdo só é refeito quando a `assinatura` muda, porque refazer reinicia os passinhos. `renderChat` mantém `nosDoChat` (id → nó), insere só o que é novo e não puxa pro fim quem rolou pra cima (aparece a pílula "↓ Novas mensagens"). Listeners do avatar ficam na casca, que nunca é trocada.
 - **Iframe estável**: `renderPlayer()` recria o iframe **só quando o vídeo muda** (`lastPlayerKey`); votos/contagem/avisos são desenhados em `#playerOverlay` por `updatePlayerOverlay()`. Nunca redesenhe o iframe em snapshots de votos/usuários, senão o vídeo reinicia para todo mundo.
 - **Líder**: ações automáticas (limite de 10 min, avanço ao fim do vídeo) são executadas apenas pelo cliente com **menor uid** entre os online (`isLeader()`), para evitar escrita duplicada.
 - **Contagem regressiva sincronizada**: doc `player/countdown` (`{endsAt, reason}`). Quem inicia a contagem executa a ação no `setTimeout`; os demais apenas exibem o overlay (ticker de 200 ms).
