@@ -14,6 +14,7 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 - **Estilo visual:** dark (`#050505`), paleta AUVP — laranja `#DB7944`, azul `#0B2A47`, vermelho `#932621`, creme `#FFF7EB` — com neons 80s (rosa `#ff00cc`, ciano `#00ffff`) apenas em detalhes da pista.
 - **Identidade:** sempre que usar o globo da marca, use `GLOBO.png`; para o nome "PRIVATE DAY" (ex.: header), use o lettering `LETTERING.png` — ambos na raiz do repo, por caminho relativo.
 - **Tailwind para layout, CSS custom só para animações** (bloco `<style>` no `<head>`).
+- **Deploy na Vercel** (`vercel.json` + `.vercelignore`): site estático, sem build. Só `index.html` e os PNGs vão para o ar — `docs/`, `tools/`, `elementor/` e os `.md` ficam fora.
 - **Sem dependências novas** sem necessidade real. CDNs atuais: Tailwind, Google Fonts, Firebase 11.x (gstatic), DiceBear v8, YouTube.
 
 ## Arquitetura do JS (ordem dentro do `<script type="module">`)
@@ -49,7 +50,7 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 - **Monte as opções uma vez** (`montarOpcoes`) e alterne só a classe de seleção (`marcarSelecao`). Reconstruir `innerHTML` a cada escolha repede imagens e zera o `scrollLeft` das faixas `.cfg-row`.
 - **A cortina só sobe com `assetsProntos`** (imagens + fontes), com teto de 20 s. Toda imagem do pré-carregamento resolve no `onerror` também — CDN fora do ar não pode prender ninguém no loading.
 - **CSS do modal precisa de `!important` em propriedades de layout** (`.cfg-row`, `.cfg-nav`, `.cfg-sec`): o Tailwind CDN injeta os estilos depois do bloco `<style>` e empata em especificidade, vencendo pela ordem.
-- **Carimbo de build**: `<meta name="app-build">` alimenta o rodapé do modal e o console. Atualize-o quando publicar algo que precise ser confirmado em produção (o GitHub Pages cacheia o HTML por 10 min).
+- **Carimbo de build**: `<meta name="app-build">` alimenta o rodapé do modal e o console. Atualize-o quando publicar algo que precise ser confirmado em produção (confira o rodapé após o deploy na Vercel para saber se o navegador pegou a versão nova).
 - **Online ≠ presente**: `activeUsers` (heartbeat < 120 s) mantém o avatar na pista; as regras de DJ/fila usam `isPresent(u)` — heartbeat < `PRESENCE_STALE_MS` (75 s) **e** sem `away` além de `AWAY_GRACE_MS` (45 s). Quem sai da tela perde a mesa e o lugar na fila; recarregar a página não custa nada.
 - **Ações do líder** (faxina da fila, DJ ausente, limite de 10 min, avanço no fim) rodam só no `isLeader()`, que agora elege entre os **presentes** — aba escondida tem timer estrangulado e não serve como líder.
 

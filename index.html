@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- o GitHub Pages serve o HTML com cache de 10 min; isso faz o navegador
-         revalidar em vez de reexibir a versão antiga depois de um deploy -->
+    <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
+         antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-08-11h">
+    <meta name="app-build" content="2026-10-13a">
     <title>Esquenta AUVP Private Day</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -576,7 +576,7 @@
         });
 
         // ── FIREBASE ──
-        // Ao hospedar fora do ambiente Claude (ex: GitHub Pages), preencha os campos abaixo
+        // Ao hospedar fora do ambiente Claude (ex: Vercel), preencha os campos abaixo
         // com os dados do seu projeto Firebase (console.firebase.google.com → Configurações do Projeto).
         const FIREBASE_CONFIG_FALLBACK = {
             apiKey:            "AIzaSyDcHrrVvKKnR3Sw2hVhrBHj_7lhvDVFn4E",

@@ -2,7 +2,7 @@
 
 Pista de dança virtual em tempo real para o esquenta do **AUVP Private Day 2026**. Os usuários criam um avatar, dançam numa pista 80s, conversam no chat ao vivo (e no privado), colocam músicas do YouTube na fila do DJ e votam no que toca — tudo sincronizado entre todos os participantes via Firebase.
 
-**App de arquivo único:** todo o HTML, CSS e JavaScript vivem em [`index.html`](index.html). Não há build, bundler nem dependências locais — basta servir o arquivo (GitHub Pages, por exemplo).
+**App de arquivo único:** todo o HTML, CSS e JavaScript vivem em [`index.html`](index.html). Não há build, bundler nem dependências locais — basta servir o arquivo (publicado na Vercel).
 
 ## ✨ Funcionalidades
 
@@ -46,7 +46,7 @@ Pista de dança virtual em tempo real para o esquenta do **AUVP Private Day 2026
 
 ## 🚀 Como rodar
 
-1. Sirva o `index.html` em qualquer host estático (GitHub Pages, Netlify, etc.) — ou abra localmente.
+1. Sirva o `index.html` em qualquer host estático — em produção, a Vercel (ver [docs/deploy.md](docs/deploy.md)) — ou abra localmente.
 2. O app precisa de internet para: Tailwind CDN, Google Fonts, Firebase, DiceBear e YouTube.
 3. As credenciais do Firebase já estão em `FIREBASE_CONFIG_FALLBACK` dentro do `index.html` (projeto `auvp-privateday`). Para usar outro projeto, veja [docs/deploy.md](docs/deploy.md).
 

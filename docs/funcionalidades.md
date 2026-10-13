@@ -25,7 +25,7 @@ Enquanto o modal está aberto, o áudio do player fica abafado (volume ~10% + de
 
 **Perfil salvo no navegador**: nome, avatar completo, cor da aura, passinho e status de ingresso ficam no `localStorage` (`esquentaProfile`) — na próxima visita tudo volta como estava. Uma segunda chave (`esquentaPerfilPronto`) marca quem já concluiu a personalização e é o que dispensa o modal nas visitas seguintes. Tudo é gravado **também em cookie** (helper `store`), porque o `localStorage` falha em navegação privada do iOS, dentro de iframe de terceiro (armazenamento particionado) e com bloqueio de dados de sites — sem a reserva, essas pessoas refariam o boneco a cada visita.
 
-**Carimbo de versão**: o rodapé do modal mostra o `build` publicado (o mesmo valor vai para o console). Se alguém relatar comportamento antigo, o build revela na hora se o navegador está com o HTML em cache — o GitHub Pages serve a página com cache de 10 minutos.
+**Carimbo de versão**: o rodapé do modal mostra o `build` publicado (o mesmo valor vai para o console). Se alguém relatar comportamento antigo, o build revela na hora se o navegador está com o HTML em cache.
 
 ## Pista de dança
 
