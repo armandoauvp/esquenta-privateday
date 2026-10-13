@@ -17,9 +17,10 @@ Quem **já personalizou antes vai direto para a pista** — sem modal na cara de
   - **Rosto** — tom de pele, olhos, sobrancelhas, boca
   - **Aura** — cor do brilho do avatar na pista (e do nome no chat)
 - **Cor da aura**: paleta com 11 cores (dois tons de laranja — o laranja AUVP `#DB7944` e o neon `#ff6600`).
-- **Botões de entrada**:
+- **Botões de entrada** (num rodapé fixo, sempre à vista sem rolar as opções):
   - **"Já tenho meu ingresso!"** → entra na festa como VIP (coroa dourada + brilho especial no avatar).
-  - **"Não tenho ingresso"** → abre `https://privateday.auvp.com.br/#ingressos` em nova aba e entra como convidado.
+  - **"Entrar sem ingresso"** → entra como convidado e mostra um aviso com o link de `https://privateday.auvp.com.br/#ingressos`. Nenhuma aba abre sozinha (antes a pessoa caía fora do app logo na entrada e ainda ficava "ausente").
+- **Editar depois de entrar** (avatar no header): o modal abre em modo edição, com ✕, Esc e **"Salvar e voltar pra pista"**, que mantém o status de ingresso. Trocar o status fica no link "Mudar meu status de ingresso".
 
 Enquanto o modal está aberto, o áudio do player fica abafado (volume ~10% + desfoque no vídeo). Ao entrar, o som volta ao normal.
 
@@ -55,7 +56,15 @@ Cole um link do YouTube no campo da fila. A música entra no fim da fila com seu
 - Se a **playlist da casa** estiver tocando (ninguém na mesa), uma **contagem regressiva de 5 segundos** aparece sobre o player ("🎵 Música de Fulano entrando na pista!") e a sua música assume.
 
 ### Votar para pular
-Quem está com a música tocando vê o botão **"Pular minha vez"** — passa a vez direto (com a contagem de 5 s), sem precisar de votação.
+Quem está com a música tocando vê o botão **"Pular minha vez"** — passa a vez direto (com a contagem de 5 s), sem precisar de votação. Durante essa contagem o DJ vê **"Cancelar, quero continuar"**: um toque acidental não custa a música.
+
+**Autoplay barrado** (Safari/iOS ou quem entra sem ter tocado na página): se o vídeo do DJ fica 6 s parado em "não iniciado", aparece **"▶ Tocar a música"**. O botão manda o play e libera o player por 15 s, então tocar no play do próprio YouTube também funciona.
+
+**Envios com retorno**: chat, fila, DM e votos travam o botão durante o envio (Enter duplo não duplica nada) e avisam quando falham, sem apagar o que a pessoa digitou. Erros da fila aparecem embaixo do campo, com exemplo de link aceito (watch, youtu.be, shorts, live, embed). Música repetida é recusada. Ao entrar na fila, um aviso mostra a posição.
+
+**Sem conexão**: sem Firebase, ou com a internet caída, uma faixa vermelha no topo explica que a pessoa está só assistindo, e chat e fila ficam travados com o motivo no próprio campo. Se a autenticação demorar mais que os 10 s do timeout, o app conecta sozinho quando ela chegar (antes ficava offline até recarregar).
+
+**Mensagem privada nova**: chega um aviso "Nova mensagem de X" com botão **Abrir**, e um badge 💬 no header soma as não lidas (o clique abre a conversa mais recente).
 
 Para os demais, o botão **"Pular (x/y)"** no canto do player:
 - `x` = votos atuais, `y` = votos necessários: **50%+1 dos presentes ou 10 votos**, o que for menor (mínimo 1).

@@ -14,7 +14,8 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 - **Estilo visual:** dark (`#050505`), paleta AUVP — laranja `#DB7944`, azul `#0B2A47`, vermelho `#932621`, creme `#FFF7EB` — com neons 80s (rosa `#ff00cc`, ciano `#00ffff`) apenas em detalhes da pista.
 - **Identidade:** sempre que usar o globo da marca, use `GLOBO.png`; para o nome "PRIVATE DAY" (ex.: header), use o lettering `LETTERING.png` — ambos na raiz do repo, por caminho relativo.
 - **Tailwind para layout, CSS custom só para animações** (bloco `<style>` no `<head>`).
-- **Deploy na Vercel** (`vercel.json` + `.vercelignore`): site estático, sem build. Só `index.html` e os PNGs vão para o ar — `docs/`, `tools/`, `elementor/` e os `.md` ficam fora.
+- **Deploy na Vercel** (`vercel.json` + `.vercelignore`): site estático, sem build. Só `index.html` e os PNGs vão para o ar — `docs/`, `tools/`, `elementor/`, `video/` e os `.md` ficam fora.
+- **`video/` é um projeto Remotion à parte** (vídeo de fundo do fallback do YouTube, com `package.json` próprio). Não é dependência do app; veja `video/README.md`.
 - **Sem dependências novas** sem necessidade real. CDNs atuais: Tailwind, Google Fonts, Firebase 11.x (gstatic), DiceBear v8, YouTube.
 
 ## Arquitetura do JS (ordem dentro do `<script type="module">`)
@@ -54,6 +55,8 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 - **CSS do modal precisa de `!important` em propriedades de layout** (`.cfg-row`, `.cfg-nav`, `.cfg-sec`): o Tailwind CDN injeta os estilos depois do bloco `<style>` e empata em especificidade, vencendo pela ordem.
 - **Carimbo de build**: `<meta name="app-build">` alimenta o rodapé do modal e o console. Atualize-o quando publicar algo que precise ser confirmado em produção (confira o rodapé após o deploy na Vercel para saber se o navegador pegou a versão nova).
 - **Layout em colunas a partir do `md`** (768 px): empilhado, o player 16:9 mais a lateral zeravam a altura da pista no tablet. No celular a lateral vira abas Chat/Fila (`#ladoDireito[data-aba]`, `setAbaLateral()`), o player tem teto de `30dvh` e a pista tem `min-h-[140px]`. Mexeu no layout? Confira a altura do `#danceFloor` em 360×640, 390×844, 768×1024, 855×897 e 1440×900.
+- **Avisos**: `showToast(msg, link, {acao, erro, ms})`. `msg` é HTML, então escape o que vier de usuário antes de passar. Falha de escrita no Firestore vira `avisoErro('fazer tal coisa')`; nunca use `alert()` nem engula o erro calado.
+- **Conexão**: `conectar()` liga listeners e heartbeat uma vez só, inclusive quando a auth chega depois do timeout; `atualizarConexao()` cuida da faixa `#semConexao` e trava chat e fila com o motivo.
 - **Online ≠ presente**: `activeUsers` (heartbeat < 120 s) mantém o avatar na pista; as regras de DJ/fila usam `isPresent(u)` — heartbeat < `PRESENCE_STALE_MS` (75 s) **e** sem `away` além de `AWAY_GRACE_MS` (45 s). Quem sai da tela perde a mesa e o lugar na fila; recarregar a página não custa nada.
 - **Ações do líder** (faxina da fila, DJ ausente, limite de 10 min, avanço no fim) rodam só no `isLeader()`, que agora elege entre os **presentes** — aba escondida tem timer estrangulado e não serve como líder.
 

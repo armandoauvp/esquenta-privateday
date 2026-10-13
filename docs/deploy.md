@@ -79,7 +79,7 @@ Também dá para automatizar via REST (auth anônima + Firestore REST API) — f
 | `FALLBACK_PLAYLIST` | `PLyMBoXJME_lqvOTGagEL0vh43fSsbpRW1` | Playlist da casa quando ninguém está tocando |
 | `MAX_PLAY_MS` | `600000` (10 min) | Tempo máximo de reprodução por vídeo |
 | `COUNTDOWN_MS` | `5000` | Duração da contagem regressiva de troca |
-| `TICKETS_URL` | `https://privateday.auvp.com.br/#ingressos` | Destino do botão "Não tenho ingresso" e do toast da Área VIP |
+| `TICKETS_URL` | `https://privateday.auvp.com.br/#ingressos` | Link do aviso de boas-vindas de quem entra sem ingresso e do toast da Área VIP |
 | `DJ_X` / `DJ_Y` | `89` / `78` | Posição (%) do DJ na pista |
 | `VIP_ZONE` | `{x1:72, y1:5, x2:98, y2:32}` | Retângulo (%) da Área VIP na pista |
 | `BANNED_WORDS` | lista em pt-BR | Palavras censuradas no chat/DM |
