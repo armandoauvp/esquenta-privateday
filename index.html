@@ -236,6 +236,18 @@
             #floorHint .hint-short { display: inline; }
         }
 
+        /* ── ABAS CHAT / FILA (só no celular) ──
+           Empilhados, chat e fila disputavam 48% da tela e sobravam ~100 px de pista.
+           No celular a lateral vira abas; do tablet pra cima os dois ficam visíveis.
+           Seletores com id vencem os utilitários do Tailwind sem !important. */
+        .aba-lateral { border-bottom: 2px solid transparent; color: rgba(255,247,235,.6); }
+        .aba-lateral.aba-on { color: #DB7944; border-color: #DB7944; }
+        @media (max-width: 767px) {
+            #ladoDireito[data-aba="chat"] #secFila { display: none; }
+            #ladoDireito[data-aba="fila"] #secChat { display: none; }
+            #secFila { height: auto; min-height: 0; flex: 1 1 auto; border-top-width: 0; }
+        }
+
         /* ── TABS DO MODAL DE PERSONALIZAÇÃO (mobile) ── */
         .cfg-tab {
             padding: 9px 16px; font-size: 12px; font-weight: 600; white-space: nowrap;
@@ -272,7 +284,7 @@
             <img src="GLOBO.png" alt="AUVP Private Day" class="h-10 md:h-16 w-auto object-contain drop-shadow-lg shrink-0">
             <div class="text-center min-w-0">
                 <img src="LETTERING.png" alt="PRIVATE DAY" class="h-4 md:h-7 w-auto object-contain mx-auto">
-                <p class="text-[9px] md:text-xs text-[#DB7944] uppercase tracking-[.2em] font-semibold leading-none mt-1 whitespace-nowrap">Esquenta 2026</p>
+                <p class="text-[9px] md:text-xs text-[#DB7944] uppercase tracking-[.12em] md:tracking-[.2em] font-semibold leading-none mt-1 whitespace-nowrap">Esquenta 2026</p>
             </div>
         </div>
         <div class="flex items-center gap-1.5 md:gap-3 shrink-0">
@@ -295,16 +307,18 @@
     </header>
 
     <!-- MAIN -->
-    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
+    <!-- colunas a partir do tablet: empilhado, player 16:9 + lateral comiam a pista
+         inteira entre 768 e 1023 px (a pista chegava a 0 px de altura) -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
 
         <!-- ESQUERDA -->
-        <section class="flex-1 flex flex-col relative border-r border-[#FFF7EB]/8">
+        <section class="flex-1 flex flex-col relative border-r border-[#FFF7EB]/8 min-w-0">
 
             <!-- PLAYER -->
-            <div id="playerContainer" class="bg-[#030303] aspect-video lg:h-72 w-full shrink-0 border-b border-[#FFF7EB]/8 relative z-20 shadow-2xl flex items-center justify-center group overflow-hidden"></div>
+            <div id="playerContainer" class="bg-[#030303] aspect-video max-h-[30dvh] md:max-h-[42dvh] lg:max-h-none lg:h-72 w-full shrink-0 border-b border-[#FFF7EB]/8 relative z-20 shadow-2xl flex items-center justify-center group overflow-hidden"></div>
 
             <!-- PISTA DE DANÇA -->
-            <div id="danceFloor" class="flex-1 relative overflow-hidden cursor-crosshair" style="background:#050505;">
+            <div id="danceFloor" class="flex-1 min-h-[140px] relative overflow-hidden cursor-crosshair" style="background:#050505;">
 
                 <!-- Camada WebGL (globo 3D, feixes de luz e partículas) — por cima da pista, abaixo dos avatares -->
                 <div id="webglLayer" class="absolute inset-0 pointer-events-none z-[8]"></div>
@@ -367,14 +381,22 @@
         </section>
 
         <!-- DIREITA: Chat & Fila -->
-        <aside class="w-full lg:w-96 flex flex-col bg-[#0a0a0a] h-[48dvh] lg:h-auto shrink-0 z-30 border-t lg:border-t-0 border-[#FFF7EB]/8" style="box-shadow:-8px 0 24px rgba(0,0,0,.6)">
+        <aside id="ladoDireito" data-aba="chat" class="w-full md:w-80 lg:w-96 flex flex-col bg-[#0a0a0a] h-[38dvh] md:h-auto shrink-0 z-30 border-t md:border-t-0 border-[#FFF7EB]/8" style="box-shadow:-8px 0 24px rgba(0,0,0,.6)">
 
-            <div class="flex border-b border-[#FFF7EB]/8 bg-black/30">
-                <div class="flex-1 text-center py-3 text-sm font-semibold text-[#DB7944] border-b-2 border-[#DB7944] flex items-center justify-center gap-2">
+            <!-- no celular, Chat e Fila são abas; do tablet pra cima a aba Fila some e os dois ficam à vista -->
+            <div class="flex border-b border-[#FFF7EB]/8 bg-black/30 shrink-0" role="tablist">
+                <button type="button" id="abaChatBtn" role="tab" aria-selected="true" onclick="window.setAbaLateral('chat')"
+                    class="aba-lateral aba-on flex-1 text-center py-2.5 md:py-3 text-sm font-semibold flex items-center justify-center gap-2">
                     <span id="icon-message"></span> Chat ao Vivo
-                </div>
+                    <span id="chatNovo" class="hidden w-2 h-2 rounded-full bg-[#ff00cc]" aria-label="mensagens novas"></span>
+                </button>
+                <button type="button" id="abaFilaBtn" role="tab" aria-selected="false" onclick="window.setAbaLateral('fila')"
+                    class="aba-lateral md:hidden flex-1 text-center py-2.5 text-sm font-semibold flex items-center justify-center gap-2">
+                    💿 Fila do DJ <span id="abaFilaCount" class="text-[10px] font-bold bg-[#0B2A47] text-[#FFF7EB] px-1.5 py-0.5 rounded-full">0</span>
+                </button>
             </div>
 
+            <div id="secChat" class="flex-1 flex flex-col min-h-0">
             <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
 
             <div class="p-3 bg-black/30 border-t border-[#FFF7EB]/8">
@@ -387,9 +409,10 @@
                     </button>
                 </form>
             </div>
+            </div>
 
             <!-- FILA DO DJ (identidade azul, separada do chat) -->
-            <div class="border-t-4 border-[#DB7944] flex flex-col h-[38%] min-h-[185px] lg:h-1/3 lg:min-h-[240px]" style="background:linear-gradient(180deg, rgba(11,42,71,.5), rgba(11,42,71,.18))">
+            <div id="secFila" class="border-t-4 border-[#DB7944] flex flex-col h-[38%] min-h-[185px] lg:h-1/3 lg:min-h-[240px]" style="background:linear-gradient(180deg, rgba(11,42,71,.5), rgba(11,42,71,.18))">
                 <div class="px-3 py-2.5 border-b border-[#DB7944]/25 flex justify-between items-center shrink-0" style="background:rgba(11,42,71,.6)">
                     <h3 class="font-discodiva text-xl text-[#FFF7EB] flex items-center gap-2 leading-none">
                         <span class="spin-vinyl inline-block text-base" style="filter:drop-shadow(0 0 6px rgba(219,121,68,.6))">💿</span> Fila do DJ
@@ -431,10 +454,11 @@
     </div>
 
     <!-- SOLICITAÇÕES DE CHAT PRIVADO -->
-    <div id="dmRequests" class="fixed top-16 right-3 z-40 flex flex-col gap-2 w-[min(92vw,290px)]"></div>
+    <!-- no celular fica logo acima da lateral (no topo cobriria "Pular" e "Essa vai pra festa") -->
+    <div id="dmRequests" class="fixed z-40 flex flex-col gap-2 w-[min(92vw,290px)] left-1/2 -translate-x-1/2 bottom-[calc(38dvh+10px)] md:translate-x-0 md:left-auto md:bottom-auto md:top-20 md:right-3"></div>
 
     <!-- CHAT PRIVADO (DM) -->
-    <div id="dmPanel" class="hidden fixed bottom-3 left-3 md:left-auto md:right-[25.5rem] w-[min(92vw,320px)] z-40 rounded-2xl overflow-hidden shadow-2xl border border-[#DB7944]/30 bg-[#0d0d0d] flex-col" style="height:min(55dvh,420px)">
+    <div id="dmPanel" class="hidden fixed bottom-3 left-3 md:left-auto md:right-[21rem] lg:right-[25.5rem] w-[min(92vw,320px)] z-40 rounded-2xl overflow-hidden shadow-2xl border border-[#DB7944]/30 bg-[#0d0d0d] flex-col" style="height:min(55dvh,420px)">
         <div class="flex items-center gap-2 p-2.5 bg-black/60 border-b border-[#FFF7EB]/10">
             <img id="dmAvatar" src="" alt="" class="w-8 h-8 rounded-full bg-[#111]"/>
             <div class="flex-1 overflow-hidden">
@@ -1264,6 +1288,8 @@
                     const m = ch.doc.data();
                     if (!m.uid || !m.text || now - m.timestamp > 10000 || mutedUids.includes(m.uid)) return;
                     chatBubbles[m.uid] = {text: String(m.text).slice(0, 90), until: now + 6000, since: now};
+                    if (abaFilaAberta() && m.uid !== currentUser.uid)
+                        document.getElementById('chatNovo').classList.remove('hidden');
                     setTimeout(renderUsers, 6200);
                 });
                 renderChat();
@@ -1453,6 +1479,7 @@
                 return;
             }
             updatePresence(x, y);
+            document.getElementById('floorHint')?.classList.add('hidden'); // já aprendeu
         });
         // cliques na barra de reações/passinhos não movem o avatar
         document.getElementById('actionBar').addEventListener('click', e => e.stopPropagation());
@@ -1581,9 +1608,26 @@
             c.scrollTop = c.scrollHeight;
         }
 
+        // ── ABAS DA LATERAL (celular) ──
+        window.setAbaLateral = aba => {
+            document.getElementById('ladoDireito').dataset.aba = aba;
+            [['chat', 'abaChatBtn'], ['fila', 'abaFilaBtn']].forEach(([a, id]) => {
+                const b = document.getElementById(id);
+                b.classList.toggle('aba-on', a === aba);
+                b.setAttribute('aria-selected', a === aba);
+            });
+            if (aba === 'chat') {
+                document.getElementById('chatNovo').classList.add('hidden');
+                const c = document.getElementById('chatMessages');
+                c.scrollTop = c.scrollHeight;
+            }
+        };
+        const abaFilaAberta = () => innerWidth < 768 && document.getElementById('ladoDireito').dataset.aba === 'fila';
+
         // ── RENDER FILA ──
         function renderQueue() {
             document.getElementById('queueCount').innerText = `${queue.length} vídeos`;
+            document.getElementById('abaFilaCount').textContent = queue.length;
             const c = document.getElementById('queueList');
             c.innerHTML = '';
             if (!queue.length) {
@@ -1676,22 +1720,22 @@ ${!isMe ? (unlocked ? `
 <div class="absolute inset-0 pointer-events-auto" title="Só o DJ controla o player"></div>
 <div class="absolute bottom-2 right-2 max-w-[52%] flex flex-wrap justify-end items-center gap-1.5">
   <button onclick="window.unlockPlayer()" title="Apareceu propaganda? Libere o player por 15s para pular o anúncio"
-    class="pointer-events-auto bg-black/80 backdrop-blur-md text-[#FFF7EB]/80 text-[9px] px-2.5 py-1 rounded-full border border-[#FFF7EB]/15 hover:bg-[#DB7944] hover:text-white hover:border-[#DB7944] transition shadow-lg whitespace-nowrap">📺 Pular propaganda</button>
+    class="pointer-events-auto bg-black/80 backdrop-blur-md text-[#FFF7EB]/85 text-[11px] px-3 py-1.5 min-h-[32px] rounded-full border border-[#FFF7EB]/15 hover:bg-[#DB7944] hover:text-white hover:border-[#DB7944] transition shadow-lg whitespace-nowrap">📺 Pular propaganda</button>
   <div class="hidden md:block bg-black/70 backdrop-blur-md text-[#FFF7EB]/60 text-[9px] px-2.5 py-1 rounded-full border border-[#FFF7EB]/10 whitespace-nowrap">🔒 Só o DJ controla o player</div>
 </div>`) : ''}
-${isMe?`<div class="absolute top-2 left-2 bg-[#ff00cc] text-white text-[10px] px-3 py-1 rounded-full font-bold shadow-lg my-turn-badge">🎧 Sua vez na mesa! <span class="font-normal opacity-80">fique na tela 👀</span></div>`:''}
-<div class="absolute top-2 right-2 max-w-[75%] flex flex-wrap justify-end gap-1.5 z-10">
+${isMe?`<div class="absolute top-2 left-2 bg-[#ff00cc] text-white text-[11px] px-3 py-1 rounded-full font-bold shadow-lg my-turn-badge">🎧 Sua vez<span class="hidden sm:inline"> na mesa!</span> <span class="hidden sm:inline font-normal opacity-80">fique na tela 👀</span></div>`:''}
+<div class="absolute top-2 right-2 ${isMe ? 'max-w-[58%] sm:max-w-[75%]' : 'max-w-[75%]'} flex flex-wrap justify-end gap-1.5 z-10">
   <button onclick="window.votePartySong()" ${iParty?'disabled':''} title="Vote pra essa tocar na festa de verdade!"
-    class="pointer-events-auto backdrop-blur-md text-[10px] md:text-xs px-2.5 md:px-3 py-1.5 rounded-full border transition flex items-center gap-1 shadow-lg ${iParty?'bg-[#ff6600] border-[#ff6600] text-white cursor-default':'bg-black/80 text-[#FFF7EB] border-[#FFF7EB]/20 hover:bg-[#ff6600] hover:border-[#ff6600]'}">
+    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[32px] rounded-full border transition flex items-center gap-1 shadow-lg ${iParty?'bg-[#ff6600] border-[#ff6600] text-white cursor-default':'bg-black/80 text-[#FFF7EB] border-[#FFF7EB]/20 hover:bg-[#ff6600] hover:border-[#ff6600]'}">
     🔥 Essa vai pra festa!${pCount?` (${pCount})`:''}
   </button>
   ${isMe ? `
   <button onclick="window.skipMyTurn()" title="Passe a vez para a próxima música"
-    class="pointer-events-auto backdrop-blur-md text-[10px] md:text-xs px-2.5 md:px-3 py-1.5 rounded-full border transition flex items-center gap-1 shadow-lg bg-black/80 text-[#FFF7EB] border-[#ff00cc]/40 hover:bg-[#ff00cc] hover:border-[#ff00cc]">
+    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[32px] rounded-full border transition flex items-center gap-1 shadow-lg bg-black/80 text-[#FFF7EB] border-[#ff00cc]/40 hover:bg-[#ff00cc] hover:border-[#ff00cc]">
     ${Icons.play} Pular minha vez
   </button>` : `
   <button onclick="window.voteSkip()" ${iVotedSkip?'disabled':''} title="Vote para pular esta música"
-    class="pointer-events-auto backdrop-blur-md text-[10px] md:text-xs px-2.5 md:px-3 py-1.5 rounded-full border transition flex items-center gap-1 shadow-lg ${iVotedSkip?'bg-[#DB7944] border-[#DB7944] text-white cursor-default':'bg-black/80 text-[#FFF7EB] border-[#FFF7EB]/20 hover:bg-[#DB7944] hover:border-[#DB7944]'}">
+    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[32px] rounded-full border transition flex items-center gap-1 shadow-lg ${iVotedSkip?'bg-[#DB7944] border-[#DB7944] text-white cursor-default':'bg-black/80 text-[#FFF7EB] border-[#FFF7EB]/20 hover:bg-[#DB7944] hover:border-[#DB7944]'}">
     ${Icons.play} Pular (${votes}/${need})
   </button>`}
 </div>
@@ -1699,7 +1743,7 @@ ${currentVideo.title ? `<div class="absolute bottom-2 left-2 max-w-[44%] md:max-
 ${cd}`;
             } else {
                 o.innerHTML = `
-<div class="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[#FFF7EB]/80 text-[10px] px-3 py-1 rounded-full border border-[#FFF7EB]/15 shadow-lg">🎶 Playlist da casa — adicione um vídeo pra assumir a mesa!</div>
+<div class="absolute top-2 left-2 max-w-[80%] truncate bg-black/75 backdrop-blur-md text-[#FFF7EB]/85 text-[11px] px-3 py-1 rounded-full border border-[#FFF7EB]/15 shadow-lg">🎶 Playlist da casa<span class="hidden sm:inline"> — adicione um vídeo pra assumir a mesa!</span></div>
 ${fallbackUnmuted ? '' : `<button onclick="window.unmuteFallback(this)" class="pointer-events-auto absolute bottom-3 left-3 bg-[#DB7944] text-white text-xs px-4 py-1.5 rounded-full font-semibold shadow-lg hover:bg-[#c45d1b] transition z-10">🔊 Ativar som</button>`}
 ${cd}`;
             }
@@ -2195,6 +2239,7 @@ ${cd}`;
             if (!currentUser) { c.innerHTML = ''; return; }
             const pending = dmThreads.filter(t => {
                 if (t.status !== 'pending' || t.requestedBy === currentUser.uid) return false;
+                if (Date.now() - (t.timestamp || 0) > 10 * 60 * 1000) return false; // pedido velho expira
                 if (mutedUids.includes(t.requestedBy)) return false;
                 // dentro da Área VIP, só chegam solicitações de quem também está no lounge
                 if (meInVipArea()) {
@@ -2203,7 +2248,9 @@ ${cd}`;
                 }
                 return true;
             });
-            c.innerHTML = pending.map(t => {
+            // um card por vez: empilhados, cobriam meia tela no celular
+            const extra = pending.length - 1;
+            c.innerHTML = pending.slice(0, 1).map(t => {
                 const uid = safeId(t.requestedBy);
                 const u = activeUsers.find(x => x.id === uid);
                 const name = esc(u?.name || t.requestedByName || 'Investidor');
@@ -2217,7 +2264,8 @@ ${cd}`;
     <button onclick="window.acceptDM('${uid}')" class="flex-1 bg-[#DB7944] hover:bg-[#c45d1b] text-white text-xs font-semibold py-1.5 rounded-lg transition">Aceitar</button>
     <button onclick="window.declineDM('${uid}')" class="flex-1 bg-black/40 border border-[#FFF7EB]/15 hover:border-[#932621] hover:text-[#ff8a80] text-[#FFF7EB]/60 text-xs font-semibold py-1.5 rounded-lg transition">Recusar</button>
   </div>
-  <p class="text-[8px] text-[#FFF7EB]/30 text-center mt-2 leading-snug">A AUVP não se responsabiliza pelas conversas ocorridas em privado nesta plataforma.</p>
+  <p class="text-[10px] text-[#FFF7EB]/55 text-center mt-2 leading-snug">A AUVP não se responsabiliza pelas conversas ocorridas em privado nesta plataforma.</p>
+  ${extra > 0 ? `<p class="text-[11px] text-[#DB7944] text-center mt-1.5 font-semibold">+${extra} pedido${extra > 1 ? 's' : ''} esperando</p>` : ''}
 </div>`;
             }).join('');
             hidratarAvatares(c);
@@ -2641,9 +2689,7 @@ ${cd}`;
             const ha = document.getElementById('headerAvatar');
             trocarAvatar(ha, getAvatarUrl(localProfile.avatarConfig));
             ha.classList.remove('hidden');
-            const hn = document.getElementById('headerName');
-            hn.innerText = localProfile.name;
-            hn.classList.remove('hidden');
+            document.getElementById('headerName').innerText = localProfile.name;
             const hc = document.getElementById('headerCrown');
             if (vip) { hc.innerHTML = Icons.crown; hc.classList.remove('hidden'); }
             else hc.classList.add('hidden');
