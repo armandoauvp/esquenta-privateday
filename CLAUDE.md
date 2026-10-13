@@ -16,6 +16,7 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 - **Tailwind para layout, CSS custom só para animações** (bloco `<style>` no `<head>`).
 - **Deploy na Vercel** (`vercel.json` + `.vercelignore`): site estático, sem build. Só `index.html` e os PNGs vão para o ar — `docs/`, `tools/`, `elementor/`, `video/` e os `.md` ficam fora.
 - **`video/` é um projeto Remotion à parte** (vídeo de fundo do fallback do YouTube, com `package.json` próprio). Não é dependência do app; veja `video/README.md`.
+- **Ícones: Hugeicons, nunca emoji na interface.** Ficam embutidos como SVG no objeto `Icons` (pacote gratuito `@hugeicons/core-free-icons` 4.3.5, MIT; `1em`/`currentColor`). Use `<span data-icone="nome">` no HTML e `${Icons.nome}` nos templates. Precisa de um ícone novo? Copie o SVG do mesmo pacote. Emoji só onde ele **é** o conteúdo (reações da pista). Textos que vão para o Firestore (ex.: motivo da contagem) ficam sem ícone; o ícone entra na hora de desenhar.
 - **Sem dependências novas** sem necessidade real. CDNs atuais: Tailwind, Google Fonts, Firebase 11.x (gstatic), DiceBear v8, YouTube.
 
 ## Arquitetura do JS (ordem dentro do `<script type="module">`)
