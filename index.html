@@ -105,7 +105,7 @@
         }
         .av-card img { width: 46px; height: 46px; border-radius: 50%; background: #111; }
         .av-card span {
-            font-size: 9px; color: rgba(255,247,235,.65); white-space: nowrap;
+            font-size: 10px; color: rgba(255,247,235,.78); white-space: nowrap;
             max-width: 62px; overflow: hidden; text-overflow: ellipsis;
         }
         .av-card:hover { border-color: rgba(219,121,68,.5); }
@@ -227,6 +227,16 @@
         }
         .chat-mudo:hover, .chat-mudo:focus-visible { opacity: 1 !important; }
 
+        /* ── MOVIMENTO REDUZIDO ──
+           Quem pede menos movimento no sistema (e celular fraco agradece) fica sem
+           ladrilhos piscando, bounce, brilhos e giros; o WebGL desenha um quadro só. */
+        @media (prefers-reduced-motion: reduce) {
+            .dance-tiles *, .spin-vinyl, .dj-bounce, .disco-ball-wrap, .disco-ball-img,
+            .booth-glow, .my-turn-badge, .count-glow, .dance-spin, .dance-jump,
+            .dance-shake, .dance-moonwalk, .animate-bounce, .animate-pulse,
+            .fade-in-up, .toast-in, .rx-btn { animation: none !important; transition: none !important; }
+        }
+
         /* ── TOAST ── */
         @keyframes toast-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .toast-in { animation: toast-in .25s ease-out forwards; }
@@ -283,7 +293,7 @@
         <div class="w-56 max-w-[80vw] h-1.5 mt-6 rounded-full bg-[#FFF7EB]/10 overflow-hidden">
             <div id="loadBar" class="h-full bg-[#DB7944] rounded-full transition-all duration-200" style="width:0%"></div>
         </div>
-        <p id="loadLabel" class="text-[11px] text-[#FFF7EB]/45 mt-2.5 font-light tracking-wide">preparando os bonecos…</p>
+        <p id="loadLabel" class="text-[11px] text-[#FFF7EB]/65 mt-2.5 font-light tracking-wide">preparando os bonecos…</p>
     </div>
 
     <!-- SEM CONEXÃO: sem Firebase o app abre só pra assistir; a faixa explica por que nada responde -->
@@ -307,15 +317,17 @@
                 class="hidden items-center gap-1 text-xs font-semibold text-white bg-[#ff2d55] px-2.5 py-1.5 rounded-full shadow-lg hover:brightness-110 transition">
                 💬 <span id="dmBadgeCount">1</span>
             </button>
-            <button id="openRankingBtn" title="Ranking da noite"
+            <button id="openRankingBtn" title="Ranking da noite" aria-label="Ranking da noite" aria-haspopup="dialog"
                 class="flex items-center gap-1.5 text-xs text-[#FFF7EB]/70 bg-black/50 hover:bg-[#FFF7EB]/8 px-2.5 md:px-3 py-1.5 rounded-full border border-[#FFF7EB]/8 transition">
                 🏆<span class="hidden sm:inline">Ranking</span>
             </button>
-            <div class="flex items-center gap-1.5 text-xs text-[#FFF7EB]/70 bg-black/50 px-2.5 md:px-3 py-1.5 rounded-full border border-[#FFF7EB]/8 whitespace-nowrap">
+            <!-- lista de quem está na pista: puxar papo sem precisar acertar o avatar (e pelo teclado) -->
+            <button type="button" id="openPresentesBtn" title="Quem está na pista" aria-haspopup="dialog"
+                class="flex items-center gap-1.5 text-xs text-[#FFF7EB]/80 bg-black/50 hover:bg-[#FFF7EB]/8 px-2.5 md:px-3 py-1.5 rounded-full border border-[#FFF7EB]/8 whitespace-nowrap transition">
                 <span id="icon-users" class="text-[#DB7944]"></span>
                 <span id="onlineCount">0 online</span>
-            </div>
-            <button id="openSettingsBtn" class="flex items-center gap-2 bg-black/50 hover:bg-[#FFF7EB]/8 border border-[#FFF7EB]/10 p-1.5 rounded-lg transition">
+            </button>
+            <button id="openSettingsBtn" aria-label="Editar meu avatar" title="Editar meu avatar" class="flex items-center gap-2 bg-black/50 hover:bg-[#FFF7EB]/8 border border-[#FFF7EB]/10 p-1.5 rounded-lg transition">
                 <span class="relative shrink-0">
                     <img id="headerAvatar" src="" alt="" class="w-8 h-8 rounded-full bg-[#111] hidden"/>
                     <span id="headerCrown" class="vip-crown hidden" style="width:15px;height:15px;top:-5px;right:-5px"></span>
@@ -367,7 +379,7 @@
                     <span class="absolute top-1.5 left-1/2 -translate-x-1/2 text-[9px] font-bold uppercase tracking-[.2em] text-[#DB7944]/80 whitespace-nowrap">👑 Área VIP</span>
                 </div>
 
-                <div id="floorHint" class="absolute top-3 left-3 max-w-[calc(100%-24px)] truncate text-[10px] text-[#FFF7EB]/40 pointer-events-none bg-black/60 px-3 py-1 rounded-full border border-[#FFF7EB]/8 backdrop-blur-sm z-10">
+                <div id="floorHint" class="absolute top-3 left-3 max-w-[calc(100%-24px)] truncate text-[11px] text-[#FFF7EB]/70 pointer-events-none bg-black/60 px-3 py-1 rounded-full border border-[#FFF7EB]/8 backdrop-blur-sm z-10">
                     <span class="hint-full">Clique na pista para se mover · Clique em alguém para puxar papo</span>
                     <span class="hint-short">Toque para se mover · toque em alguém pra papo</span>
                 </div>
@@ -375,17 +387,17 @@
                 <!-- Barra de ações: reações + passinhos -->
                 <div id="actionBar" class="absolute bottom-2.5 left-2.5 z-20 flex items-center gap-1.5 cursor-default">
                     <div class="flex gap-0.5 bg-black/60 border border-[#FFF7EB]/10 rounded-full px-2 py-1 backdrop-blur-sm">
-                        <button class="rx-btn text-base leading-none p-0.5" onclick="window.sendReaction('🔥')">🔥</button>
-                        <button class="rx-btn text-base leading-none p-0.5" onclick="window.sendReaction('❤️')">❤️</button>
-                        <button class="rx-btn text-base leading-none p-0.5" onclick="window.sendReaction('👏')">👏</button>
-                        <button class="rx-btn text-base leading-none p-0.5" onclick="window.sendReaction('🕺')">🕺</button>
-                        <button class="rx-btn text-base leading-none p-0.5" onclick="window.sendReaction('💃')">💃</button>
-                        <button class="rx-btn text-base leading-none p-0.5" onclick="window.sendReaction('😂')">😂</button>
+                        <button type="button" class="rx-btn text-base leading-none p-1" aria-label="Reagir com 🔥" onclick="window.sendReaction('🔥')">🔥</button>
+                        <button type="button" class="rx-btn text-base leading-none p-1" aria-label="Reagir com ❤️" onclick="window.sendReaction('❤️')">❤️</button>
+                        <button type="button" class="rx-btn text-base leading-none p-1" aria-label="Reagir com 👏" onclick="window.sendReaction('👏')">👏</button>
+                        <button type="button" class="rx-btn text-base leading-none p-1" aria-label="Reagir com 🕺" onclick="window.sendReaction('🕺')">🕺</button>
+                        <button type="button" class="rx-btn text-base leading-none p-1" aria-label="Reagir com 💃" onclick="window.sendReaction('💃')">💃</button>
+                        <button type="button" class="rx-btn text-base leading-none p-1" aria-label="Reagir com 😂" onclick="window.sendReaction('😂')">😂</button>
                     </div>
                     <!-- Reações exclusivas: aparecem só para quem está dentro da Área VIP -->
                     <div id="vipReactions" class="hidden gap-0.5 rounded-full px-2 py-1 backdrop-blur-sm border border-[#ffd700]/40" style="background:rgba(70,52,0,.55);box-shadow:0 0 10px rgba(255,215,0,.25)"></div>
                     <div class="relative">
-                        <button id="danceMenuBtn" title="Escolher passinho"
+                        <button id="danceMenuBtn" type="button" title="Escolher passinho" aria-label="Escolher passinho" aria-haspopup="menu" aria-expanded="false"
                             class="bg-black/60 border border-[#FFF7EB]/10 rounded-full px-3 py-1 text-base leading-none backdrop-blur-sm hover:border-[#DB7944] transition">🕺</button>
                         <div id="danceMenu" class="hidden absolute bottom-9 left-0 bg-[#0d0d0d] border border-[#DB7944]/30 rounded-xl p-1.5 flex-col gap-1 shadow-2xl w-36"></div>
                     </div>
@@ -423,9 +435,9 @@
 
             <div class="p-3 bg-black/30 border-t border-[#FFF7EB]/8">
                 <form id="chatForm" class="flex gap-2">
-                    <input type="text" id="chatInput" placeholder="Mande uma mensagem pra galera..." maxlength="200"
+                    <input type="text" id="chatInput" aria-label="Mensagem para o chat ao vivo" placeholder="Mande uma mensagem pra galera..." maxlength="200"
                         class="flex-1 bg-black/50 border border-[#FFF7EB]/10 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[#DB7944] transition text-[#FFF7EB] font-light"/>
-                    <button type="submit" id="chatSubmit" disabled
+                    <button type="submit" id="chatSubmit" aria-label="Enviar mensagem" disabled
                         class="bg-[#DB7944] text-white p-2 rounded-full hover:bg-[#c45d1b] transition disabled:opacity-40 disabled:cursor-not-allowed shadow-lg">
                         <span id="icon-send"></span>
                     </button>
@@ -444,15 +456,15 @@
                 <div id="queueList" class="flex-1 overflow-y-auto p-2 space-y-1.5"></div>
                 <div class="p-3 border-t border-[#DB7944]/25 shrink-0" style="background:rgba(11,42,71,.6)">
                     <form id="queueForm" class="flex gap-2">
-                        <input type="text" id="videoUrlInput" placeholder="Cole o link do YouTube e entre na fila do DJ..."
+                        <input type="text" id="videoUrlInput" aria-label="Link do YouTube para a fila do DJ" placeholder="Cole o link do YouTube e entre na fila do DJ..."
                             class="flex-1 bg-black/50 border border-[#DB7944]/25 rounded-full px-4 py-2 text-xs focus:outline-none focus:border-[#DB7944] transition text-[#FFF7EB] font-light disabled:cursor-not-allowed"/>
-                        <button type="submit" id="queueSubmit" class="bg-[#DB7944] text-white p-2 rounded-full hover:bg-[#c45d1b] transition shadow-lg disabled:cursor-not-allowed" title="Adicionar à fila">
+                        <button type="submit" id="queueSubmit" aria-label="Adicionar à fila" class="bg-[#DB7944] text-white p-2 rounded-full hover:bg-[#c45d1b] transition shadow-lg disabled:cursor-not-allowed" title="Adicionar à fila">
                             <span id="icon-plus"></span>
                         </button>
                     </form>
                     <p id="queueErro" role="alert" class="hidden mt-2 text-[11px] text-[#ff8a80] leading-snug"></p>
                     <!-- mesa de DJ é exclusividade de quem tem ingresso -->
-                    <p id="queueLocked" class="hidden mt-2 text-[10px] text-[#FFF7EB]/55 font-light flex items-center gap-1.5 flex-wrap">
+                    <p id="queueLocked" class="hidden mt-2 text-[11px] text-[#FFF7EB]/70 font-light flex items-center gap-1.5 flex-wrap">
                         <span class="text-[#DB7944]">👑</span> A mesa de DJ é de quem tem ingresso.
                         <button type="button" onclick="window.abrirConfirmacaoIngresso()"
                             class="text-[#DB7944] font-semibold hover:underline whitespace-nowrap">Já tenho: confirmar e-mail</button>
@@ -465,11 +477,11 @@
     </main>
 
     <!-- RANKING DA NOITE -->
-    <div id="rankingModal" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-50 items-center justify-center p-3 md:p-4">
+    <div id="rankingModal" role="dialog" aria-modal="true" aria-labelledby="rankingTitulo" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-50 items-center justify-center p-3 md:p-4">
         <div class="modal-wrap rounded-2xl w-full max-w-md shadow-2xl max-h-[85dvh] overflow-y-auto p-5">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="font-discodiva text-3xl text-[#DB7944]">🏆 Ranking da Noite</h2>
-                <button id="rankingClose" class="text-[#FFF7EB]/50 hover:text-white text-xl px-2 transition">✕</button>
+                <h2 id="rankingTitulo" class="font-discodiva text-3xl text-[#DB7944]">🏆 Ranking da Noite</h2>
+                <button id="rankingClose" type="button" data-fechar aria-label="Fechar ranking" class="text-[#FFF7EB]/60 hover:text-white text-xl w-10 h-10 rounded-full hover:bg-[#FFF7EB]/10 transition">✕</button>
             </div>
             <h3 class="text-[10px] font-bold uppercase tracking-[.2em] text-[#DB7944] mb-2">🎧 DJs da noite</h3>
             <div id="rankingDjs" class="space-y-1.5 mb-5"></div>
@@ -478,33 +490,45 @@
         </div>
     </div>
 
+    <!-- QUEM ESTÁ NA PISTA -->
+    <div id="presentesModal" role="dialog" aria-modal="true" aria-labelledby="presentesTitulo" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-50 items-center justify-center p-3 md:p-4">
+        <div class="modal-wrap rounded-2xl w-full max-w-sm shadow-2xl max-h-[85dvh] overflow-y-auto p-5">
+            <div class="flex items-center justify-between mb-2">
+                <h2 id="presentesTitulo" class="font-discodiva text-3xl text-[#DB7944]">🕺 Na pista agora</h2>
+                <button type="button" data-fechar aria-label="Fechar lista" class="text-[#FFF7EB]/60 hover:text-white text-xl w-10 h-10 rounded-full hover:bg-[#FFF7EB]/10 transition">✕</button>
+            </div>
+            <p class="text-[11px] text-[#FFF7EB]/65 mb-3 leading-snug">Toque em "Papo" pra mandar um pedido de conversa privada.</p>
+            <div id="presentesLista" class="space-y-1.5"></div>
+        </div>
+    </div>
+
     <!-- SOLICITAÇÕES DE CHAT PRIVADO -->
     <!-- no celular fica logo acima da lateral (no topo cobriria "Pular" e "Essa vai pra festa") -->
     <div id="dmRequests" class="fixed z-40 flex flex-col gap-2 w-[min(92vw,290px)] left-1/2 -translate-x-1/2 bottom-[calc(38dvh+10px)] md:translate-x-0 md:left-auto md:bottom-auto md:top-20 md:right-3"></div>
 
     <!-- CHAT PRIVADO (DM) -->
-    <div id="dmPanel" class="hidden fixed bottom-3 left-3 md:left-auto md:right-[21rem] lg:right-[25.5rem] w-[min(92vw,320px)] z-40 rounded-2xl overflow-hidden shadow-2xl border border-[#DB7944]/30 bg-[#0d0d0d] flex-col" style="height:min(55dvh,420px)">
+    <div id="dmPanel" role="dialog" aria-labelledby="dmName" class="hidden fixed bottom-3 left-3 md:left-auto md:right-[21rem] lg:right-[25.5rem] w-[min(92vw,320px)] z-40 rounded-2xl overflow-hidden shadow-2xl border border-[#DB7944]/30 bg-[#0d0d0d] flex-col" style="height:min(55dvh,420px)">
         <div class="flex items-center gap-2 p-2.5 bg-black/60 border-b border-[#FFF7EB]/10">
             <img id="dmAvatar" src="" alt="" class="w-8 h-8 rounded-full bg-[#111]"/>
             <div class="flex-1 overflow-hidden">
                 <p id="dmName" class="text-sm font-semibold truncate leading-tight"></p>
-                <p class="text-[9px] text-[#FFF7EB]/40 uppercase tracking-widest">Chat privado</p>
+                <p class="text-[10px] text-[#FFF7EB]/60 uppercase tracking-widest">Chat privado</p>
             </div>
-            <button id="dmClose" class="text-[#FFF7EB]/50 hover:text-white text-lg px-2 transition">✕</button>
+            <button id="dmClose" type="button" aria-label="Fechar conversa" class="text-[#FFF7EB]/60 hover:text-white text-lg w-9 h-9 rounded-full hover:bg-[#FFF7EB]/10 transition">✕</button>
         </div>
-        <p class="text-[8px] text-[#FFF7EB]/35 text-center px-3 py-1 bg-black/40 border-b border-[#FFF7EB]/5 leading-snug">A AUVP não se responsabiliza pelas conversas ocorridas em privado nesta plataforma.</p>
+        <p class="text-[10px] text-[#FFF7EB]/55 text-center px-3 py-1 bg-black/40 border-b border-[#FFF7EB]/5 leading-snug">A AUVP não se responsabiliza pelas conversas ocorridas em privado nesta plataforma.</p>
         <div id="dmMessages" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
         <form id="dmForm" class="flex gap-2 p-2.5 bg-black/60 border-t border-[#FFF7EB]/10">
-            <input type="text" id="dmInput" maxlength="200" placeholder="Mensagem privada..."
+            <input type="text" id="dmInput" maxlength="200" aria-label="Mensagem privada" placeholder="Mensagem privada..."
                 class="flex-1 bg-black/50 border border-[#FFF7EB]/10 rounded-full px-3 py-1.5 text-xs focus:outline-none focus:border-[#DB7944] transition text-[#FFF7EB] font-light"/>
-            <button type="submit" class="bg-[#DB7944] text-white p-1.5 rounded-full hover:bg-[#c45d1b] transition shadow-lg">
+            <button type="submit" aria-label="Enviar mensagem privada" class="bg-[#DB7944] text-white p-2 rounded-full hover:bg-[#c45d1b] transition shadow-lg">
                 <span id="icon-send-dm"></span>
             </button>
         </form>
     </div>
 
     <!-- MODAL DE PERSONALIZAÇÃO -->
-    <div id="settingsModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-3 md:p-4">
+    <div id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="tituloModal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-3 md:p-4">
         <div class="modal-wrap rounded-2xl w-full max-w-lg md:max-w-3xl shadow-2xl max-h-[94dvh] overflow-y-auto relative p-4 md:p-6">
 
             <h2 id="tituloModal" class="font-discodiva text-3xl md:text-4xl mb-4 flex items-center gap-3 text-[#DB7944] pr-10">
@@ -526,7 +550,7 @@
                             class="text-[10px] font-semibold px-3 py-1 rounded-full border border-[#FFF7EB]/20 text-[#FFF7EB]/70 hover:border-[#DB7944] hover:text-[#DB7944] transition whitespace-nowrap">🎲 Aleatório</button>
                     </div>
                     <div class="flex-1">
-                        <label class="block text-xs font-medium text-[#FFF7EB]/50 mb-1 uppercase tracking-widest">Seu Nome / Apelido</label>
+                        <label for="profileName" class="block text-xs font-medium text-[#FFF7EB]/65 mb-1 uppercase tracking-widest">Seu Nome / Apelido</label>
                         <input type="text" id="profileName" maxlength="24"
                             class="w-full bg-black/60 border border-[#FFF7EB]/15 rounded-lg px-4 py-2.5 focus:outline-none focus:border-[#DB7944] focus:ring-1 focus:ring-[#DB7944] transition text-[#FFF7EB] font-light text-sm"
                             placeholder="Como quer ser chamado?"/>
@@ -547,27 +571,27 @@
                     <div class="space-y-2">
                         <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Cabelo / Chapéu</label>
                         <div id="avatarTops" class="cfg-row"></div>
-                        <label class="block text-[9px] font-semibold text-[#FFF7EB]/45 uppercase tracking-widest pt-0.5">↳ Cor do cabelo</label>
+                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor do cabelo</label>
                         <div id="avatarHairColor" class="cfg-row"></div>
-                        <label class="block text-[9px] font-semibold text-[#FFF7EB]/45 uppercase tracking-widest pt-0.5">↳ Cor do chapéu / gorro</label>
+                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor do chapéu / gorro</label>
                         <div id="avatarHatColor" class="cfg-row"></div>
                     </div>
                     <div class="space-y-2">
                         <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Acessórios</label>
                         <div id="avatarAccessories" class="cfg-row"></div>
-                        <label class="block text-[9px] font-semibold text-[#FFF7EB]/45 uppercase tracking-widest pt-0.5">↳ Cor dos acessórios</label>
+                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor dos acessórios</label>
                         <div id="avatarAccColor" class="cfg-row"></div>
                     </div>
                     <div class="space-y-2">
                         <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Barba / Bigode</label>
                         <div id="avatarFacialHair" class="cfg-row"></div>
-                        <label class="block text-[9px] font-semibold text-[#FFF7EB]/45 uppercase tracking-widest pt-0.5">↳ Cor da barba</label>
+                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor da barba</label>
                         <div id="avatarFacialHairColor" class="cfg-row"></div>
                     </div>
                     <div class="space-y-2">
                         <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Roupas</label>
                         <div id="avatarClothes" class="cfg-row"></div>
-                        <label class="block text-[9px] font-semibold text-[#FFF7EB]/45 uppercase tracking-widest pt-0.5">↳ Cor da roupa</label>
+                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor da roupa</label>
                         <div id="avatarClothingColor" class="cfg-row"></div>
                     </div>
                 </div>
@@ -597,7 +621,7 @@
                     <div class="space-y-2">
                         <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Cor da Aura na Pista</label>
                         <div id="avatarColors" class="cfg-row"></div>
-                        <p class="text-[9px] text-[#FFF7EB]/35 font-light">É o brilho em volta do seu avatar na pista — e a cor do seu nome no chat.</p>
+                        <p class="text-[11px] text-[#FFF7EB]/60 font-light">É o brilho em volta do seu avatar na pista — e a cor do seu nome no chat.</p>
                     </div>
                 </div>
             </div>
@@ -957,7 +981,7 @@
         const okOpt = (list, v, dflt) => list.some(o => o.v === v) ? v : dflt;
         const okHex = (v, dflt) => /^[0-9a-fA-F]{6}$/.test(v || '') ? v : dflt;
 
-        function getAvatarUrl(config, size) {
+        function getAvatarUrl(config, size, extra = null) {
             const c = config || localProfile.avatarConfig;
             const top   = okOpt(TOPS,   LEGACY_AVATAR.top[c.top]     ?? c.top,   'shortFlat');
             const eyes  = okOpt(EYES,   LEGACY_AVATAR.eyes[c.eyes]   ?? c.eyes,  'default');
@@ -983,6 +1007,7 @@
             if (acc) { params.accessories = acc; params.accessoriesProbability = 100; params.accessoriesColor = okHex(c.accessoriesColor, '262e33'); }
             if (fh)  { params.facialHair  = fh;  params.facialHairProbability  = 100; }
             if (size) params.size = size; // miniaturas dos cards de opção
+            if (extra) Object.assign(params, extra);
             return `https://api.dicebear.com/8.x/avataaars/svg?${new URLSearchParams(params)}`;
         }
 
@@ -1005,7 +1030,12 @@
             ['avatarEyes', EYES, 'eyes'], ['avatarEyebrows', EYEBROWS, 'eyebrows'],
             ['avatarMouths', MOUTHS, 'mouth']
         ];
-        const urlDoCard = (chave, valor) => getAvatarUrl({...CARD_BASE, [chave]: valor}, 72);
+        // olhos, sobrancelhas e boca: o boneco inteiro em 46 px escondia a diferença entre
+        // as opções — nesses cards a miniatura vem com zoom no rosto
+        const CARDS_DO_ROSTO = new Set(['eyes', 'eyebrows', 'mouth']);
+        const ZOOM_ROSTO = {scale: 170, translateY: 12};
+        const urlDoCard = (chave, valor) =>
+            getAvatarUrl({...CARD_BASE, [chave]: valor}, 72, CARDS_DO_ROSTO.has(chave) ? ZOOM_ROSTO : null);
 
         // ── FILA DE IMAGENS DO DICEBEAR ──
         // A API do DiceBear tem limite de requisições: pedir as ~80 miniaturas de uma
@@ -1233,10 +1263,10 @@
   <div class="flex items-center gap-2 justify-center mt-1.5">
     ${djAvatar ? imgAvatar(djAvatar, `alt="" class="w-7 h-7 rounded-full bg-[#111] ${isMe ? 'dj-bounce' : ''}" style="box-shadow:0 0 8px ${djColor}80"`) : ''}
     <div>
-      <p class="text-[8px] text-[#FFF7EB]/40">🎧 Na mesa agora:</p>
+      <p class="text-[9px] text-[#FFF7EB]/65">🎧 Na mesa agora:</p>
       <p class="text-[10px] font-bold truncate max-w-[85px]" style="color:${djColor}">${esc(djName)}${isMe ? ' (Você!)' : ''}</p>
     </div>
-  </div>` : `<p class="text-center text-[9px] text-[#FFF7EB]/25 mt-1">Tocando a playlist da casa 🎶</p>`}
+  </div>` : `<p class="text-center text-[9px] text-[#FFF7EB]/60 mt-1">Tocando a playlist da casa 🎶</p>`}
 </div>`;
             hidratarAvatares(el);
         }
@@ -1856,7 +1886,7 @@
             const c = document.getElementById('queueList');
             c.innerHTML = '';
             if (!queue.length) {
-                c.innerHTML = `<div class="text-[11px] text-[#FFF7EB]/40 text-center mt-6 font-light">🎧 Fila vazia — cole um link aí embaixo e assuma a mesa!</div>`;
+                c.innerHTML = `<div class="text-[11px] text-[#FFF7EB]/60 text-center mt-6 font-light">🎧 Fila vazia — cole um link aí embaixo e assuma a mesa!</div>`;
                 return;
             }
             queue.forEach((item, i) => {
@@ -1874,11 +1904,11 @@
 <span class="w-5 h-5 shrink-0 rounded-full text-[10px] font-bold flex items-center justify-center ${next?'bg-[#DB7944] text-white':'bg-[#0B2A47] text-[#FFF7EB]/80 border border-[#FFF7EB]/15'}">${i+1}</span>
 <div class="relative shrink-0">
   <img src="https://img.youtube.com/vi/${item.videoId}/default.jpg" class="w-12 h-8 object-cover rounded shadow"/>
-  ${next?`<span class="absolute -top-1.5 -right-1.5 text-[7px] font-bold uppercase bg-[#DB7944] text-white px-1 py-0.5 rounded shadow">próx.</span>`:''}
+  ${next?`<span class="absolute -top-1.5 -right-1.5 text-[8px] font-bold uppercase bg-[#DB7944] text-white px-1 py-0.5 rounded shadow">próx.</span>`:''}
 </div>
 <div class="flex-1 overflow-hidden">
-  ${title ? `<p class="text-[10px] text-[#FFF7EB]/90 truncate font-medium">${esc(title)}</p>` : `<p class="text-[10px] text-[#FFF7EB]/40 truncate italic">Carregando título...</p>`}
-  <p class="text-[9px] text-[#FFF7EB]/50 truncate">por <span class="${mine?'text-[#DB7944]':'text-[#FFF7EB]/80'} font-medium">${esc(item.addedByName)}</span>${mine?' <span class="text-[#DB7944]/60">· sua música 🎵</span>':''}${fora?' <span class="text-[#932621]" title="Quem some da tela perde a vez">· fora da pista ⚠️</span>':''}</p>
+  ${title ? `<p class="text-[10px] text-[#FFF7EB]/90 truncate font-medium">${esc(title)}</p>` : `<p class="text-[10px] text-[#FFF7EB]/60 truncate italic">Carregando título...</p>`}
+  <p class="text-[10px] text-[#FFF7EB]/65 truncate">por <span class="${mine?'text-[#DB7944]':'text-[#FFF7EB]/80'} font-medium">${esc(item.addedByName)}</span>${mine?' <span class="text-[#DB7944]/60">· sua música 🎵</span>':''}${fora?' <span class="text-[#ff8a80]" title="Quem some da tela perde a vez">· fora da pista ⚠️</span>':''}</p>
 </div>`;
                 c.appendChild(div);
             });
@@ -2610,7 +2640,10 @@ ${cd}`;
         }
 
         document.getElementById('dmClose').addEventListener('click', () => {
+            const de = dmOpenWith;
             dmOpenWith = null;
+            // foco volta pro avatar da pessoa (ou fica no corpo) em vez de sumir com o painel
+            setTimeout(() => avataresNaPista.get(de)?.el.querySelector('.avatar-hit')?.focus(), 0);
             const p = document.getElementById('dmPanel');
             p.classList.add('hidden');
             p.classList.remove('flex');
@@ -2655,7 +2688,7 @@ ${cd}`;
             const c = document.getElementById('dmMessages');
             const msgs = dmMessages.filter(m => m.convId === convId(currentUser.uid, dmOpenWith));
             if (!msgs.length) {
-                c.innerHTML = `<div class="text-center text-[#FFF7EB]/30 text-xs mt-6 font-light">Puxe o papo! Só vocês dois veem essas mensagens.</div>`;
+                c.innerHTML = `<div class="text-center text-[#FFF7EB]/60 text-xs mt-6 font-light">Puxe o papo! Só vocês dois veem essas mensagens.</div>`;
                 return;
             }
             c.innerHTML = '';
@@ -2710,7 +2743,7 @@ ${cd}`;
             el.classList.toggle('flex', show);
             if (show && !el.childElementCount)
                 el.innerHTML = VIP_EMOJIS.map(e =>
-                    `<button class="rx-btn text-base leading-none p-0.5" title="Reação VIP" onclick="window.sendReaction('${e}')">${e}</button>`).join('');
+                    `<button type="button" class="rx-btn text-base leading-none p-1" title="Reação VIP" aria-label="Reação VIP ${e}" onclick="window.sendReaction('${e}')">${e}</button>`).join('');
         }
 
         // ── PASSINHOS DE DANÇA ──
@@ -2728,10 +2761,12 @@ ${cd}`;
             updatePresence();
             const m = document.getElementById('danceMenu');
             m.classList.add('hidden'); m.classList.remove('flex');
+            document.getElementById('danceMenuBtn').setAttribute('aria-expanded', 'false');
         };
         document.getElementById('danceMenuBtn').addEventListener('click', () => {
             const m = document.getElementById('danceMenu');
             m.classList.toggle('hidden'); m.classList.toggle('flex');
+            document.getElementById('danceMenuBtn').setAttribute('aria-expanded', !m.classList.contains('hidden'));
         });
 
         // ── RANKING DA NOITE ──
@@ -2749,8 +2784,8 @@ ${cd}`;
 <div class="flex items-center gap-2 bg-black/30 border border-[#FFF7EB]/8 rounded-lg px-3 py-2">
   <span class="w-7 text-center text-sm">${medals[i]}</span>
   <span class="flex-1 text-xs font-medium truncate">${esc(d.name)}</span>
-  <span class="text-[10px] text-[#FFF7EB]/50 whitespace-nowrap">${d.n} música${d.n > 1 ? 's' : ''}</span>
-</div>`).join('') : `<p class="text-xs text-[#FFF7EB]/30 font-light">Ninguém tocou ainda. Solta o som!</p>`;
+  <span class="text-[10px] text-[#FFF7EB]/65 whitespace-nowrap">${d.n} música${d.n > 1 ? 's' : ''}</span>
+</div>`).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Ninguém tocou ainda. Solta o som!</p>`;
 
             const songAgg = {};
             partyVotes.forEach(v => { songAgg[v.videoId] = (songAgg[v.videoId] || 0) + 1; });
@@ -2765,16 +2800,108 @@ ${cd}`;
   <span class="flex-1 text-xs truncate">${esc(t || 'Vídeo ' + vid)}</span>
   <span class="text-[10px] text-[#ff6600] font-bold whitespace-nowrap">🔥 ${n}</span>
 </a>`;
-            }).join('') : `<p class="text-xs text-[#FFF7EB]/30 font-light">Nenhum voto "Essa vai pra festa!" ainda.</p>`;
+            }).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Nenhum voto "Essa vai pra festa!" ainda.</p>`;
         }
         document.getElementById('openRankingBtn').addEventListener('click', () => {
             renderRanking();
-            const m = document.getElementById('rankingModal');
-            m.classList.remove('hidden'); m.classList.add('flex');
+            abrirDialogo('rankingModal');
         });
-        document.getElementById('rankingClose').addEventListener('click', () => {
-            const m = document.getElementById('rankingModal');
+
+        // ── QUEM ESTÁ NA PISTA ──
+        // Acertar um avatar de 56 px numa pista cheia (ou no celular) é difícil, e pelo
+        // teclado era impossível: a lista dá o mesmo "puxar papo" com um botão por pessoa.
+        let assinaturaPresentes = '';
+        function renderPresentes() {
+            if (document.getElementById('presentesModal').classList.contains('hidden')) return;
+            const eu = currentUser?.uid;
+            const lista = [...activeUsers].filter(u => safeId(u.id)).sort((a, b) =>
+                (b.id === eu) - (a.id === eu) || String(a.name || '').localeCompare(String(b.name || '')));
+            const djUid = currentVideo?.videoId ? currentVideo.addedByUid : null;
+            // só refaz quando algo visível mudou: refazer a cada heartbeat tirava o foco de quem navega por Tab
+            const assinatura = JSON.stringify(lista.map(u => [u.id, u.name, u.isVIP, u.color, u.id === djUid, isPresent(u), getAvatarUrl(u.avatarConfig)]));
+            if (assinatura === assinaturaPresentes) return;
+            assinaturaPresentes = assinatura;
+            const c = document.getElementById('presentesLista');
+            c.innerHTML = lista.length ? lista.map(u => {
+                const uid = safeId(u.id);
+                const cor = safeColor(u.color);
+                const souEu = uid === eu;
+                return `
+<div class="flex items-center gap-2.5 bg-black/30 border border-[#FFF7EB]/8 rounded-lg px-3 py-2">
+  <span class="relative shrink-0">
+    ${imgAvatar(getAvatarUrl(u.avatarConfig), `alt="" class="w-8 h-8 rounded-full bg-[#111]" style="box-shadow:0 0 0 1.5px ${cor}"`)}
+    ${u.isVIP ? `<span class="vip-crown" style="width:12px;height:12px;top:-4px;right:-4px">${Icons.crown}</span>` : ''}
+  </span>
+  <span class="flex-1 min-w-0 text-xs truncate" style="color:${cor}">${esc(u.name)}${souEu ? ' <span class="text-[#FFF7EB]/60">(você)</span>' : ''}${uid === djUid ? ' 🎧' : ''}${isPresent(u) ? '' : ' <span class="text-[#FFF7EB]/55">· fora da tela</span>'}</span>
+  ${!souEu && currentUser ? `<button type="button" onclick="window.papoDaLista('${uid}')" aria-label="Puxar papo com ${esc(u.name)}"
+    class="shrink-0 text-[11px] font-semibold bg-[#DB7944] text-white px-3 py-1.5 rounded-full hover:bg-[#c45d1b] transition">💬 Papo</button>` : ''}
+</div>`;
+            }).join('') : `<p class="text-xs text-[#FFF7EB]/60">Ninguém na pista ainda.</p>`;
+            hidratarAvatares(c);
+        }
+        window.papoDaLista = uid => { fecharDialogo('presentesModal'); window.openDM(uid); };
+        document.getElementById('openPresentesBtn').addEventListener('click', () => {
+            abrirDialogo('presentesModal');
+            assinaturaPresentes = '';
+            renderPresentes();
+        });
+
+        // ── DIÁLOGOS: Esc, clique fora, foco preso e devolvido ──
+        // Nenhum painel fechava com Esc nem clicando fora, e o foco ficava pra trás
+        // na página: quem usa teclado ou leitor de tela se perdia.
+        const DIALOGOS = ['presentesModal', 'rankingModal'];
+        let focoAntesDoDialogo = null;
+        function abrirDialogo(id) {
+            focoAntesDoDialogo = document.activeElement;
+            const m = document.getElementById(id);
+            m.classList.remove('hidden'); m.classList.add('flex');
+            setTimeout(() => m.querySelector('[data-fechar]')?.focus(), 30);
+        }
+        function fecharDialogo(id) {
+            const m = document.getElementById(id);
+            if (m.classList.contains('hidden')) return false;
             m.classList.add('hidden'); m.classList.remove('flex');
+            focoAntesDoDialogo?.focus?.();
+            focoAntesDoDialogo = null;
+            return true;
+        }
+        DIALOGOS.forEach(id => {
+            const m = document.getElementById(id);
+            m.addEventListener('click', e => {
+                if (e.target === m || e.target.closest('[data-fechar]')) fecharDialogo(id);
+            });
+        });
+        const focaveis = el => [...el.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])')]
+            .filter(x => x.offsetParent !== null);
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                if (DIALOGOS.some(fecharDialogo)) return;
+                const menu = document.getElementById('danceMenu');
+                if (!menu.classList.contains('hidden')) {
+                    menu.classList.add('hidden'); menu.classList.remove('flex');
+                    const b = document.getElementById('danceMenuBtn');
+                    b.setAttribute('aria-expanded', 'false');
+                    b.focus();
+                    return;
+                }
+                if (!document.getElementById('dmPanel').classList.contains('hidden')) {
+                    document.getElementById('dmClose').click();
+                    return;
+                }
+                if (modalOpen) window.fecharPersonalizacao(); // no primeiro acesso não fecha: precisa escolher
+                return;
+            }
+            if (e.key !== 'Tab') return;
+            // Tab circula dentro do diálogo aberto
+            const aberto = [...DIALOGOS, 'settingsModal'].map(id => document.getElementById(id))
+                .find(m => !m.classList.contains('hidden'));
+            if (!aberto) return;
+            const lista = focaveis(aberto);
+            if (!lista.length) return;
+            const primeiro = lista[0], ultimo = lista[lista.length - 1];
+            if (!aberto.contains(document.activeElement)) { e.preventDefault(); primeiro.focus(); }
+            else if (e.shiftKey && document.activeElement === primeiro) { e.preventDefault(); ultimo.focus(); }
+            else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primeiro.focus(); }
         });
 
         // ── PISTA WEBGL (Three.js) ──
@@ -2913,7 +3040,7 @@ ${cd}`;
                 document.getElementById('cssDiscoBall')?.remove(); // o globo agora é 3D
 
                 const BPM = 118; // batida estimada pro pulso visual
-                renderer.setAnimationLoop(t => {
+                const quadro = t => {
                     const s = t / 1000;
                     const beat = (s * BPM / 60) % 1;
                     const pulse = glPlaying ? 1 + .2 * Math.pow(1 - beat, 3) : 1 + .04 * Math.sin(s * 2);
@@ -2927,7 +3054,14 @@ ${cd}`;
                     pts.rotation.y = s * .05;
                     pm.opacity = .3 + (glPlaying ? .3 * Math.pow(1 - beat, 2) : .1);
                     renderer.render(scene, cam);
-                });
+                };
+                // movimento reduzido: cena parada (redesenha só quando a pista muda de tamanho)
+                if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                    quadro(0);
+                    new ResizeObserver(() => quadro(0)).observe(holder);
+                } else {
+                    renderer.setAnimationLoop(quadro);
+                }
             } catch(e) {
                 console.warn('WebGL indisponível — mantendo a pista 2D.', e);
             }
@@ -2946,7 +3080,7 @@ ${cd}`;
             // abrir. Card que ainda não chegou nasce como esqueleto e é hidratado.
             CATEGORIAS.forEach(([containerId, options, key]) => {
                 document.getElementById(containerId).innerHTML = options.map(opt =>
-                    `<button type="button" data-chave="${key}" data-valor="${opt.v}" title="${opt.l}"
+                    `<button type="button" data-chave="${key}" data-valor="${opt.v}" title="${opt.l}" aria-pressed="false"
                         onclick="window.updateAvatar('${key}','${opt.v}')" class="av-card">
                         ${imgAvatar(urlDoCard(key, opt.v), `alt="${opt.l}"`)}
                         <span>${opt.l}</span>
@@ -2955,7 +3089,7 @@ ${cd}`;
 
             const circles = (id, items, key) => {
                 document.getElementById(id).innerHTML = items.map(s =>
-                    `<button type="button" data-chave="${key}" data-valor="${s.v}" title="${s.l}"
+                    `<button type="button" data-chave="${key}" data-valor="${s.v}" title="${s.l}" aria-label="${s.l}" aria-pressed="false"
                         onclick="window.updateAvatar('${key}','${s.v}')"
                         class="cfg-dot" style="background:#${s.v}"></button>`).join('');
             };
@@ -2966,8 +3100,8 @@ ${cd}`;
             circles('avatarHatColor',        CLOTHES_COLORS, 'hatColor');
             circles('avatarAccColor',        CLOTHES_COLORS, 'accessoriesColor');
 
-            document.getElementById('avatarColors').innerHTML = AURA_COLORS.map(col =>
-                `<button type="button" data-chave="__aura" data-valor="${col}"
+            document.getElementById('avatarColors').innerHTML = AURA_COLORS.map((col, i) =>
+                `<button type="button" data-chave="__aura" data-valor="${col}" aria-label="Cor de aura ${i + 1}" aria-pressed="false"
                     onclick="window.updateProfileColor('${col}')"
                     class="cfg-dot cfg-dot-lg" style="background:${col}"></button>`).join('');
 
@@ -2976,13 +3110,17 @@ ${cd}`;
         }
 
         function marcarSelecao() {
-            document.querySelectorAll('#avatarSections .av-card').forEach(b =>
-                b.classList.toggle('av-card-on', localProfile.avatarConfig[b.dataset.chave] === b.dataset.valor));
+            document.querySelectorAll('#avatarSections .av-card').forEach(b => {
+                const sel = localProfile.avatarConfig[b.dataset.chave] === b.dataset.valor;
+                b.classList.toggle('av-card-on', sel);
+                b.setAttribute('aria-pressed', sel);
+            });
             document.querySelectorAll('#avatarSections .cfg-dot').forEach(b => {
                 const aura = b.dataset.chave === '__aura';
                 const sel = aura ? localProfile.color === b.dataset.valor
                                  : localProfile.avatarConfig[b.dataset.chave] === b.dataset.valor;
                 b.classList.toggle('cfg-dot-on', sel);
+                b.setAttribute('aria-pressed', sel);
                 if (aura) b.style.boxShadow = sel ? `0 0 12px ${b.dataset.valor}90` : '';
             });
         }
