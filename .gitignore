@@ -7,3 +7,5 @@ músicas/
 *firebase-adminsdk*.json
 *chave*.json
 service-account*.json
+*.xlsx
+*.xls

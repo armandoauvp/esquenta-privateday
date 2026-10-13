@@ -50,13 +50,15 @@ O projeto usa **Auth anônimo** + **Firestore**. As credenciais ficam no bloco `
 
 Quem tem ingresso confirma pelo e-mail da compra. A lista vai para o Firestore com o script [`tools/importar-ingressos.py`](../tools/importar-ingressos.py):
 
-1. Uma vez só: `pip install firebase-admin` e, no console do Firebase, **Configurações do projeto → Contas de serviço → Gerar nova chave privada**. Guarde o JSON **fora do repositório**: ele dá acesso total ao projeto.
-2. Exporte o CSV de compradores da plataforma de vendas.
-3. Confira primeiro, sem gravar nada: `python3 tools/importar-ingressos.py compradores.csv --simular`
-4. Importe: `python3 tools/importar-ingressos.py compradores.csv --chave caminho/da-chave.json`
-5. Repita sempre que houver vendas novas. Com reembolsos, use `--substituir` para apagar quem saiu do CSV.
+1. Uma vez só: `pip install firebase-admin openpyxl` e, no console do Firebase, **Configurações do projeto → Contas de serviço → Gerar nova chave privada**. Guarde o JSON **fora do repositório**: ele dá acesso total ao projeto.
+2. Exporte as vendas da plataforma (no Guru: **Vendas → Exportar**, em `.xlsx`). CSV também funciona.
+3. Confira primeiro, sem gravar nada: `python3 tools/importar-ingressos.py Guru-Vendas.xlsx --simular`
+4. Importe: `python3 tools/importar-ingressos.py Guru-Vendas.xlsx --chave caminho/da-chave.json`
+5. Repita sempre que houver vendas novas. Com reembolsos, use `--substituir` para apagar quem saiu da planilha.
 
-O script detecta a coluna de e-mail pelo cabeçalho (ou use `--coluna "Nome da coluna"`), o separador (`,` ou `;`) e a codificação, e ignora linhas sem e-mail válido. Só o hash de cada e-mail é gravado.
+O script lê a primeira aba do `.xlsx` (ou o CSV, detectando separador e codificação) e acha a coluna de e-mail pelo cabeçalho. No Guru é `email contato`; para outra, use `--coluna "Nome da coluna"`. Se houver coluna `status`, só entram vendas **Aprovada/Completa** (`--todos-status` desliga o filtro). Linhas sem e-mail válido são ignoradas, e cada e-mail entra uma vez só, mesmo com várias compras (upgrades). Só o hash de cada e-mail é gravado.
+
+> **Primeira importação:** 13/10/2026, planilha do Guru com 441 vendas aprovadas, que deram **373 e-mails únicos**.
 
 ### Regras do Firestore
 
