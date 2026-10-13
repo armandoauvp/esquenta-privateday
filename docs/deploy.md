@@ -4,8 +4,31 @@
 
 O app é um único arquivo estático (`index.html`). Qualquer host serve:
 
-- **GitHub Pages** (em uso): o workflow `.github/workflows/deploy-pages.yml` publica a cada push na `main`. Em **Settings → Pages → Build and deployment**, a origem precisa ser **GitHub Actions** — com "Deploy from a branch" o job de deploy é rejeitado pelo ambiente `github-pages` antes de começar (ver Solução de problemas).
-- Netlify/Vercel/Cloudflare Pages: arraste o arquivo ou aponte para o repositório.
+### Vercel (em uso)
+
+O repositório já vem pronto: `vercel.json` (site estático, sem build) e `.vercelignore` (publica só `index.html`, `GLOBO.png` e `LETTERING.png`).
+
+1. Em [vercel.com/new](https://vercel.com/new), importe o repositório do GitHub.
+2. **Framework Preset: Other**. Deixe Build Command, Output Directory e Install Command vazios — não há build.
+3. Deploy. A partir daí:
+   - cada push na `main` publica em produção;
+   - cada PR ganha uma URL de preview própria (bom para testar antes do merge).
+4. Domínio próprio: **Project → Settings → Domains**. Para embutir no site por iframe, prefira um subdomínio do próprio site (ver [elementor.md](elementor.md)).
+
+O que o `vercel.json` define:
+
+| Regra | Efeito |
+|---|---|
+| `/` → `Cache-Control: max-age=0, must-revalidate` | Todo acesso revalida o HTML; deploy novo aparece na hora |
+| `GLOBO.png`/`LETTERING.png` → `max-age=86400` | Imagens da marca ficam 1 dia em cache |
+| `X-Content-Type-Options`, `Referrer-Policy` | Cabeçalhos básicos de segurança (sem CSP, para não barrar CDNs, Firebase e YouTube) |
+| `cleanUrls` | `/index.html` redireciona para `/` |
+
+O Firebase usa só auth anônimo, que não exige cadastrar o domínio da Vercel em *Authorized domains*.
+
+### Outros hosts
+
+Qualquer host estático serve (Netlify, Cloudflare Pages…): publique os três arquivos juntos.
 
 Requisitos do ambiente do visitante: internet liberada para `cdn.tailwindcss.com`, `fonts.googleapis.com`, `www.gstatic.com` (Firebase), `api.dicebear.com`, `raw.githubusercontent.com` (fonte DiscoDiva), `img.youtube.com`, `www.youtube.com`, `cdn.jsdelivr.net` (Three.js — opcional, com fallback 2D) e `noembed.com` (títulos — opcional).
 
@@ -67,5 +90,5 @@ Também dá para automatizar via REST (auth anônima + Firestore REST API) — f
 | Playlist da casa muda mas sem som | Política de autoplay do navegador | Comportamento esperado — o visitante clica em "🔊 Ativar som" |
 | Vídeo reinicia para todos ao votar | Regressão: iframe sendo recriado no overlay | Manter o padrão `renderPlayer`/`updatePlayerOverlay` (ver CLAUDE.md) |
 | Música não pula aos 10 min com a aba fechada | Só clientes abertos executam ações (não há backend) | Esperado — precisa de ao menos 1 participante online |
-| Deploy falha em ~2 s, sem log, com o job "deploy" vermelho | O job declara `environment: github-pages` e o GitHub avalia a proteção do ambiente **antes** de alocar runner: Pages sem "GitHub Actions" como origem, ou regra de proteção barrando a branch | Settings → Pages → Build and deployment → Source: **GitHub Actions**. Depois, Settings → Environments → `github-pages` → conferir se a `main` está permitida em *Deployment branches* |
-| O site não reflete o último merge | GitHub Pages serve o HTML com `Cache-Control: max-age=600`, e o navegador ainda guarda a própria cópia | Hard refresh (`Ctrl/Cmd+Shift+R`) e conferir o carimbo `build` no rodapé do modal de personalização (`<meta name="app-build">`) |
+| Deploy na Vercel falha procurando build/`package.json` | Preset de framework detectado errado | Project → Settings → Build and Deployment → Framework Preset: **Other**, com os comandos vazios |
+| O site não reflete o último merge | Deploy ainda em andamento, ou o navegador reaproveitou a cópia antiga | Conferir o deploy no painel da Vercel, dar hard refresh (`Ctrl/Cmd+Shift+R`) e checar o carimbo `build` no rodapé do modal de personalização (`<meta name="app-build">`) |

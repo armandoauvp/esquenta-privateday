@@ -13,7 +13,7 @@ python3 tools/build-elementor.py
 **1. Suba o arquivo para o seu próprio domínio.**
 Ex.: `https://privateday.auvp.com.br/esquenta/esquenta-privateday.html` (via FTP/gerenciador de arquivos da hospedagem, ou a biblioteca de mídia se o WordPress aceitar `.html`).
 
-> **Hospede no mesmo domínio do site.** Num iframe de outro domínio (por exemplo apontando para o GitHub Pages), Safari e Chrome tratam o armazenamento como "de terceiro" e isolam ou bloqueiam `localStorage` **e** cookies — o visitante refaria o boneco a cada visita. Mesmo domínio = armazenamento normal.
+> **Hospede no mesmo domínio do site.** Num iframe de outro domínio (por exemplo apontando para o `*.vercel.app`), Safari e Chrome tratam o armazenamento como "de terceiro" e isolam ou bloqueiam `localStorage` **e** cookies — o visitante refaria o boneco a cada visita. Mesmo domínio = armazenamento normal.
 
 **2. No Elementor, adicione um widget "HTML"** e cole:
 
