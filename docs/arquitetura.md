@@ -84,6 +84,18 @@ Só vale se `videoId` bater com o vídeo atual. Resetado (`votes:{}`) a cada tro
 ```
 Publicado **pelo cliente do DJ** a cada 5 s e imediatamente ao pausar/retomar — mas **só com info fresca** (< 8 s): aba em segundo plano congela o player do DJ, e publicar posição congelada com carimbo novo prendia os seguidores num loop de seek. Os demais clientes comparam a posição esperada (`time + (agora - at)`) com o próprio player a cada 3 s e corrigem com `seekTo` quando o drift passa de 6 s, com **cooldown de 12 s entre seeks** (a posição local fica defasada logo após um seek e dispararia outro em sequência). Pausa/retomada são replicadas. Quem entra no meio da música já monta o iframe com `start=<segundos decorridos>`. **Ninguém tem a barra de progresso — nem o DJ** (`controls=0&disablekb=1` para todos): avançar/retroceder é proibido; o DJ pausa/retoma tocando no vídeo (sem camada de bloqueio para ele), os demais têm a camada bloqueando cliques. Se o doc fica >15 s sem atualização (DJ saiu), ninguém força nada.
 
+### `ingressos/{hash}` — lista de compradores
+```js
+{ importadoEm } // id = SHA-256("auvp-privateday:" + email.trim().toLowerCase())
+```
+Importada do CSV da plataforma de vendas por `tools/importar-ingressos.py` (conta de serviço; o e-mail em texto nunca sai do computador de quem importa). As regras só permitem `get`, ou seja, conferir um hash por vez, nunca listar a coleção.
+
+### `vip/{uid}` — ingresso confirmado
+```js
+{ ingresso, em } // ingresso = o hash conferido
+```
+Criado pelo app quando o e-mail digitado confere com a lista; as regras só aceitam a criação se `ingressos/{ingresso}` existir. Só o dono lê. É o que as regras exigem para `isVIP` em `users` e `chat` e para criar item na `queue`. O hash não vai para o perfil público: se fosse, bastaria copiá-lo para virar VIP sem saber o e-mail.
+
 ### `partyVotes/{videoId_uid}` — curadoria "Essa vai pra festa!"
 ```js
 { videoId, uid, name, addedByName, timestamp }
@@ -168,6 +180,7 @@ Complementarmente, as opções são montadas **uma vez** (`montarOpcoes`) e a es
 - **Whitelists**: `dance` e `emoji` vindos de outros usuários são validados contra listas fixas antes de virarem classe CSS ou conteúdo DOM.
 - **Moderação**: censura de palavrões no envio (`censor()`); silenciamento por usuário é local (localStorage), sem papel de admin.
 - **Formatos validados**: `uid`, cor e `videoId` vindos do Firestore entram em `onclick`, `style` e `src`, onde o `esc()` não protege. Passam por `safeId()`, `safeColor()` e `safeVideoId()`; o `player/state` com `videoId` inválido vira "sem música".
+- **Ingresso**: o modelo prova "conhece o e-mail de um comprador", não "é dono do e-mail" (decisão de produto: sem link de confirmação). Quem souber o e-mail de alguém consegue virar VIP. A lista em si não vaza: só hashes, sem listagem.
 - **Regras do Firestore** ([`firestore.rules`](../firestore.rules)): auth anônima, cada um escreve só em nome próprio e o chat privado só é legível pelos participantes. Os demais dados continuam públicos para quem está logado, então não guarde nada sensível neles.
 - **Consultas enxutas**: chat limitado às 50 últimas (`orderBy + limit`), usuários só os ativos nos últimos 2 min.
 - A chave de API do Firebase no HTML **não é segredo** (é um identificador de projeto); a proteção real são as regras do Firestore.

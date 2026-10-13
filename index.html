@@ -454,8 +454,10 @@
                     <!-- mesa de DJ é exclusividade de quem tem ingresso -->
                     <p id="queueLocked" class="hidden mt-2 text-[10px] text-[#FFF7EB]/55 font-light flex items-center gap-1.5 flex-wrap">
                         <span class="text-[#DB7944]">👑</span> A mesa de DJ é de quem tem ingresso.
-                        <a href="https://privateday.auvp.com.br/#ingressos" target="_blank"
-                            class="text-[#DB7944] font-semibold hover:underline whitespace-nowrap">Garantir o meu →</a>
+                        <button type="button" onclick="window.abrirConfirmacaoIngresso()"
+                            class="text-[#DB7944] font-semibold hover:underline whitespace-nowrap">Já tenho: confirmar e-mail</button>
+                        <a href="https://privateday.auvp.com.br/#ingressos" target="_blank" rel="noopener"
+                            class="text-[#FFF7EB]/70 hover:text-[#DB7944] hover:underline whitespace-nowrap">Garantir o meu →</a>
                     </p>
                 </div>
             </div>
@@ -611,6 +613,21 @@
                         Mudar meu status de ingresso
                     </button>
                 </div>
+                <!-- ingresso confirmado pelo e-mail da compra (conferido contra a lista importada) -->
+                <form id="formIngresso" class="hidden" novalidate>
+                    <label for="emailIngresso" class="block text-xs font-medium text-[#FFF7EB]/75 mb-1.5">E-mail usado na compra do ingresso</label>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input type="email" id="emailIngresso" autocomplete="email" inputmode="email" required placeholder="voce@exemplo.com"
+                            class="flex-1 bg-black/60 border border-[#FFF7EB]/20 rounded-lg px-4 py-2.5 text-sm text-[#FFF7EB] font-light focus:outline-none focus:border-[#DB7944] focus:ring-1 focus:ring-[#DB7944]"/>
+                        <button type="submit" id="confirmarIngressoBtn" class="vintage-btn font-medium px-5 py-2.5 rounded-lg text-sm whitespace-nowrap disabled:opacity-60">Confirmar ingresso</button>
+                    </div>
+                    <p id="ingressoErro" role="alert" class="hidden mt-2 text-[11px] text-[#ff8a80] leading-snug"></p>
+                    <div class="flex items-center justify-between gap-3 mt-2">
+                        <button type="button" onclick="window.voltarEscolhaIngresso()" class="text-[11px] text-[#FFF7EB]/60 hover:text-[#DB7944] transition">← Voltar</button>
+                        <button type="button" onclick="window.entrarSemIngresso()" class="text-[11px] text-[#FFF7EB]/60 hover:text-[#DB7944] underline underline-offset-2 transition">Entrar sem ingresso</button>
+                    </div>
+                    <p class="text-[10px] text-[#FFF7EB]/45 mt-2 leading-snug">Usamos o e-mail só pra conferir a lista de ingressos. Ele não aparece pra ninguém e não fica salvo no app.</p>
+                </form>
                 <div id="botoesEntrada">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         <button id="enterVipBtn" class="vintage-btn font-medium py-3 rounded-lg tracking-wide text-sm md:text-base flex items-center justify-center gap-2">
@@ -620,7 +637,7 @@
                             Entrar sem ingresso
                         </button>
                     </div>
-                    <p class="text-[11px] text-[#FFF7EB]/55 text-center mt-2 font-light leading-snug">Com ingresso você entra com coroa e brilho VIP e pode assumir a mesa de DJ. Sem ingresso, curte a pista e o chat do mesmo jeito.</p>
+                    <p class="text-[11px] text-[#FFF7EB]/55 text-center mt-2 font-light leading-snug">Com ingresso (confirmado pelo e-mail da compra) você entra com coroa e brilho VIP e pode assumir a mesa de DJ. Sem ingresso, curte a pista e o chat do mesmo jeito.</p>
                 </div>
                 <!-- carimbo da versão publicada: ajuda a saber, na hora, se o navegador está com o HTML antigo em cache -->
                 <p class="text-[9px] text-[#FFF7EB]/25 text-center mt-1 font-light">build <span id="buildTag">—</span></p>
@@ -631,7 +648,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, deleteDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, addDoc, deleteDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ── ÍCONES ──
         const Icons = {
@@ -893,6 +910,22 @@
         // PRONTO_KEY marca quem já finalizou a personalização: essa pessoa entra
         // direto na pista, sem o modal na cara de novo.
         const PRONTO_KEY = 'esquentaPerfilPronto';
+
+        // ── INGRESSO CONFIRMADO PELO E-MAIL ──
+        // A lista de compradores vive em `ingressos/{hash}` (importada por
+        // tools/importar-ingressos.py), só com o SHA-256 do e-mail — nunca o e-mail. As
+        // regras deixam conferir UM hash por vez (get), nunca listar a coleção. Conferido,
+        // o app grava `vip/{uid}` (privado, só o dono lê), que as regras exigem para
+        // isVIP, coroa no chat e fila de DJ. O hash não vai pro perfil público: copiá-lo
+        // de lá seria o atalho pra virar VIP sem saber o e-mail.
+        // O sal precisa ser IGUAL ao de tools/importar-ingressos.py.
+        const INGRESSO_SAL = 'auvp-privateday:';
+        const normalizarEmail = e => String(e || '').trim().toLowerCase();
+        async function hashEmail(email) {
+            const dados = new TextEncoder().encode(INGRESSO_SAL + normalizarEmail(email));
+            const buf = await crypto.subtle.digest('SHA-256', dados);
+            return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+        }
         let perfilPronto = false;
         let perfilSalvo = null;
         try { perfilSalvo = JSON.parse(store.get('esquentaProfile') || 'null'); } catch(e) {}
@@ -1235,7 +1268,31 @@
             if (conectado || !currentUser || !db) return;
             conectado = true;
             setupFirebaseListeners();
-            startHeartbeat();
+            // confere o ingresso ANTES do primeiro heartbeat: com isVIP sem vínculo, as
+            // regras recusariam a presença inteira e a pessoa sumiria da pista
+            conferirIngressoSalvo().finally(startHeartbeat);
+        }
+
+        // VIP salvo no navegador ainda tem vínculo válido pra este uid? Recria pelo hash
+        // guardado (auth nova, outro dispositivo com o mesmo perfil); sem como provar,
+        // volta a convidado e oferece a confirmação — inclusive para quem "declarou"
+        // ingresso antes da lista existir.
+        async function conferirIngressoSalvo() {
+            if (!localProfile.isVIP || !currentUser || !db) return;
+            try {
+                if ((await getDoc(pdoc('vip', currentUser.uid))).exists()) return;
+                if (localProfile.ingresso) {
+                    await setDoc(pdoc('vip', currentUser.uid), {ingresso: localProfile.ingresso, em: Date.now()});
+                    return;
+                }
+            } catch(e) { console.warn('Ingresso salvo não confere mais com a lista', e); }
+            localProfile.isVIP = false;
+            delete localProfile.ingresso;
+            saveProfile();
+            aplicarStatusIngresso();
+            showToast('🎟️ Agora o ingresso é confirmado pelo e-mail da compra.', null, {
+                acao: {rotulo: 'Confirmar', fn: () => window.abrirConfirmacaoIngresso()}
+            });
         }
         // faixa "sem conexão" + campos travados com explicação, em vez de botões mudos
         function atualizarConexao() {
@@ -1510,7 +1567,9 @@
         async function updatePresence(x = null, y = null) {
             if (!currentUser || !db) return;
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.uid);
-            const data = { ...localProfile, lastUpdate: Date.now(), away: tabHidden, awaySince: tabHidden ? hiddenSince : 0 };
+            // o hash do ingresso fica só no navegador e em vip/{uid}: no perfil público, qualquer um copiaria
+            const {ingresso: _privado, ...perfilPublico} = localProfile;
+            const data = { ...perfilPublico, lastUpdate: Date.now(), away: tabHidden, awaySince: tabHidden ? hiddenSince : 0 };
             if (x !== null && y !== null) { data.x = x; data.y = y; spawned = true; }
             else {
                 const me = activeUsers.find(u => u.id === currentUser.uid);
@@ -2285,12 +2344,14 @@ ${cd}`;
         });
 
         // ── FILA ──
-        // A mesa de DJ é exclusiva de quem tem ingresso. Como o ingresso é declarado pela
-        // própria pessoa (não há validação — ver docs/funcionalidades.md), a trava é de
-        // experiência, não de segurança: bloqueia o caminho normal e explica o porquê.
+        // A mesa de DJ é exclusiva de quem tem ingresso CONFIRMADO pelo e-mail da compra.
+        // Aqui a trava é de experiência (explica o porquê e leva à confirmação); quem
+        // garante de verdade são as regras do Firestore, que exigem vip/{uid} na fila.
         const podeSerDJ = () => !!localProfile.isVIP;
         const avisoSemIngresso = () =>
-            showToast('🎧 A mesa de DJ é só pra quem tem ingresso do Private Day!', TICKETS_URL);
+            showToast('🎧 A mesa de DJ é só pra quem tem ingresso do Private Day.', TICKETS_URL, {
+                acao: {rotulo: 'Já tenho', fn: () => window.abrirConfirmacaoIngresso()}
+            });
 
         // deixa o formulário da fila coerente com o direito de assumir a mesa
         function renderQueueForm() {
@@ -2966,10 +3027,20 @@ ${cd}`;
         };
 
         // ── ENTRAR NA FESTA ──
+        // coroa do header + fila de DJ coerentes com o status atual
+        function aplicarStatusIngresso() {
+            renderQueueForm(); // a fila abre ou tranca conforme o ingresso
+            const hc = document.getElementById('headerCrown');
+            if (localProfile.isVIP) { hc.innerHTML = Icons.crown; hc.classList.remove('hidden'); }
+            else hc.classList.add('hidden');
+        }
+
+        // `vip` só é true depois de o e-mail conferir (ou ao reentrar com o status salvo,
+        // que conferirIngressoSalvo() revalida assim que a conexão sobe)
         function enterParty(vip) {
             localProfile.isVIP = vip;
             saveProfile();
-            renderQueueForm(); // a fila abre ou tranca conforme o ingresso
+            aplicarStatusIngresso();
             // marca que a personalização já foi feita: nas próximas visitas
             // a pessoa cai direto na pista, sem passar pelo modal
             store.set(PRONTO_KEY, '1');
@@ -2978,19 +3049,73 @@ ${cd}`;
             trocarAvatar(ha, getAvatarUrl(localProfile.avatarConfig));
             ha.classList.remove('hidden');
             document.getElementById('headerName').innerText = localProfile.name;
-            const hc = document.getElementById('headerCrown');
-            if (vip) { hc.innerHTML = Icons.crown; hc.classList.remove('hidden'); }
-            else hc.classList.add('hidden');
             document.getElementById('settingsModal').classList.add('hidden');
             modalOpen = false;
             applyModalAudioDuck();
         }
-        document.getElementById('enterVipBtn').addEventListener('click', () => enterParty(true));
+        // ── CONFIRMAÇÃO DO INGRESSO ──
+        const erroIngresso = msg => {
+            const el = document.getElementById('ingressoErro');
+            el.innerHTML = msg || '';
+            el.classList.toggle('hidden', !msg);
+        };
+        function mostrarFormIngresso(mostrar) {
+            document.getElementById('formIngresso').classList.toggle('hidden', !mostrar);
+            document.getElementById('botoesEntrada').classList.toggle('hidden', mostrar);
+            document.getElementById('botoesEdicao').classList.add('hidden');
+            erroIngresso('');
+            if (mostrar) setTimeout(() => document.getElementById('emailIngresso').focus(), 50);
+        }
+        window.voltarEscolhaIngresso = () => mostrarFormIngresso(false);
         // sem abrir aba sozinho: antes a pessoa caía fora do app (e ficava "ausente") logo
         // na entrada. O convite pro ingresso vira um aviso com link.
-        document.getElementById('enterNoTicketBtn').addEventListener('click', () => {
+        window.entrarSemIngresso = () => {
+            mostrarFormIngresso(false);
             enterParty(false);
             setTimeout(() => showToast('🎉 Bem-vindo à pista! Quer coroa VIP e a mesa de DJ?', TICKETS_URL), 600);
+        };
+        // atalho dos avisos: abre o modal direto no formulário do e-mail
+        window.abrirConfirmacaoIngresso = () => {
+            document.getElementById('openSettingsBtn').click();
+            mostrarFormIngresso(true);
+        };
+        document.getElementById('enterVipBtn').addEventListener('click', () => mostrarFormIngresso(true));
+        document.getElementById('enterNoTicketBtn').addEventListener('click', window.entrarSemIngresso);
+
+        let conferindoIngresso = false;
+        document.getElementById('formIngresso').addEventListener('submit', async e => {
+            e.preventDefault();
+            if (conferindoIngresso) return;
+            const email = normalizarEmail(document.getElementById('emailIngresso').value);
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { erroIngresso('Digite um e-mail válido, como voce@exemplo.com.'); return; }
+            if (!currentUser || !db) {
+                erroIngresso('Sem conexão pra conferir agora. Entre sem ingresso e confirme depois tocando no seu avatar, no topo.');
+                return;
+            }
+            const btn = document.getElementById('confirmarIngressoBtn');
+            conferindoIngresso = true;
+            btn.disabled = true;
+            btn.textContent = 'Conferindo…';
+            try {
+                const hash = await hashEmail(email);
+                if (!(await getDoc(pdoc('ingressos', hash))).exists()) {
+                    erroIngresso(`Não achamos esse e-mail na lista de ingressos. Confira se é o mesmo da compra — quem comprou agora pode levar um tempinho pra entrar na lista. <a href="${TICKETS_URL}" target="_blank" rel="noopener" class="underline font-semibold">Garantir ingresso</a>`);
+                    return;
+                }
+                await setDoc(pdoc('vip', currentUser.uid), {ingresso: hash, em: Date.now()});
+                localProfile.ingresso = hash; // só local: refaz o vínculo se a auth mudar
+                document.getElementById('emailIngresso').value = '';
+                mostrarFormIngresso(false);
+                enterParty(true);
+                setTimeout(() => showToast('👑 Ingresso confirmado! Coroa VIP e mesa de DJ liberadas.'), 400);
+            } catch(err) {
+                console.error(err);
+                erroIngresso('Não deu pra conferir agora. Confira a conexão e tente de novo.');
+            } finally {
+                conferindoIngresso = false;
+                btn.disabled = false;
+                btn.textContent = 'Confirmar ingresso';
+            }
         });
 
         // edição depois de entrar: "Salvar e voltar" mantém o ingresso; trocar o status
@@ -2998,6 +3123,7 @@ ${cd}`;
         function modoModal(edicao) {
             document.getElementById('botoesEdicao').classList.toggle('hidden', !edicao);
             document.getElementById('botoesEntrada').classList.toggle('hidden', edicao);
+            document.getElementById('formIngresso').classList.add('hidden');
             const fechar = document.getElementById('fecharModalBtn');
             fechar.classList.toggle('hidden', !edicao);
             fechar.classList.toggle('flex', edicao);

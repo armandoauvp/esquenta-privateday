@@ -41,7 +41,8 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 - **Regras do Firestore versionadas** em `firestore.rules`: mudou o formato de um documento? Ajuste as regras junto e avise no PR que é preciso republicá-las no console.
 - **Modo offline**: o app precisa abrir mesmo sem Firebase (`configValida === false` ou falha de auth) — mantenha os guards `if (!currentUser || !db) return;`.
 - **Timestamps**: `Date.now()` do cliente (sem serverTimestamp) — comparações toleram pequenos desvios de relógio.
-- **Mesa de DJ é só de quem tem ingresso** (`podeSerDJ()`): trava no envio da fila, no formulário e na promoção da música. O ingresso é declarado pela própria pessoa — a trava é de experiência, não de segurança.
+- **Ingresso confirmado pelo e-mail da compra.** "Já tenho meu ingresso!" pede o e-mail, calcula `hashEmail()` (SHA-256 com `INGRESSO_SAL`), confere `ingressos/{hash}` (um `get`, nunca lista) e grava `vip/{uid}`. As regras exigem esse vínculo para `isVIP`, coroa no chat e fila. O hash fica só no navegador (`localProfile.ingresso`) e **nunca vai para `users/{uid}`**: `updatePresence` o remove. `conferirIngressoSalvo()` revalida antes do primeiro heartbeat. A lista sobe com `tools/importar-ingressos.py`; sal e normalização precisam ser iguais nos dois lados.
+- **Mesa de DJ é só de quem tem ingresso** (`podeSerDJ()`): trava no envio da fila, no formulário e na promoção da música; as regras do Firestore garantem do lado do servidor.
 - **Canvas do WebGL: tamanho por CSS, resolução por `setSize(w, h, false)`.** Deixar o Three escrever o estilo dobra o canvas em tela retina e joga a cena para fora da área visível.
 - **WebGL é progressivo**: o Three.js entra por `import()` dinâmico dentro de try/catch; se falhar (CDN bloqueado, sem GPU), o globo 2D `#cssDiscoBall` permanece. Nunca torne o Three.js um import estático — derrubaria o app inteiro.
 - **Coroa VIP é selo de avatar** (`.vip-crown`), nunca ícone ao lado do nome — vale para header, chat e pista.
@@ -75,6 +76,8 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 | `player/countdown` | contagem regressiva (`{endsAt, reason}`) |
 | `player/playback` | sincronia de reprodução (`{videoId, state, time, at}`) — publicado pelo DJ; os demais seguem |
 | `partyVotes/{videoId_uid}` | votos "Essa vai pra festa!" (curadoria — nunca apagar) |
+| `ingressos/{hash}` | lista de compradores: SHA-256 do e-mail com sal (só `get`; importada por `tools/importar-ingressos.py`) |
+| `vip/{uid}` | vínculo do visitante com um ingresso (`{ingresso, em}`) — privado, exigido pelas regras para `isVIP` e fila |
 | `history/{auto}` | músicas já tocadas (`videoId`, `byUid`, `byName`, `title`) — base do ranking |
 | `reactions/{auto}` | reações flutuantes (`uid`, `emoji`, `x`, `y`, `timestamp`) — o líder apaga as com >2 min |
 

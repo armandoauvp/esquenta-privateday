@@ -37,6 +37,7 @@ Pista de dança virtual em tempo real para o esquenta do **AUVP Private Day 2026
 - **Quem já criou o boneco vai direto para a pista** nas próximas visitas — o modal só volta pelo botão do avatar no header.
 - Dois botões no final da personalização:
   - **"Já tenho meu ingresso!"** → entra como VIP (coroa + brilho).
+  - **"Já tenho meu ingresso!"** → confirma pelo e-mail da compra, conferido contra a lista importada (`tools/importar-ingressos.py`).
   - **"Entrar sem ingresso"** → entra como convidado; um aviso oferece o link da [página de ingressos](https://privateday.auvp.com.br/#ingressos) (nenhuma aba abre sozinha).
 - Enquanto o painel de personalização está aberto, o áudio da música fica **abafado** (volume reduzido + desfoque no vídeo — simulação de filtro, já que o YouTube não expõe o áudio do embed ao Web Audio).
 

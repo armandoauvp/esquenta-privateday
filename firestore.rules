@@ -11,18 +11,39 @@ service cloud.firestore {
       function eu() { return request.auth.uid; }
       function novo() { return request.resource.data; }
       function dupla(lista) { return lista is list && lista.size() == 2 && eu() in lista; }
+      // ingresso confirmado: o visitante tem vínculo vip/{uid}, criado só com e-mail da lista
+      function temIngresso() {
+        return exists(/databases/$(database)/documents/artifacts/$(appId)/public/data/vip/$(eu()));
+      }
 
-      // presença + perfil: cada visitante só escreve o próprio documento
+      // lista de compradores: só o SHA-256 do e-mail (com sal), importada por
+      // tools/importar-ingressos.py com a conta de serviço (que ignora estas regras).
+      // Dá pra conferir UM hash por vez; listar a coleção é proibido.
+      match /ingressos/{hash} {
+        allow get: if logado();
+      }
+
+      // vínculo visitante → ingresso: só o dono lê; só nasce com hash que está na lista
+      match /vip/{uid} {
+        allow get: if logado() && eu() == uid;
+        allow create, update: if logado() && eu() == uid && novo().ingresso is string
+          && exists(/databases/$(database)/documents/artifacts/$(appId)/public/data/ingressos/$(novo().ingresso));
+      }
+
+      // presença + perfil: cada visitante só escreve o próprio documento,
+      // e só se diz VIP com ingresso confirmado
       match /users/{uid} {
         allow read: if logado();
-        allow write: if logado() && eu() == uid;
+        allow create, update: if logado() && eu() == uid
+          && (novo().get('isVIP', false) != true || temIngresso());
       }
 
       // chat público: só cria, sempre em nome próprio (limpeza é feita pelo console)
       match /chat/{id} {
         allow read: if logado();
         allow create: if logado() && novo().uid == eu()
-          && novo().text is string && novo().text.size() <= 200;
+          && novo().text is string && novo().text.size() <= 200
+          && (novo().get('isVIP', false) != true || temIngresso());
       }
 
       // chat privado: só os dois participantes leem; só o remetente cria
@@ -47,10 +68,10 @@ service cloud.firestore {
         );
       }
 
-      // fila do DJ: entra em nome próprio; o líder (qualquer cliente) faz a faxina
+      // fila do DJ: só com ingresso confirmado e em nome próprio; o líder faz a faxina
       match /queue/{id} {
         allow read: if logado();
-        allow create: if logado() && novo().addedByUid == eu();
+        allow create: if logado() && novo().addedByUid == eu() && temIngresso();
         allow delete: if logado();
       }
 

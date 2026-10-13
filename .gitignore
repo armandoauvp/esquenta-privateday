@@ -1,0 +1,9 @@
+# MP3s e arquivos soltos usados para gerar os vídeos (não versionar)
+músicas/
+
+# lista de compradores e chave da conta de serviço do Firebase: dados pessoais e
+# acesso total ao projeto — nunca versionar
+*.csv
+*firebase-adminsdk*.json
+*chave*.json
+service-account*.json

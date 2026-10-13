@@ -20,6 +20,7 @@ Quem **já personalizou antes vai direto para a pista** — sem modal na cara de
 - **Botões de entrada** (num rodapé fixo, sempre à vista sem rolar as opções):
   - **"Já tenho meu ingresso!"** → entra na festa como VIP (coroa dourada + brilho especial no avatar).
   - **"Entrar sem ingresso"** → entra como convidado e mostra um aviso com o link de `https://privateday.auvp.com.br/#ingressos`. Nenhuma aba abre sozinha (antes a pessoa caía fora do app logo na entrada e ainda ficava "ausente").
+- **Confirmação do ingresso por e-mail**: "Já tenho meu ingresso!" pede o e-mail usado na compra e confere contra a lista importada. O e-mail não é salvo nem exibido; vai só o hash dele, comparado com `ingressos/{hash}`. Se não estiver na lista, a pessoa vê o motivo, o link de compra e a opção de entrar sem ingresso. Quem tinha "VIP declarado" antes da lista existir volta a convidado na próxima visita, com um aviso e o botão **Confirmar**.
 - **Editar depois de entrar** (avatar no header): o modal abre em modo edição, com ✕, Esc e **"Salvar e voltar pra pista"**, que mantém o status de ingresso. Trocar o status fica no link "Mudar meu status de ingresso".
 
 Enquanto o modal está aberto, o áudio do player fica abafado (volume ~10% + desfoque no vídeo). Ao entrar, o som volta ao normal.
@@ -47,7 +48,7 @@ Enquanto o modal está aberto, o áudio do player fica abafado (volume ~10% + de
 ## Fila do DJ e player
 
 ### Adicionar música
-**A mesa de DJ é exclusiva de quem tem ingresso.** Para quem entrou pelo "Não tenho ingresso", o campo da fila fica travado com um aviso e um atalho para a página de ingressos; forçar o envio mostra o mesmo convite. Como o ingresso é declarado pela própria pessoa no modal de entrada (não há validação), a trava é de experiência — bloqueia o caminho normal e explica o porquê —, não de segurança.
+**A mesa de DJ é exclusiva de quem tem ingresso confirmado.** Para quem entrou sem ingresso, o campo da fila fica travado com um aviso, um atalho "Já tenho: confirmar e-mail" e o link para a página de ingressos; forçar o envio mostra o mesmo convite. As regras do Firestore recusam a fila de quem não tem o vínculo `vip/{uid}`.
 
 Cole um link do YouTube no campo da fila. A música entra no fim da fila com seu nome e o **título resolvido automaticamente** (oEmbed via noembed.com, sem chave de API); o título também aparece numa pílula sobre o player enquanto toca.
 

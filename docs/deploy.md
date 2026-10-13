@@ -46,6 +46,18 @@ O projeto usa **Auth anônimo** + **Firestore**. As credenciais ficam no bloco `
 4. Publique as regras do arquivo [`firestore.rules`](../firestore.rules) (ver "Regras do Firestore" abaixo).
 5. Copie o config (Configurações do projeto → Seus apps → Web) para `FIREBASE_CONFIG_FALLBACK` e ajuste `APP_ID_FALLBACK` para o `projectId`.
 
+### Lista de ingressos
+
+Quem tem ingresso confirma pelo e-mail da compra. A lista vai para o Firestore com o script [`tools/importar-ingressos.py`](../tools/importar-ingressos.py):
+
+1. Uma vez só: `pip install firebase-admin` e, no console do Firebase, **Configurações do projeto → Contas de serviço → Gerar nova chave privada**. Guarde o JSON **fora do repositório**: ele dá acesso total ao projeto.
+2. Exporte o CSV de compradores da plataforma de vendas.
+3. Confira primeiro, sem gravar nada: `python3 tools/importar-ingressos.py compradores.csv --simular`
+4. Importe: `python3 tools/importar-ingressos.py compradores.csv --chave caminho/da-chave.json`
+5. Repita sempre que houver vendas novas. Com reembolsos, use `--substituir` para apagar quem saiu do CSV.
+
+O script detecta a coluna de e-mail pelo cabeçalho (ou use `--coluna "Nome da coluna"`), o separador (`,` ou `;`) e a codificação, e ignora linhas sem e-mail válido. Só o hash de cada e-mail é gravado.
+
 ### Regras do Firestore
 
 As regras ficam versionadas em [`firestore.rules`](../firestore.rules), na raiz do repositório. Elas garantem do lado do servidor o que o app só faria de boa-fé:
