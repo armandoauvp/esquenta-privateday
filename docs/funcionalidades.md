@@ -10,12 +10,14 @@ Quem **já personalizou antes vai direto para a pista** — sem modal na cara de
 
 - **Preview + nome** ficam sempre visíveis no topo, com o botão **🎲 Aleatório** logo abaixo do preview para sortear outro visual completo a qualquer momento.
 - Cada opção de estilo é um **card com a imagem do avatar** usando aquela opção (miniaturas geradas pelo DiceBear) — nada de escolher só pelo texto.
-- **Uma linha por categoria**: cada catálogo (cabelo, roupas, olhos, cores…) fica numa faixa única, navegável por **scroll lateral** — no desktop e no mobile. O painel não estica em altura por causa de uma categoria grande, e a faixa **mantém a posição do scroll** ao escolher (antes, clicar na 15ª opção jogava a linha de volta ao começo).
-- **A cor vem logo depois da peça**: cabelo → cor do cabelo → cor do chapéu → acessórios → cor dos acessórios → barba → cor da barba → roupas → cor da roupa. As cores de cada elemento deixaram de ficar numa aba separada.
-- **Mobile**: as opções são divididas em três seções navegáveis por abas no topo do painel:
-  - **Estilo** — cabelo/chapéu, acessórios, barba, roupas (cada um seguido das próprias cores)
-  - **Rosto** — tom de pele, olhos, sobrancelhas, boca
-  - **Aura** — cor do brilho do avatar na pista (e do nome no chat)
+- **Abas → subcategorias → uma peça por vez** (igual no celular e no desktop). As abas ficam no topo fixo, com Rosto primeiro, e as subcategorias aparecem em chips logo abaixo:
+  - **😊 Rosto** — Pele · Olhos · Sobrancelhas · Boca · Barba
+  - **👕 Estilo** — Cabelo · Acessórios · Roupa
+  - **✨ Aura** — cor do brilho do avatar na pista (e do nome no chat)
+
+  Só o painel da subcategoria escolhida aparece, com as opções em **grade** (sem faixas de rolagem lateral). Cada aba lembra a última subcategoria aberta.
+- **A cor fica no mesmo painel da peça, e só quando faz sentido**: a cor do chapéu só aparece com chapéu, gorro, hijab ou turbante; a do cabelo some quando ele não aparece (careca, hijab, turbante); a dos acessórios e a da barba só aparecem quando há acessório ou barba.
+- **Rosto com zoom**: as miniaturas de olhos, sobrancelhas e boca vêm aproximadas no rosto (`scale`/`translateY` do DiceBear). Em 46 px, o boneco inteiro escondia a diferença entre as opções.
 - **Cor da aura**: paleta com 11 cores (dois tons de laranja — o laranja AUVP `#DB7944` e o neon `#ff6600`).
 - **Botões de entrada** (num rodapé fixo, sempre à vista sem rolar as opções):
   - **"Já tenho meu ingresso!"** → entra na festa como VIP (coroa dourada + brilho especial no avatar).
@@ -118,6 +120,6 @@ Botão **🏆 Ranking** no header abre o painel com dois placares ao vivo:
 ## Responsividade
 
 - Layout usa `100dvh` (estável em navegadores mobile com barra de endereço dinâmica).
-- **Desktop/notebook (≥1024px)**: pista à esquerda, chat + fila em coluna fixa à direita.
-- **Tablet/celular**: player e pista em cima, chat + fila ocupando ~48% da altura embaixo; painel de DM ancorado à esquerda; modal com abas.
+- **Tablet e desktop (≥768px)**: pista à esquerda, chat + fila em coluna fixa à direita (320 px no tablet, 384 px a partir de 1024 px).
+- **Celular**: player (até 30% da altura) e pista em cima; embaixo, Chat e Fila em **abas**, ocupando 38% da altura; painel de DM ancorado à esquerda.
 - Header compacto: globo maior à esquerda, "PRIVATE DAY" e "Esquenta 2026" centralizados e colados.

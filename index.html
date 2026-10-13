@@ -126,17 +126,39 @@
             img[data-av], .av-entrou:not(.dj-bounce) { animation: none; }
         }
 
-        /* uma única linha por categoria, navegável no scroll lateral (desktop e mobile)
-           !important: o Tailwind CDN injeta os estilos DEPOIS deste bloco — qualquer
-           utilitário de layout que caia nestes elementos empataria em especificidade
-           e venceria pela ordem, quebrando a linha única (mesmo motivo do .cfg-nav) */
-        .cfg-row {
-            display: flex !important; flex-wrap: nowrap !important; gap: 6px;
-            overflow-x: auto !important; overflow-y: hidden; padding-bottom: 7px;
-            scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
-            scrollbar-width: thin; scrollbar-color: #DB7944 rgba(255,247,235,.08);
+        /* ── CRIADOR DE AVATAR: abas → subcategorias → UMA peça por vez, em grade ──
+           Antes eram 13 faixas de rolagem lateral empilhadas (no desktop, todas de uma
+           vez): difícil achar onde estava cada coisa. Agora a pessoa escolhe a aba
+           (Rosto · Estilo · Aura), a subcategoria num chip e vê só aquela peça.
+           !important no layout: o Tailwind CDN injeta os estilos DEPOIS deste bloco e
+           empataria em especificidade, vencendo pela ordem. */
+        .cfg-abas { display: flex !important; }
+        .cfg-aba {
+            flex: 1 1 0; padding: 10px 6px; font-size: 13px; font-weight: 600; white-space: nowrap;
+            border-bottom: 2px solid transparent; color: rgba(255,247,235,.6); transition: color .15s ease;
         }
-        .cfg-row > * { flex: 0 0 auto !important; scroll-snap-align: start; }
+        .cfg-aba:hover { color: #FFF7EB; }
+        .cfg-aba-on, .cfg-aba-on:hover { color: #DB7944; border-color: #DB7944; }
+        /* chips quebram linha: com rolagem lateral, "Barba" ficava escondido fora da tela */
+        .cfg-subs { display: flex !important; flex-wrap: wrap !important; gap: 6px; padding: 10px 0; }
+        .cfg-subs:not(.cfg-subs-on) { display: none !important; }
+        .cfg-chip {
+            flex: 0 0 auto; padding: 7px 14px; border-radius: 9999px; font-size: 12px; font-weight: 500;
+            border: 1px solid rgba(255,247,235,.18); color: rgba(255,247,235,.85);
+            background: rgba(255,247,235,.04); white-space: nowrap; transition: all .15s ease;
+        }
+        .cfg-chip:hover { border-color: rgba(219,121,68,.6); }
+        .cfg-chip-on, .cfg-chip-on:hover { background: #DB7944; border-color: #DB7944; color: #fff; }
+        .cfg-painel { display: none !important; }
+        .cfg-painel.cfg-painel-on { display: block !important; }
+        .cfg-grade { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 8px; }
+        .cfg-grade .av-card { min-width: 0; }
+        .cfg-cores { display: flex !important; flex-wrap: wrap !important; gap: 10px; }
+        .cfg-titulo {
+            display: block; font-size: 11px; font-weight: 600; color: rgba(255,247,235,.7);
+            text-transform: uppercase; letter-spacing: .12em; margin: 0 0 8px;
+        }
+        * + .cfg-titulo, * + div > .cfg-titulo { margin-top: 16px; }
 
         /* coroa VIP: sempre um selo no canto do avatar, nunca colada no nome */
         .vip-crown {
@@ -150,15 +172,13 @@
         /* bolinhas de cor: estado de seleção numa classe só, para alternar sem
            reconstruir a linha (reconstruir zerava o scroll e repedia as imagens) */
         .cfg-dot {
-            width: 28px; height: 28px; border-radius: 50%; cursor: pointer;
+            width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
             border: 2px solid rgba(255,247,235,.12); opacity: .6; transition: all .15s ease;
         }
         .cfg-dot:hover { opacity: 1; }
         .cfg-dot-on { border-color: #DB7944; opacity: 1; transform: scale(1.1); box-shadow: 0 0 8px rgba(219,121,68,.45); }
-        .cfg-dot-lg { width: 32px; height: 32px; border-color: transparent; }
+        .cfg-dot-lg { width: 38px; height: 38px; border-color: transparent; }
         .cfg-dot-lg.cfg-dot-on { border-color: #fff; }
-        .cfg-row::-webkit-scrollbar { height: 4px; }
-        .cfg-row::-webkit-scrollbar-track { background: rgba(255,247,235,.08); border-radius: 4px; }
 
         /* ── GLOW DA CABINE ── */
         @keyframes booth-glow {
@@ -266,19 +286,6 @@
             #secFila { height: auto; min-height: 0; flex: 1 1 auto; border-top-width: 0; }
         }
 
-        /* ── TABS DO MODAL DE PERSONALIZAÇÃO (mobile) ── */
-        .cfg-tab {
-            padding: 9px 16px; font-size: 12px; font-weight: 600; white-space: nowrap;
-            border-bottom: 2px solid transparent; color: rgba(255,247,235,.5);
-            text-transform: uppercase; letter-spacing: .12em;
-        }
-        .cfg-tab-on { color: #DB7944; border-color: #DB7944; }
-        @media (min-width: 768px) {
-            /* !important: o Tailwind CDN injeta os estilos depois deste bloco,
-               e a classe `flex` da nav empataria em especificidade */
-            .cfg-nav { display: none !important; }
-            .cfg-sec { display: block !important; }
-        }
     </style>
 </head>
 <body class="bg-[#050505] text-[#FFF7EB] font-poppins overflow-hidden h-[100dvh] flex flex-col relative">
@@ -556,73 +563,89 @@
                             placeholder="Como quer ser chamado?"/>
                     </div>
                 </div>
-                <!-- Navegação por seção (mobile) -->
-                <nav class="cfg-nav flex overflow-x-auto">
-                    <button type="button" data-tab="estilo" onclick="window.setCfgTab('estilo')" class="cfg-tab cfg-tab-on">Estilo</button>
-                    <button type="button" data-tab="rosto" onclick="window.setCfgTab('rosto')" class="cfg-tab">Rosto</button>
-                    <button type="button" data-tab="aura" onclick="window.setCfgTab('aura')" class="cfg-tab">Aura</button>
+                <!-- Abas (Rosto primeiro) e, abaixo, as subcategorias da aba aberta -->
+                <nav class="cfg-abas border-b border-[#FFF7EB]/10" role="tablist" aria-label="Partes do avatar">
+                    <button type="button" role="tab" data-aba="rosto" onclick="window.setAbaAvatar('rosto')" class="cfg-aba cfg-aba-on" aria-selected="true">😊 Rosto</button>
+                    <button type="button" role="tab" data-aba="estilo" onclick="window.setAbaAvatar('estilo')" class="cfg-aba" aria-selected="false">👕 Estilo</button>
+                    <button type="button" role="tab" data-aba="aura" onclick="window.setAbaAvatar('aura')" class="cfg-aba" aria-selected="false">✨ Aura</button>
                 </nav>
+                <div class="cfg-subs cfg-subs-on" data-subs="rosto">
+                    <button type="button" data-sub="pele" onclick="window.setAbaAvatar('rosto','pele')" class="cfg-chip cfg-chip-on">Pele</button>
+                    <button type="button" data-sub="olhos" onclick="window.setAbaAvatar('rosto','olhos')" class="cfg-chip">Olhos</button>
+                    <button type="button" data-sub="sobrancelhas" onclick="window.setAbaAvatar('rosto','sobrancelhas')" class="cfg-chip">Sobrancelhas</button>
+                    <button type="button" data-sub="boca" onclick="window.setAbaAvatar('rosto','boca')" class="cfg-chip">Boca</button>
+                    <button type="button" data-sub="barba" onclick="window.setAbaAvatar('rosto','barba')" class="cfg-chip">Barba</button>
+                </div>
+                <div class="cfg-subs" data-subs="estilo">
+                    <button type="button" data-sub="cabelo" onclick="window.setAbaAvatar('estilo','cabelo')" class="cfg-chip">Cabelo</button>
+                    <button type="button" data-sub="acessorios" onclick="window.setAbaAvatar('estilo','acessorios')" class="cfg-chip">Acessórios</button>
+                    <button type="button" data-sub="roupa" onclick="window.setAbaAvatar('estilo','roupa')" class="cfg-chip">Roupa</button>
+                </div>
+                <div class="cfg-subs" data-subs="aura">
+                    <span class="text-[11px] text-[#FFF7EB]/65 py-1.5">O brilho em volta do seu avatar na pista — e a cor do seu nome no chat.</span>
+                </div>
             </div>
 
-            <div class="bg-black/40 rounded-xl border border-[#FFF7EB]/10 p-4 space-y-5" id="avatarSections">
-
-                <!-- SEÇÃO: ESTILO — cada peça vem seguida da própria cor -->
-                <div class="cfg-sec space-y-5" data-sec="estilo">
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Cabelo / Chapéu</label>
-                        <div id="avatarTops" class="cfg-row"></div>
-                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor do cabelo</label>
-                        <div id="avatarHairColor" class="cfg-row"></div>
-                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor do chapéu / gorro</label>
-                        <div id="avatarHatColor" class="cfg-row"></div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Acessórios</label>
-                        <div id="avatarAccessories" class="cfg-row"></div>
-                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor dos acessórios</label>
-                        <div id="avatarAccColor" class="cfg-row"></div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Barba / Bigode</label>
-                        <div id="avatarFacialHair" class="cfg-row"></div>
-                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor da barba</label>
-                        <div id="avatarFacialHairColor" class="cfg-row"></div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Roupas</label>
-                        <div id="avatarClothes" class="cfg-row"></div>
-                        <label class="block text-[10px] font-semibold text-[#FFF7EB]/65 uppercase tracking-widest pt-0.5">↳ Cor da roupa</label>
-                        <div id="avatarClothingColor" class="cfg-row"></div>
+            <div class="bg-black/40 rounded-xl border border-[#FFF7EB]/10 p-3 md:p-4" id="avatarSections">
+                <!-- ROSTO -->
+                <div class="cfg-painel cfg-painel-on" data-painel="pele">
+                    <span class="cfg-titulo">Tom de pele</span>
+                    <div id="avatarSkin" class="cfg-cores"></div>
+                </div>
+                <div class="cfg-painel" data-painel="olhos">
+                    <span class="cfg-titulo">Olhos</span>
+                    <div id="avatarEyes" class="cfg-grade"></div>
+                </div>
+                <div class="cfg-painel" data-painel="sobrancelhas">
+                    <span class="cfg-titulo">Sobrancelhas</span>
+                    <div id="avatarEyebrows" class="cfg-grade"></div>
+                </div>
+                <div class="cfg-painel" data-painel="boca">
+                    <span class="cfg-titulo">Boca</span>
+                    <div id="avatarMouths" class="cfg-grade"></div>
+                </div>
+                <div class="cfg-painel" data-painel="barba">
+                    <span class="cfg-titulo">Barba e bigode</span>
+                    <div id="avatarFacialHair" class="cfg-grade"></div>
+                    <!-- cores só aparecem quando a peça existe (sem barba, cor da barba não faz sentido) -->
+                    <div id="blocoCorBarba">
+                        <span class="cfg-titulo">Cor da barba</span>
+                        <div id="avatarFacialHairColor" class="cfg-cores"></div>
                     </div>
                 </div>
 
-                <!-- SEÇÃO: ROSTO — tom de pele abre, depois as feições (sem cor própria) -->
-                <div class="cfg-sec space-y-5" data-sec="rosto">
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Tom de Pele</label>
-                        <div id="avatarSkin" class="cfg-row"></div>
+                <!-- ESTILO -->
+                <div class="cfg-painel" data-painel="cabelo">
+                    <span class="cfg-titulo">Cabelo, chapéu ou lenço</span>
+                    <div id="avatarTops" class="cfg-grade"></div>
+                    <div id="blocoCorCabelo">
+                        <span class="cfg-titulo">Cor do cabelo</span>
+                        <div id="avatarHairColor" class="cfg-cores"></div>
                     </div>
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Olhos</label>
-                        <div id="avatarEyes" class="cfg-row"></div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Sobrancelhas</label>
-                        <div id="avatarEyebrows" class="cfg-row"></div>
-                    </div>
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Boca</label>
-                        <div id="avatarMouths" class="cfg-row"></div>
+                    <div id="blocoCorChapeu">
+                        <span class="cfg-titulo">Cor do chapéu, gorro ou lenço</span>
+                        <div id="avatarHatColor" class="cfg-cores"></div>
                     </div>
                 </div>
-
-                <!-- SEÇÃO: AURA — brilho do avatar na pista, não faz parte do boneco -->
-                <div class="cfg-sec space-y-5" data-sec="aura">
-                    <div class="space-y-2">
-                        <label class="block text-[10px] font-bold text-[#DB7944] uppercase tracking-widest">Cor da Aura na Pista</label>
-                        <div id="avatarColors" class="cfg-row"></div>
-                        <p class="text-[11px] text-[#FFF7EB]/60 font-light">É o brilho em volta do seu avatar na pista — e a cor do seu nome no chat.</p>
+                <div class="cfg-painel" data-painel="acessorios">
+                    <span class="cfg-titulo">Acessórios</span>
+                    <div id="avatarAccessories" class="cfg-grade"></div>
+                    <div id="blocoCorAcessorio">
+                        <span class="cfg-titulo">Cor dos acessórios</span>
+                        <div id="avatarAccColor" class="cfg-cores"></div>
                     </div>
+                </div>
+                <div class="cfg-painel" data-painel="roupa">
+                    <span class="cfg-titulo">Roupa</span>
+                    <div id="avatarClothes" class="cfg-grade"></div>
+                    <span class="cfg-titulo">Cor da roupa</span>
+                    <div id="avatarClothingColor" class="cfg-cores"></div>
+                </div>
+
+                <!-- AURA: brilho do avatar na pista, não faz parte do boneco -->
+                <div class="cfg-painel" data-painel="aura">
+                    <span class="cfg-titulo">Cor da aura na pista</span>
+                    <div id="avatarColors" class="cfg-cores"></div>
                 </div>
             </div>
 
@@ -1024,11 +1047,12 @@
             hatColor: '25557c', accessoriesColor: '262e33', facialHairColor: '724133'
         };
         // categoria → chave da config; usado tanto no render dos cards quanto no pré-carregamento
+        // na ordem da tela (Rosto primeiro): é a ordem em que a fila pré-carrega os cards
         const CATEGORIAS = [
-            ['avatarTops', TOPS, 'top'], ['avatarAccessories', ACCESSORIES, 'accessories'],
-            ['avatarFacialHair', FACIAL_HAIR, 'facialHair'], ['avatarClothes', CLOTHES, 'clothing'],
             ['avatarEyes', EYES, 'eyes'], ['avatarEyebrows', EYEBROWS, 'eyebrows'],
-            ['avatarMouths', MOUTHS, 'mouth']
+            ['avatarMouths', MOUTHS, 'mouth'], ['avatarFacialHair', FACIAL_HAIR, 'facialHair'],
+            ['avatarTops', TOPS, 'top'], ['avatarAccessories', ACCESSORIES, 'accessories'],
+            ['avatarClothes', CLOTHES, 'clothing']
         ];
         // olhos, sobrancelhas e boca: o boneco inteiro em 46 px escondia a diferença entre
         // as opções — nesses cards a miniatura vem com zoom no rosto
@@ -3123,6 +3147,7 @@ ${cd}`;
                 b.setAttribute('aria-pressed', sel);
                 if (aura) b.style.boxShadow = sel ? `0 0 12px ${b.dataset.valor}90` : '';
             });
+            mostrarCoresRelevantes();
         }
 
         function renderSettingsModal() {
@@ -3155,14 +3180,40 @@ ${cd}`;
             saveProfile();
         });
 
-        // ── ABAS DO MODAL (mobile) ──
-        window.setCfgTab = tab => {
-            document.querySelectorAll('.cfg-sec').forEach(el => {
-                el.style.display = el.dataset.sec === tab ? 'block' : 'none';
+        // ── NAVEGAÇÃO DO CRIADOR DE AVATAR ──
+        // Aba (Rosto · Estilo · Aura) → subcategoria → um painel por vez. Cada aba
+        // lembra a última subcategoria aberta.
+        const subDaAba = {rosto: 'pele', estilo: 'cabelo', aura: 'aura'};
+        window.setAbaAvatar = (aba, sub = subDaAba[aba]) => {
+            subDaAba[aba] = sub;
+            document.querySelectorAll('.cfg-aba').forEach(b => {
+                const on = b.dataset.aba === aba;
+                b.classList.toggle('cfg-aba-on', on);
+                b.setAttribute('aria-selected', on);
             });
-            document.querySelectorAll('.cfg-tab').forEach(b =>
-                b.classList.toggle('cfg-tab-on', b.dataset.tab === tab));
+            document.querySelectorAll('.cfg-subs').forEach(g => g.classList.toggle('cfg-subs-on', g.dataset.subs === aba));
+            document.querySelectorAll('.cfg-chip').forEach(c => {
+                const on = c.dataset.sub === sub;
+                c.classList.toggle('cfg-chip-on', on);
+                c.setAttribute('aria-pressed', on);
+            });
+            document.querySelectorAll('.cfg-painel').forEach(p => p.classList.toggle('cfg-painel-on', p.dataset.painel === sub));
+            // painel novo começa do topo (rolar só o miolo; preview e abas são fixos)
+            const caixa = document.querySelector('#settingsModal > div');
+            const sec = document.getElementById('avatarSections');
+            if (caixa.scrollTop > sec.offsetTop - 260) caixa.scrollTop = Math.max(0, sec.offsetTop - 260);
         };
+
+        // cores que só fazem sentido quando a peça existe
+        const TOPS_COM_TECIDO = ['hat', 'hijab', 'turban', 'winterHat1', 'winterHat02', 'winterHat03', 'winterHat04'];
+        const TOPS_SEM_CABELO_VISIVEL = ['noHair', 'hijab', 'turban'];
+        function mostrarCoresRelevantes() {
+            const c = localProfile.avatarConfig;
+            document.getElementById('blocoCorChapeu').classList.toggle('hidden', !TOPS_COM_TECIDO.includes(c.top));
+            document.getElementById('blocoCorCabelo').classList.toggle('hidden', TOPS_SEM_CABELO_VISIVEL.includes(c.top));
+            document.getElementById('blocoCorAcessorio').classList.toggle('hidden', !c.accessories);
+            document.getElementById('blocoCorBarba').classList.toggle('hidden', !c.facialHair);
+        }
 
         // ── ENTRAR NA FESTA ──
         // coroa do header + fila de DJ coerentes com o status atual
@@ -3286,7 +3337,7 @@ ${cd}`;
         modoModal(false);
 
         renderSettingsModal();
-        window.setCfgTab('estilo');
+        window.setAbaAvatar('rosto');
 
         // ── QUEM JÁ TEM BONECO VAI DIRETO PRA PISTA ──
         // Sem modal na cara de novo: entra com o mesmo visual/ingresso da última vez.
