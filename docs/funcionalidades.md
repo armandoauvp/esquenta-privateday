@@ -67,6 +67,12 @@ Quem está com a música tocando vê o botão **"Pular minha vez"** — passa a 
 
 **Sem conexão**: sem Firebase, ou com a internet caída, uma faixa vermelha no topo explica que a pessoa está só assistindo, e chat e fila ficam travados com o motivo no próprio campo. Se a autenticação demorar mais que os 10 s do timeout, o app conecta sozinho quando ela chegar (antes ficava offline até recarregar).
 
+**Avisos em fila**: um aviso novo não apaga o anterior. Eles aparecem um por vez (até 3 esperando, sem repetir o mesmo texto; erros passam na frente), cada um com ✕ para dispensar. No celular ficam logo acima da lateral, sem cobrir o campo do chat.
+
+**Pista pelo teclado**: com a pista em foco (Tab ou um clique), as **setas** movem o avatar (4% por toque; com **Shift**, 10%), respeitando a Área VIP. O avatar anda na hora e a gravação no Firestore sai agrupada, então segurar a seta não gera uma escrita por tecla.
+
+**Botões do player no celular**: alvo de toque de 40 px e versão compacta (ícone + contador, como `🔥 3` e `▶ 1/4`; "Passar" e "Anúncio" no lugar dos textos longos). O texto completo continua no `aria-label` e volta a aparecer a partir de 640 px.
+
 **Mensagem privada nova**: chega um aviso "Nova mensagem de X" com botão **Abrir**, e um badge 💬 no header soma as não lidas (o clique abre a conversa mais recente).
 
 Para os demais, o botão **"Pular (x/y)"** no canto do player:

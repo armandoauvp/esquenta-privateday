@@ -12,7 +12,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-13c">
+    <meta name="app-build" content="2026-10-13d">
     <title>Esquenta AUVP Private Day</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -175,7 +175,7 @@
         /* ícones Hugeicons: acompanham o texto (1em, currentColor) */
         .hgi { display: inline-block; flex-shrink: 0; vertical-align: -.14em; }
         [data-icone] { display: inline-flex; align-items: center; }
-        #toast .hgi { color: #DB7944; font-size: 16px; margin-right: 2px; vertical-align: -.22em; }
+        #toast > span .hgi { color: #DB7944; font-size: 16px; margin-right: 2px; vertical-align: -.22em; }
 
         /* ── DADO DO "ALEATÓRIO" ── rola no lugar do avatar até o novo chegar */
         .dado-rolando {
@@ -289,6 +289,10 @@
             .fade-in-up, .toast-in, .rx-btn { animation: none !important; transition: none !important; }
         }
 
+        /* pista focável (setas movem o avatar): anel só para quem navega por teclado */
+        #danceFloor:focus { outline: none; }
+        #danceFloor:focus-visible { outline: 2px solid #DB7944; outline-offset: -2px; }
+
         /* ── TOAST ── */
         @keyframes toast-in { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         .toast-in { animation: toast-in .25s ease-out forwards; }
@@ -388,7 +392,7 @@
             <div id="playerContainer" class="bg-[#030303] aspect-video max-h-[30dvh] md:max-h-[42dvh] lg:max-h-none lg:h-72 w-full shrink-0 border-b border-[#FFF7EB]/8 relative z-20 shadow-2xl flex items-center justify-center group overflow-hidden"></div>
 
             <!-- PISTA DE DANÇA -->
-            <div id="danceFloor" class="flex-1 min-h-[140px] relative overflow-hidden cursor-crosshair" style="background:#050505;">
+            <div id="danceFloor" tabindex="0" aria-label="Pista de dança. Use as setas do teclado para mover seu avatar (Shift anda mais rápido)" class="flex-1 min-h-[140px] relative overflow-hidden cursor-crosshair" style="background:#050505;">
 
                 <!-- Camada WebGL (globo 3D, feixes de luz e partículas) — por cima da pista, abaixo dos avatares -->
                 <div id="webglLayer" class="absolute inset-0 pointer-events-none z-[8]"></div>
@@ -419,7 +423,7 @@
                 </div>
 
                 <div id="floorHint" class="absolute top-3 left-3 max-w-[calc(100%-24px)] truncate text-[11px] text-[#FFF7EB]/70 pointer-events-none bg-black/60 px-3 py-1 rounded-full border border-[#FFF7EB]/8 backdrop-blur-sm z-10">
-                    <span class="hint-full">Clique na pista para se mover · Clique em alguém para puxar papo</span>
+                    <span class="hint-full">Clique na pista (ou use as setas) para se mover · Clique em alguém para puxar papo</span>
                     <span class="hint-short">Toque para se mover · toque em alguém pra papo</span>
                 </div>
 
@@ -1727,17 +1731,42 @@
 
         // msg já vem com o conteúdo de usuário escapado pelo chamador.
         // `acao` = {rotulo, fn}: botão no próprio aviso (ex.: abrir a DM que chegou).
+        // Avisos em FILA: um aviso novo não apaga o anterior (antes, "Fulano aceitou seu
+        // papo" sumia se outro aviso chegasse logo depois). Um por vez, no máximo 3
+        // esperando, sem repetir o mesmo texto; erros furam a fila. Com fila, cada um
+        // fica menos tempo, e o ✕ dispensa na hora.
+        const filaAvisos = [];
+        let avisoAtual = null;
         function showToast(msg, link = null, {acao = null, erro = false, ms = null} = {}) {
-            document.getElementById('toast')?.remove();
+            if (avisoAtual?.msg === msg || filaAvisos.some(a => a.msg === msg)) return;
+            filaAvisos[erro ? 'unshift' : 'push']({msg, link, acao, erro, ms});
+            if (filaAvisos.length > 3) filaAvisos.splice(3);
+            if (!avisoAtual) proximoAviso();
+        }
+        function proximoAviso() {
+            avisoAtual = filaAvisos.shift() || null;
+            if (!avisoAtual) return;
+            const {msg, link, acao, erro, ms} = avisoAtual;
             const t = document.createElement('div');
             t.id = 'toast';
             t.setAttribute('role', erro ? 'alert' : 'status');
-            t.className = `toast-in fixed bottom-6 inset-x-3 mx-auto w-fit max-w-[560px] z-[60] bg-[#0d0d0d] border ${erro ? 'border-[#ff8a80]/70' : 'border-[#DB7944]/50'} text-[#FFF7EB] text-xs px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-3`;
-            t.innerHTML = `<span class="min-w-0 leading-snug">${msg}</span>${link ? `<a href="${link}" target="_blank" rel="noopener" class="bg-[#DB7944] text-white px-3 py-1 rounded-full font-semibold whitespace-nowrap hover:bg-[#c45d1b] transition">Garantir ingresso</a>` : ''}${acao ? `<button type="button" class="bg-[#DB7944] text-white px-3 py-1 rounded-full font-semibold whitespace-nowrap hover:bg-[#c45d1b] transition">${esc(acao.rotulo)}</button>` : ''}`;
-            if (acao) t.querySelector('button').addEventListener('click', () => { t.remove(); acao.fn(); });
+            // no celular fica logo acima da lateral: embaixo de tudo, cobria o campo do chat
+            t.className = `toast-in fixed bottom-[calc(38dvh+12px)] md:bottom-6 inset-x-3 mx-auto w-fit max-w-[560px] z-[60] bg-[#0d0d0d] border ${erro ? 'border-[#ff8a80]/70' : 'border-[#DB7944]/50'} text-[#FFF7EB] text-xs pl-4 pr-2 py-2 rounded-2xl shadow-2xl flex items-center gap-2.5`;
+            t.innerHTML = `<span class="min-w-0 leading-snug">${msg}</span>${link ? `<a href="${link}" target="_blank" rel="noopener" class="bg-[#DB7944] text-white px-3 py-1 rounded-full font-semibold whitespace-nowrap hover:bg-[#c45d1b] transition">Garantir ingresso</a>` : ''}${acao ? `<button type="button" data-acao class="bg-[#DB7944] text-white px-3 py-1 rounded-full font-semibold whitespace-nowrap hover:bg-[#c45d1b] transition">${esc(acao.rotulo)}</button>` : ''}<button type="button" data-dispensar aria-label="Dispensar aviso" class="shrink-0 w-7 h-7 rounded-full text-[#FFF7EB]/60 hover:text-white hover:bg-[#FFF7EB]/10 inline-flex items-center justify-center text-[14px] transition">${Icons.close}</button>`;
+            let timer;
+            const fechar = () => {
+                clearTimeout(timer);
+                t.remove();
+                avisoAtual = null;
+                setTimeout(proximoAviso, 180);
+            };
+            if (acao) t.querySelector('[data-acao]').addEventListener('click', () => { fechar(); acao.fn(); });
+            t.querySelector('[data-dispensar]').addEventListener('click', fechar);
             document.body.appendChild(t);
-            // com algo pra clicar, o aviso fica mais tempo (4,5 s não dava pra alcançar o botão)
-            setTimeout(() => t.remove(), ms ?? ((link || acao) ? 8000 : 4500));
+            // com algo pra clicar, o aviso fica mais tempo (4,5 s não dava pra alcançar o botão);
+            // com outros esperando, cada um fica menos
+            const tempo = ms ?? ((link || acao) ? 8000 : 4500);
+            timer = setTimeout(fechar, filaAvisos.length ? Math.min(tempo, 3500) : tempo);
         }
         const avisoErro = oQue => showToast(`${Icons.sad} Não deu pra ${oQue}. Confira a conexão e tente de novo.`, null, {erro: true});
 
@@ -1755,6 +1784,33 @@
         });
         // cliques na barra de reações/passinhos não movem o avatar
         document.getElementById('actionBar').addEventListener('click', e => e.stopPropagation());
+
+        // ── PISTA PELO TECLADO ──
+        // Com a pista em foco, as setas andam 4% (Shift: 10%). O avatar se move na hora
+        // (otimista) e a escrita no Firestore sai agrupada: segurar a seta não dispara
+        // uma escrita por tecla.
+        const SETAS = {ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]};
+        let escritaPosicao = null;
+        document.getElementById('danceFloor').addEventListener('keydown', e => {
+            const dir = SETAS[e.key];
+            if (!dir || e.target !== e.currentTarget || !currentUser) return; // setas num avatar/botão: deixa quieto
+            e.preventDefault();
+            const me = activeUsers.find(u => u.id === currentUser.uid);
+            if (!me) return;
+            const passo = e.shiftKey ? 10 : 4;
+            const limita = v => Math.min(96, Math.max(4, v));
+            const x = limita((me.x ?? 50) + dir[0] * passo);
+            const y = limita((me.y ?? 50) + dir[1] * passo);
+            if (inVipZone(x, y) && !localProfile.isVIP) {
+                showToast(`${Icons.crown} Área VIP — só pra quem já garantiu o ingresso!`, TICKETS_URL);
+                return;
+            }
+            me.x = x; me.y = y;
+            renderUsers();
+            document.getElementById('floorHint')?.classList.add('hidden');
+            clearTimeout(escritaPosicao);
+            escritaPosicao = setTimeout(() => updatePresence(x, y), 180);
+        });
 
         // ── RENDER USUÁRIOS ──
         // Reconciliação por uid: cada avatar nasce uma vez e depois só tem a posição (e,
@@ -2080,23 +2136,24 @@ ${!isMe ? (unlocked ? `
 <div class="absolute inset-0 pointer-events-auto" title="Só o DJ controla o player"></div>
 <div class="absolute bottom-2 right-2 max-w-[52%] flex flex-wrap justify-end items-center gap-1.5">
   <button onclick="window.unlockPlayer()" title="Apareceu propaganda? Libere o player por 15s para pular o anúncio"
-    class="pointer-events-auto bg-black/80 backdrop-blur-md text-[#FFF7EB]/85 text-[11px] px-3 py-1.5 min-h-[32px] rounded-full border border-[#FFF7EB]/15 hover:bg-[#DB7944] hover:text-white hover:border-[#DB7944] transition shadow-lg whitespace-nowrap">${Icons.tv} Pular propaganda</button>
+    aria-label="Pular propaganda"
+    class="pointer-events-auto inline-flex items-center justify-center gap-1 bg-black/80 backdrop-blur-md text-[#FFF7EB]/85 text-[11px] px-3 py-1.5 min-h-[40px] min-w-[40px] md:min-h-[32px] rounded-full border border-[#FFF7EB]/15 hover:bg-[#DB7944] hover:text-white hover:border-[#DB7944] transition shadow-lg whitespace-nowrap"><span class="text-[15px] md:text-[13px]">${Icons.tv}</span><span class="sm:hidden">Anúncio</span><span class="hidden sm:inline">Pular propaganda</span></button>
   <div class="hidden md:block bg-black/70 backdrop-blur-md text-[#FFF7EB]/60 text-[9px] px-2.5 py-1 rounded-full border border-[#FFF7EB]/10 whitespace-nowrap">${Icons.lock} Só o DJ controla o player</div>
 </div>`) : ''}
 ${isMe?`<div class="absolute top-2 left-2 bg-[#ff00cc] text-white text-[11px] px-3 py-1 rounded-full font-bold shadow-lg my-turn-badge">${Icons.headphones} Sua vez<span class="hidden sm:inline"> na mesa!</span> <span class="hidden sm:inline font-normal opacity-80">fique na tela</span></div>`:''}
 <div class="absolute top-2 right-2 ${isMe ? 'max-w-[58%] sm:max-w-[75%]' : 'max-w-[75%]'} flex flex-wrap justify-end gap-1.5 z-10">
-  <button onclick="window.votePartySong()" ${iParty?'disabled':''} title="Vote pra essa tocar na festa de verdade!"
-    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[32px] rounded-full border transition flex items-center gap-1 shadow-lg ${iParty?'bg-[#ff6600] border-[#ff6600] text-white cursor-default':'bg-black/80 text-[#FFF7EB] border-[#FFF7EB]/20 hover:bg-[#ff6600] hover:border-[#ff6600]'}">
-    ${Icons.fire} Essa vai pra festa!${pCount?` (${pCount})`:''}
+  <button onclick="window.votePartySong()" ${iParty?'disabled':''} title="Vote pra essa tocar na festa de verdade!" aria-label="Essa vai pra festa!${pCount ? ` (${pCount} votos)` : ''}"
+    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[40px] min-w-[40px] md:min-h-[32px] rounded-full border transition flex items-center justify-center gap-1 shadow-lg ${iParty?'bg-[#ff6600] border-[#ff6600] text-white cursor-default':'bg-black/80 text-[#FFF7EB] border-[#FFF7EB]/20 hover:bg-[#ff6600] hover:border-[#ff6600]'}">
+    <span class="text-[15px] md:text-[13px]">${Icons.fire}</span><span class="hidden sm:inline">Essa vai pra festa!</span>${pCount?`<span class="font-semibold">${pCount}</span>`:''}
   </button>
   ${isMe ? `
-  <button onclick="window.skipMyTurn()" title="Passe a vez para a próxima música"
-    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[32px] rounded-full border transition flex items-center gap-1 shadow-lg bg-black/80 text-[#FFF7EB] border-[#ff00cc]/40 hover:bg-[#ff00cc] hover:border-[#ff00cc]">
-    ${Icons.play} Pular minha vez
+  <button onclick="window.skipMyTurn()" title="Passe a vez para a próxima música" aria-label="Pular minha vez"
+    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[40px] min-w-[40px] md:min-h-[32px] rounded-full border transition flex items-center justify-center gap-1 shadow-lg bg-black/80 text-[#FFF7EB] border-[#ff00cc]/40 hover:bg-[#ff00cc] hover:border-[#ff00cc]">
+    <span class="text-[15px] md:text-[13px]">${Icons.play}</span><span class="sm:hidden">Passar</span><span class="hidden sm:inline">Pular minha vez</span>
   </button>` : `
-  <button onclick="window.voteSkip()" ${iVotedSkip?'disabled':''} title="Vote para pular esta música"
-    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[32px] rounded-full border transition flex items-center gap-1 shadow-lg ${iVotedSkip?'bg-[#DB7944] border-[#DB7944] text-white cursor-default':'bg-black/80 text-[#FFF7EB] border-[#FFF7EB]/20 hover:bg-[#DB7944] hover:border-[#DB7944]'}">
-    ${Icons.play} Pular (${votes}/${need})
+  <button onclick="window.voteSkip()" ${iVotedSkip?'disabled':''} title="Vote para pular esta música" aria-label="Pular esta música: ${votes} de ${need} votos"
+    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[40px] min-w-[40px] md:min-h-[32px] rounded-full border transition flex items-center justify-center gap-1 shadow-lg ${iVotedSkip?'bg-[#DB7944] border-[#DB7944] text-white cursor-default':'bg-black/80 text-[#FFF7EB] border-[#FFF7EB]/20 hover:bg-[#DB7944] hover:border-[#DB7944]'}">
+    <span class="text-[15px] md:text-[13px]">${Icons.play}</span><span class="hidden sm:inline">Pular</span> <span class="font-semibold">${votes}/${need}</span>
   </button>`}
 </div>
 ${precisaTocar ? `
@@ -3329,6 +3386,8 @@ ${cd}`;
             ha.classList.remove('hidden');
             document.getElementById('headerName').innerText = localProfile.name;
             document.getElementById('settingsModal').classList.add('hidden');
+            focoAntesDaEdicao?.focus?.();
+            focoAntesDaEdicao = null;
             modalOpen = false;
             applyModalAudioDuck();
         }
@@ -3417,12 +3476,17 @@ ${cd}`;
             enterParty(localProfile.isVIP);
         };
 
+        // edição aberta pelo header: foco vai pra aba ativa (não pro campo de nome, que
+        // abriria o teclado no celular) e volta pro botão do header ao fechar
+        let focoAntesDaEdicao = null;
         document.getElementById('openSettingsBtn').addEventListener('click', () => {
+            focoAntesDaEdicao = document.activeElement;
             renderSettingsModal();
             modoModal(true);
             document.getElementById('settingsModal').classList.remove('hidden');
             modalOpen = true;
             applyModalAudioDuck();
+            setTimeout(() => document.querySelector('#settingsModal .cfg-aba-on')?.focus(), 50);
         });
         modoModal(false);
 
