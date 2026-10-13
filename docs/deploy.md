@@ -55,6 +55,7 @@ Quem tem ingresso confirma pelo e-mail da compra. A lista vai para o Firestore c
 3. Confira primeiro, sem gravar nada: `python3 tools/importar-ingressos.py Guru-Vendas.xlsx --simular`
 4. Importe: `python3 tools/importar-ingressos.py Guru-Vendas.xlsx --chave caminho/da-chave.json`
 5. Repita sempre que houver vendas novas. Com reembolsos, use `--substituir` para apagar quem saiu da planilha.
+6. Cortesias, convidados e equipe (fora da planilha): `python3 tools/importar-ingressos.py --adicionar fulano@exemplo.com --chave caminho/da-chave.json` (pode repetir `--adicionar`). Esses e-mails ficam marcados como **manuais** e o `--substituir` nunca os apaga.
 
 O script lê a primeira aba do `.xlsx` (ou o CSV, detectando separador e codificação) e acha a coluna de e-mail pelo cabeçalho. No Guru é `email contato`; para outra, use `--coluna "Nome da coluna"`. Se houver coluna `status`, só entram vendas **Aprovada/Completa** (`--todos-status` desliga o filtro). Linhas sem e-mail válido são ignoradas, e cada e-mail entra uma vez só, mesmo com várias compras (upgrades). Só o hash de cada e-mail é gravado.
 

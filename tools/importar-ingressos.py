@@ -15,6 +15,10 @@ Uso:
     python3 tools/importar-ingressos.py Guru-Vendas.xlsx --chave ~/auvp-privateday-chave.json
     python3 tools/importar-ingressos.py Guru-Vendas.xlsx --simular                # só mostra
     python3 tools/importar-ingressos.py Guru-Vendas.xlsx --chave ... --substituir # remove quem saiu (reembolso)
+    python3 tools/importar-ingressos.py --adicionar fulano@exemplo.com --chave ... # cortesia/convidado
+
+E-mails incluídos com --adicionar (cortesias, convidados, equipe) ficam marcados como
+manuais: o --substituir nunca os apaga, mesmo que não estejam na planilha.
 
 A coluna de e-mail é detectada pelo cabeçalho (algo com "mail", ex.: "email contato");
 use --coluna para indicar outra. Se houver coluna "status", só entram vendas aprovadas
@@ -106,7 +110,9 @@ def main() -> None:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description="Importa a lista de ingressos para o Firestore.")
-    ap.add_argument("planilha", type=pathlib.Path, help="XLSX ou CSV exportado da plataforma de vendas")
+    ap.add_argument("planilha", type=pathlib.Path, nargs="?", help="XLSX ou CSV exportado da plataforma de vendas")
+    ap.add_argument("--adicionar", action="append", metavar="EMAIL", default=[],
+                    help="inclui um e-mail avulso (cortesia/convidado); pode repetir. Não é apagado pelo --substituir")
     ap.add_argument("--chave", type=pathlib.Path, help="JSON da conta de serviço do Firebase")
     ap.add_argument("--coluna", help="nome da coluna de e-mail (padrão: detecta pelo cabeçalho)")
     ap.add_argument("--todos-status", action="store_true", help="não filtra pela coluna status")
@@ -114,10 +120,22 @@ def main() -> None:
     ap.add_argument("--substituir", action="store_true",
                     help="apaga do Firestore os ingressos que não estão nesta planilha (reembolsos)")
     args = ap.parse_args()
+    if not args.planilha and not args.adicionar:
+        ap.error("informe a planilha ou --adicionar EMAIL")
+    if args.adicionar and args.substituir:
+        ap.error("--substituir só faz sentido com a planilha completa, não com --adicionar")
 
-    emails = ler_emails(args.planilha, args.coluna, args.todos_status)
+    avulsos = [normalizar(e) for e in args.adicionar]
+    for e in avulsos:
+        if not EMAIL_RE.match(e):
+            sys.exit(f"ERRO: e-mail inválido: {e!r}")
+    emails = ler_emails(args.planilha, args.coluna, args.todos_status) if args.planilha else []
     hashes = {hash_email(e) for e in emails}
-    print(f"{len(emails)} e-mail(s) único(s) com ingresso.")
+    hashes_avulsos = {hash_email(e) for e in avulsos}
+    if args.planilha:
+        print(f"{len(emails)} e-mail(s) único(s) com ingresso.")
+    if avulsos:
+        print(f"{len(avulsos)} e-mail(s) avulso(s) a incluir como manual.")
     if args.simular:
         print("Simulação: nada foi gravado.")
         return
@@ -132,20 +150,23 @@ def main() -> None:
     col = db.collection("artifacts").document(APP_ID).collection("public") \
             .document("data").collection("ingressos")
 
-    existentes = {d.id for d in col.list_documents()}
-    novos = hashes - existentes
+    # manual = incluído com --adicionar; o --substituir não toca nesses
+    existentes = {d.id: bool((d.to_dict() or {}).get("manual")) for d in col.select(["manual"]).stream()}
+    gravacoes = [(h, {"importadoEm": firestore.SERVER_TIMESTAMP}) for h in hashes] + \
+                [(h, {"importadoEm": firestore.SERVER_TIMESTAMP, "manual": True}) for h in hashes_avulsos]
     lote, n = db.batch(), 0
-    for h in hashes:
-        lote.set(col.document(h), {"importadoEm": firestore.SERVER_TIMESTAMP})
+    for h, dados in gravacoes:
+        lote.set(col.document(h), dados, merge=True)  # merge: reimportar não apaga a marca de manual
         n += 1
         if n % 450 == 0:
             lote.commit()
             lote = db.batch()
     lote.commit()
-    print(f"Gravados: {len(hashes)} ({len(novos)} novo(s)).")
+    todos = hashes | hashes_avulsos
+    print(f"Gravados: {len(todos)} ({len(todos - set(existentes))} novo(s)).")
 
     if args.substituir:
-        sobrando = existentes - hashes
+        sobrando = {h for h, manual in existentes.items() if not manual} - hashes
         lote, n = db.batch(), 0
         for h in sobrando:
             lote.delete(col.document(h))
