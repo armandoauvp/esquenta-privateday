@@ -10,16 +10,20 @@ Quem **já personalizou antes vai direto para a pista** — sem modal na cara de
 
 - **Preview + nome** ficam sempre visíveis no topo, com o botão **🎲 Aleatório** logo abaixo do preview para sortear outro visual completo a qualquer momento.
 - Cada opção de estilo é um **card com a imagem do avatar** usando aquela opção (miniaturas geradas pelo DiceBear) — nada de escolher só pelo texto.
-- **Uma linha por categoria**: cada catálogo (cabelo, roupas, olhos, cores…) fica numa faixa única, navegável por **scroll lateral** — no desktop e no mobile. O painel não estica em altura por causa de uma categoria grande, e a faixa **mantém a posição do scroll** ao escolher (antes, clicar na 15ª opção jogava a linha de volta ao começo).
-- **A cor vem logo depois da peça**: cabelo → cor do cabelo → cor do chapéu → acessórios → cor dos acessórios → barba → cor da barba → roupas → cor da roupa. As cores de cada elemento deixaram de ficar numa aba separada.
-- **Mobile**: as opções são divididas em três seções navegáveis por abas no topo do painel:
-  - **Estilo** — cabelo/chapéu, acessórios, barba, roupas (cada um seguido das próprias cores)
-  - **Rosto** — tom de pele, olhos, sobrancelhas, boca
+- **Abas → subcategorias → uma peça por vez** (igual no celular e no desktop). As abas ficam no topo fixo, com Rosto primeiro, e as subcategorias aparecem em chips logo abaixo:
+  - **Rosto** — Pele · Olhos (olhos e sobrancelhas no mesmo painel) · Boca · Barba
+  - **Estilo** — Cabelo · Acessórios · Roupa
   - **Aura** — cor do brilho do avatar na pista (e do nome no chat)
+
+  Só o painel da subcategoria escolhida aparece, com as opções em **grade** (sem faixas de rolagem lateral). Cada aba lembra a última subcategoria aberta.
+- **A cor fica no mesmo painel da peça, e só quando faz sentido**: a cor do chapéu só aparece com chapéu, gorro, hijab ou turbante; a do cabelo some quando ele não aparece (careca, hijab, turbante); a dos acessórios e a da barba só aparecem quando há acessório ou barba.
+- **Rosto com zoom**: as miniaturas de olhos, sobrancelhas e boca vêm aproximadas no rosto (`scale`/`translateY` do DiceBear). Em 46 px, o boneco inteiro escondia a diferença entre as opções.
 - **Cor da aura**: paleta com 11 cores (dois tons de laranja — o laranja AUVP `#DB7944` e o neon `#ff6600`).
-- **Botões de entrada**:
+- **Botões de entrada** (num rodapé fixo, sempre à vista sem rolar as opções):
   - **"Já tenho meu ingresso!"** → entra na festa como VIP (coroa dourada + brilho especial no avatar).
-  - **"Não tenho ingresso"** → abre `https://privateday.auvp.com.br/#ingressos` em nova aba e entra como convidado.
+  - **"Entrar sem ingresso"** → entra como convidado e mostra um aviso com o link de `https://privateday.auvp.com.br/#ingressos`. Nenhuma aba abre sozinha (antes a pessoa caía fora do app logo na entrada e ainda ficava "ausente").
+- **Confirmação do ingresso por e-mail**: "Já tenho meu ingresso!" pede o e-mail usado na compra e confere contra a lista importada. O e-mail não é salvo nem exibido; vai só o hash dele, comparado com `ingressos/{hash}`. Se não estiver na lista, a pessoa vê o motivo, o link de compra e a opção de entrar sem ingresso. Quem tinha "VIP declarado" antes da lista existir volta a convidado na próxima visita, com um aviso e o botão **Confirmar**.
+- **Editar depois de entrar** (avatar no header): o modal abre em modo edição, com ✕, Esc e **"Salvar e voltar pra pista"**, que mantém o status de ingresso. Trocar o status fica no link "Mudar meu status de ingresso".
 
 Enquanto o modal está aberto, o áudio do player fica abafado (volume ~10% + desfoque no vídeo). Ao entrar, o som volta ao normal.
 
@@ -46,7 +50,7 @@ Enquanto o modal está aberto, o áudio do player fica abafado (volume ~10% + de
 ## Fila do DJ e player
 
 ### Adicionar música
-**A mesa de DJ é exclusiva de quem tem ingresso.** Para quem entrou pelo "Não tenho ingresso", o campo da fila fica travado com um aviso e um atalho para a página de ingressos; forçar o envio mostra o mesmo convite. Como o ingresso é declarado pela própria pessoa no modal de entrada (não há validação), a trava é de experiência — bloqueia o caminho normal e explica o porquê —, não de segurança.
+**A mesa de DJ é exclusiva de quem tem ingresso confirmado.** Para quem entrou sem ingresso, o campo da fila fica travado com um aviso, um atalho "Já tenho: confirmar e-mail" e o link para a página de ingressos; forçar o envio mostra o mesmo convite. As regras do Firestore recusam a fila de quem não tem o vínculo `vip/{uid}`.
 
 Cole um link do YouTube no campo da fila. A música entra no fim da fila com seu nome e o **título resolvido automaticamente** (oEmbed via noembed.com, sem chave de API); o título também aparece numa pílula sobre o player enquanto toca.
 
@@ -55,7 +59,15 @@ Cole um link do YouTube no campo da fila. A música entra no fim da fila com seu
 - Se a **playlist da casa** estiver tocando (ninguém na mesa), uma **contagem regressiva de 5 segundos** aparece sobre o player ("🎵 Música de Fulano entrando na pista!") e a sua música assume.
 
 ### Votar para pular
-Quem está com a música tocando vê o botão **"Pular minha vez"** — passa a vez direto (com a contagem de 5 s), sem precisar de votação.
+Quem está com a música tocando vê o botão **"Pular minha vez"** — passa a vez direto (com a contagem de 5 s), sem precisar de votação. Durante essa contagem o DJ vê **"Cancelar, quero continuar"**: um toque acidental não custa a música.
+
+**Autoplay barrado** (Safari/iOS ou quem entra sem ter tocado na página): se o vídeo do DJ fica 6 s parado em "não iniciado", aparece **"▶ Tocar a música"**. O botão manda o play e libera o player por 15 s, então tocar no play do próprio YouTube também funciona.
+
+**Envios com retorno**: chat, fila, DM e votos travam o botão durante o envio (Enter duplo não duplica nada) e avisam quando falham, sem apagar o que a pessoa digitou. Erros da fila aparecem embaixo do campo, com exemplo de link aceito (watch, youtu.be, shorts, live, embed). Música repetida é recusada. Ao entrar na fila, um aviso mostra a posição.
+
+**Sem conexão**: sem Firebase, ou com a internet caída, uma faixa vermelha no topo explica que a pessoa está só assistindo, e chat e fila ficam travados com o motivo no próprio campo. Se a autenticação demorar mais que os 10 s do timeout, o app conecta sozinho quando ela chegar (antes ficava offline até recarregar).
+
+**Mensagem privada nova**: chega um aviso "Nova mensagem de X" com botão **Abrir**, e um badge 💬 no header soma as não lidas (o clique abre a conversa mais recente).
 
 Para os demais, o botão **"Pular (x/y)"** no canto do player:
 - `x` = votos atuais, `y` = votos necessários: **50%+1 dos presentes ou 10 votos**, o que for menor (mínimo 1).
@@ -108,6 +120,6 @@ Botão **🏆 Ranking** no header abre o painel com dois placares ao vivo:
 ## Responsividade
 
 - Layout usa `100dvh` (estável em navegadores mobile com barra de endereço dinâmica).
-- **Desktop/notebook (≥1024px)**: pista à esquerda, chat + fila em coluna fixa à direita.
-- **Tablet/celular**: player e pista em cima, chat + fila ocupando ~48% da altura embaixo; painel de DM ancorado à esquerda; modal com abas.
+- **Tablet e desktop (≥768px)**: pista à esquerda, chat + fila em coluna fixa à direita (320 px no tablet, 384 px a partir de 1024 px).
+- **Celular**: player (até 30% da altura) e pista em cima; embaixo, Chat e Fila em **abas**, ocupando 38% da altura; painel de DM ancorado à esquerda.
 - Header compacto: globo maior à esquerda, "PRIVATE DAY" e "Esquenta 2026" centralizados e colados.

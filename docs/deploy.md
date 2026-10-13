@@ -43,18 +43,34 @@ O projeto usa **Auth anônimo** + **Firestore**. As credenciais ficam no bloco `
 1. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com).
 2. Ative **Authentication → Sign-in method → Anonymous**.
 3. Crie um banco **Firestore** (modo produção).
-4. Publique regras liberando o caminho público do app:
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /artifacts/{appId}/public/data/{document=**} {
-         allow read, write: if request.auth != null;
-       }
-     }
-   }
-   ```
+4. Publique as regras do arquivo [`firestore.rules`](../firestore.rules) (ver "Regras do Firestore" abaixo).
 5. Copie o config (Configurações do projeto → Seus apps → Web) para `FIREBASE_CONFIG_FALLBACK` e ajuste `APP_ID_FALLBACK` para o `projectId`.
+
+### Lista de ingressos
+
+Quem tem ingresso confirma pelo e-mail da compra. A lista vai para o Firestore com o script [`tools/importar-ingressos.py`](../tools/importar-ingressos.py):
+
+1. Uma vez só: `pip install firebase-admin` e, no console do Firebase, **Configurações do projeto → Contas de serviço → Gerar nova chave privada**. Guarde o JSON **fora do repositório**: ele dá acesso total ao projeto.
+2. Exporte o CSV de compradores da plataforma de vendas.
+3. Confira primeiro, sem gravar nada: `python3 tools/importar-ingressos.py compradores.csv --simular`
+4. Importe: `python3 tools/importar-ingressos.py compradores.csv --chave caminho/da-chave.json`
+5. Repita sempre que houver vendas novas. Com reembolsos, use `--substituir` para apagar quem saiu do CSV.
+
+O script detecta a coluna de e-mail pelo cabeçalho (ou use `--coluna "Nome da coluna"`), o separador (`,` ou `;`) e a codificação, e ignora linhas sem e-mail válido. Só o hash de cada e-mail é gravado.
+
+### Regras do Firestore
+
+As regras ficam versionadas em [`firestore.rules`](../firestore.rules), na raiz do repositório. Elas garantem do lado do servidor o que o app só faria de boa-fé:
+
+- **Chat privado de verdade**: `dm` e `dmThreads` só podem ser lidos pelos dois participantes (campo `participants`). O app consulta só as próprias conversas (`where('participants', 'array-contains', uid)`).
+- **Ninguém escreve em nome de outro**: perfil (`users/{uid}`), chat, fila, reações e votos exigem que o uid do documento seja o de quem escreve.
+- **Chat e votos não são apagáveis pelo app** (a limpeza é pelo console); fila e reações podem ser apagadas, porque o líder faz a faxina.
+
+Para publicar: console do Firebase → **Firestore Database → Regras** → apague o conteúdo atual, cole o `firestore.rules` inteiro → **Publicar**. Antes de publicar, dá para testar no **Playground de regras** da mesma tela.
+
+> **Ordem importa:** publique primeiro o app novo (Vercel) e só depois as regras. Um navegador com o HTML antigo em cache faz a consulta sem filtro e passa a ser recusado. Basta recarregar a página.
+
+Nenhuma consulta do app precisa de índice composto: `array-contains`, `orderBy('timestamp')` e o filtro de `lastUpdate` usam os índices automáticos de campo único.
 
 ### Moderação / manutenção dos dados
 
@@ -75,7 +91,7 @@ Também dá para automatizar via REST (auth anônima + Firestore REST API) — f
 | `FALLBACK_PLAYLIST` | `PLyMBoXJME_lqvOTGagEL0vh43fSsbpRW1` | Playlist da casa quando ninguém está tocando |
 | `MAX_PLAY_MS` | `600000` (10 min) | Tempo máximo de reprodução por vídeo |
 | `COUNTDOWN_MS` | `5000` | Duração da contagem regressiva de troca |
-| `TICKETS_URL` | `https://privateday.auvp.com.br/#ingressos` | Destino do botão "Não tenho ingresso" e do toast da Área VIP |
+| `TICKETS_URL` | `https://privateday.auvp.com.br/#ingressos` | Link do aviso de boas-vindas de quem entra sem ingresso e do toast da Área VIP |
 | `DJ_X` / `DJ_Y` | `89` / `78` | Posição (%) do DJ na pista |
 | `VIP_ZONE` | `{x1:72, y1:5, x2:98, y2:32}` | Retângulo (%) da Área VIP na pista |
 | `BANNED_WORDS` | lista em pt-BR | Palavras censuradas no chat/DM |

@@ -14,7 +14,9 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 - **Estilo visual:** dark (`#050505`), paleta AUVP — laranja `#DB7944`, azul `#0B2A47`, vermelho `#932621`, creme `#FFF7EB` — com neons 80s (rosa `#ff00cc`, ciano `#00ffff`) apenas em detalhes da pista.
 - **Identidade:** sempre que usar o globo da marca, use `GLOBO.png`; para o nome "PRIVATE DAY" (ex.: header), use o lettering `LETTERING.png` — ambos na raiz do repo, por caminho relativo.
 - **Tailwind para layout, CSS custom só para animações** (bloco `<style>` no `<head>`).
-- **Deploy na Vercel** (`vercel.json` + `.vercelignore`): site estático, sem build. Só `index.html` e os PNGs vão para o ar — `docs/`, `tools/`, `elementor/` e os `.md` ficam fora.
+- **Deploy na Vercel** (`vercel.json` + `.vercelignore`): site estático, sem build. Só `index.html` e os PNGs vão para o ar — `docs/`, `tools/`, `elementor/`, `video/` e os `.md` ficam fora.
+- **`video/` é um projeto Remotion à parte** (vídeo de fundo do fallback do YouTube, com `package.json` próprio). Não é dependência do app; veja `video/README.md`.
+- **Ícones: Hugeicons, nunca emoji na interface.** Ficam embutidos como SVG no objeto `Icons` (pacote gratuito `@hugeicons/core-free-icons` 4.3.5, MIT; `1em`/`currentColor`). Use `<span data-icone="nome">` no HTML e `${Icons.nome}` nos templates. Precisa de um ícone novo? Copie o SVG do mesmo pacote. Emoji só onde ele **é** o conteúdo (reações da pista). Textos que vão para o Firestore (ex.: motivo da contagem) ficam sem ícone; o ícone entra na hora de desenhar.
 - **Sem dependências novas** sem necessidade real. CDNs atuais: Tailwind, Google Fonts, Firebase 11.x (gstatic), DiceBear v8, YouTube.
 
 ## Arquitetura do JS (ordem dentro do `<script type="module">`)
@@ -32,13 +34,16 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 
 ## Padrões importantes (não quebrar)
 
+- **Pista e chat por diferença, nunca `innerHTML` da lista inteira**: `renderUsers` mantém `avataresNaPista` (uid → elemento) e só atualiza `left/top` (é isso que faz o avatar deslizar). O conteúdo só é refeito quando a `assinatura` muda, porque refazer reinicia os passinhos. `renderChat` mantém `nosDoChat` (id → nó), insere só o que é novo e não puxa pro fim quem rolou pra cima (aparece a pílula "↓ Novas mensagens"). Listeners do avatar ficam na casca, que nunca é trocada.
 - **Iframe estável**: `renderPlayer()` recria o iframe **só quando o vídeo muda** (`lastPlayerKey`); votos/contagem/avisos são desenhados em `#playerOverlay` por `updatePlayerOverlay()`. Nunca redesenhe o iframe em snapshots de votos/usuários, senão o vídeo reinicia para todo mundo.
 - **Líder**: ações automáticas (limite de 10 min, avanço ao fim do vídeo) são executadas apenas pelo cliente com **menor uid** entre os online (`isLeader()`), para evitar escrita duplicada.
 - **Contagem regressiva sincronizada**: doc `player/countdown` (`{endsAt, reason}`). Quem inicia a contagem executa a ação no `setTimeout`; os demais apenas exibem o overlay (ticker de 200 ms).
-- **Escape de HTML**: todo conteúdo vindo de usuário (nomes, mensagens) passa por `esc()` antes de entrar em `innerHTML`.
+- **Escape de HTML**: todo conteúdo vindo de usuário (nomes, mensagens) passa por `esc()` antes de entrar em `innerHTML`. Valores que vão para `onclick`, `style` ou `src` (uid, cor, videoId) passam por `safeId()`, `safeColor()` e `safeVideoId()`, porque o `esc()` não protege atributo de evento nem CSS.
+- **Regras do Firestore versionadas** em `firestore.rules`: mudou o formato de um documento? Ajuste as regras junto e avise no PR que é preciso republicá-las no console.
 - **Modo offline**: o app precisa abrir mesmo sem Firebase (`configValida === false` ou falha de auth) — mantenha os guards `if (!currentUser || !db) return;`.
 - **Timestamps**: `Date.now()` do cliente (sem serverTimestamp) — comparações toleram pequenos desvios de relógio.
-- **Mesa de DJ é só de quem tem ingresso** (`podeSerDJ()`): trava no envio da fila, no formulário e na promoção da música. O ingresso é declarado pela própria pessoa — a trava é de experiência, não de segurança.
+- **Ingresso confirmado pelo e-mail da compra.** "Já tenho meu ingresso!" pede o e-mail, calcula `hashEmail()` (SHA-256 com `INGRESSO_SAL`), confere `ingressos/{hash}` (um `get`, nunca lista) e grava `vip/{uid}`. As regras exigem esse vínculo para `isVIP`, coroa no chat e fila. O hash fica só no navegador (`localProfile.ingresso`) e **nunca vai para `users/{uid}`**: `updatePresence` o remove. `conferirIngressoSalvo()` revalida antes do primeiro heartbeat. A lista sobe com `tools/importar-ingressos.py`; sal e normalização precisam ser iguais nos dois lados.
+- **Mesa de DJ é só de quem tem ingresso** (`podeSerDJ()`): trava no envio da fila, no formulário e na promoção da música; as regras do Firestore garantem do lado do servidor.
 - **Canvas do WebGL: tamanho por CSS, resolução por `setSize(w, h, false)`.** Deixar o Three escrever o estilo dobra o canvas em tela retina e joga a cena para fora da área visível.
 - **WebGL é progressivo**: o Three.js entra por `import()` dinâmico dentro de try/catch; se falhar (CDN bloqueado, sem GPU), o globo 2D `#cssDiscoBall` permanece. Nunca torne o Three.js um import estático — derrubaria o app inteiro.
 - **Coroa VIP é selo de avatar** (`.vip-crown`), nunca ícone ao lado do nome — vale para header, chat e pista.
@@ -47,11 +52,16 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 - **Perfil persistido no navegador** (`esquentaProfile`): carregado com merge defensivo na inicialização; `saveProfile()` deve ser chamado em toda mutação de `localProfile`. A chave `esquentaPerfilPronto` marca quem já concluiu a personalização — essa pessoa entra direto na pista (`enterParty()` no fim do script), sem o modal.
 - **Nunca use `localStorage` direto** — sempre o helper `store.get/set`, que grava em localStorage **e** em cookie. Em navegação privada do iOS e em iframe particionado o localStorage falha, e sem a reserva o visitante refaz o boneco a cada visita.
 - **Miniaturas do avatar usam `CARD_BASE` (config fixa), nunca a config atual** — é o que mantém o conjunto de URLs finito e permite pré-carregar tudo antes da entrada. Voltar a desenhar o card sobre `localProfile.avatarConfig` recarrega ~78 imagens a cada clique.
-- **Monte as opções uma vez** (`montarOpcoes`) e alterne só a classe de seleção (`marcarSelecao`). Reconstruir `innerHTML` a cada escolha repede imagens e zera o `scrollLeft` das faixas `.cfg-row`.
+- **Monte as opções uma vez** (`montarOpcoes`) e alterne só a classe de seleção (`marcarSelecao`). Reconstruir `innerHTML` a cada escolha repede as imagens e faz piscar.
+- **Criador de avatar = abas → chips → um painel por vez** (`setAbaAvatar(aba, sub)`, painéis `.cfg-painel[data-painel]`, opções em `.cfg-grade`, cores em `.cfg-cores`). Rosto vem primeiro. Peça nova: crie o painel, o chip na aba certa e a entrada em `CATEGORIAS` (na ordem da tela, que é a ordem do pré-carregamento). Cor que depende da peça fica num bloco que `mostrarCoresRelevantes()` esconde.
 - **Toda imagem do DiceBear passa pela fila** (`carregarImagem`, no máximo `FILA_LIMITE` = 6 downloads simultâneos, com até 3 tentativas): a API devolve HTTP 429 quando recebe ~80 pedidos de uma vez. Em templates use `imgAvatar(url, attrs)` + `hidratarAvatares(container)` (o card nasce como esqueleto e ganha o `src` quando a fila entrega); em `<img>` fixos use `trocarAvatar(el, url)`. Nunca escreva `<img src="${getAvatarUrl(...)}">` direto.
 - **A cortina só sobe com `assetsProntos`** (imagens + fontes), com teto de 20 s. Toda imagem do pré-carregamento resolve no `onerror` também — CDN fora do ar não pode prender ninguém no loading.
-- **CSS do modal precisa de `!important` em propriedades de layout** (`.cfg-row`, `.cfg-nav`, `.cfg-sec`): o Tailwind CDN injeta os estilos depois do bloco `<style>` e empata em especificidade, vencendo pela ordem.
+- **CSS do modal precisa de `!important` em propriedades de layout** (`.cfg-abas`, `.cfg-subs`, `.cfg-painel`, `.cfg-grade`, `.cfg-cores`): o Tailwind CDN injeta os estilos depois do bloco `<style>` e empata em especificidade, vencendo pela ordem.
 - **Carimbo de build**: `<meta name="app-build">` alimenta o rodapé do modal e o console. Atualize-o quando publicar algo que precise ser confirmado em produção (confira o rodapé após o deploy na Vercel para saber se o navegador pegou a versão nova).
+- **Layout em colunas a partir do `md`** (768 px): empilhado, o player 16:9 mais a lateral zeravam a altura da pista no tablet. No celular a lateral vira abas Chat/Fila (`#ladoDireito[data-aba]`, `setAbaLateral()`), o player tem teto de `30dvh` e a pista tem `min-h-[140px]`. Mexeu no layout? Confira a altura do `#danceFloor` em 360×640, 390×844, 768×1024, 855×897 e 1440×900.
+- **Acessibilidade**: diálogos novos entram em `DIALOGOS` (ganham Esc, clique fora, foco preso e devolvido) e usam `abrirDialogo`/`fecharDialogo`, com `role="dialog"` e um botão `data-fechar`. Botão só de ícone/emoji precisa de `aria-label`. Texto informativo: no mínimo 10 px e opacidade ≥ 55%. Animação nova entra no bloco `prefers-reduced-motion`.
+- **Avisos**: `showToast(msg, link, {acao, erro, ms})`. `msg` é HTML, então escape o que vier de usuário antes de passar. Falha de escrita no Firestore vira `avisoErro('fazer tal coisa')`; nunca use `alert()` nem engula o erro calado.
+- **Conexão**: `conectar()` liga listeners e heartbeat uma vez só, inclusive quando a auth chega depois do timeout; `atualizarConexao()` cuida da faixa `#semConexao` e trava chat e fila com o motivo.
 - **Online ≠ presente**: `activeUsers` (heartbeat < 120 s) mantém o avatar na pista; as regras de DJ/fila usam `isPresent(u)` — heartbeat < `PRESENCE_STALE_MS` (75 s) **e** sem `away` além de `AWAY_GRACE_MS` (45 s). Quem sai da tela perde a mesa e o lugar na fila; recarregar a página não custa nada.
 - **Ações do líder** (faxina da fila, DJ ausente, limite de 10 min, avanço no fim) rodam só no `isLeader()`, que agora elege entre os **presentes** — aba escondida tem timer estrangulado e não serve como líder.
 
@@ -61,14 +71,16 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 |---|---|
 | `users/{uid}` | presença + perfil (x, y, avatarConfig, color, isVIP, lastUpdate, away, awaySince) |
 | `chat/{auto}` | chat público |
-| `dm/{auto}` | chat privado (`convId` = uids ordenados unidos por `_`) |
-| `dmThreads/{convId}` | solicitação de papo (`{a, b, requestedBy, status}`) — DM só abre com `status='accepted'` |
+| `dm/{auto}` | chat privado (`convId` = uids ordenados unidos por `_`; `participants: [from, to]` — só os dois leem) |
+| `dmThreads/{convId}` | solicitação de papo (`{a, b, participants, requestedBy, status}`) — DM só abre com `status='accepted'` |
 | `queue/{auto}` | fila do DJ (`addedByVIP` marca quem tinha ingresso ao entrar na fila) |
 | `player/state` | vídeo atual (`videoId`, `startedAt`, `addedByUid`, `addedByName`, `title`) |
 | `player/skipVotes` | votos de pular (`{videoId, votes:{uid:true}}`) — resetado a cada troca |
 | `player/countdown` | contagem regressiva (`{endsAt, reason}`) |
 | `player/playback` | sincronia de reprodução (`{videoId, state, time, at}`) — publicado pelo DJ; os demais seguem |
 | `partyVotes/{videoId_uid}` | votos "Essa vai pra festa!" (curadoria — nunca apagar) |
+| `ingressos/{hash}` | lista de compradores: SHA-256 do e-mail com sal (só `get`; importada por `tools/importar-ingressos.py`) |
+| `vip/{uid}` | vínculo do visitante com um ingresso (`{ingresso, em}`) — privado, exigido pelas regras para `isVIP` e fila |
 | `history/{auto}` | músicas já tocadas (`videoId`, `byUid`, `byName`, `title`) — base do ranking |
 | `reactions/{auto}` | reações flutuantes (`uid`, `emoji`, `x`, `y`, `timestamp`) — o líder apaga as com >2 min |
 
