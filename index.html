@@ -567,7 +567,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, deleteDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ── ÍCONES ──
         const Icons = {
@@ -752,6 +752,11 @@
         const chatBubbles = {};     // uid -> {text, until}: balão de fala sobre o avatar
 
         const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        // ids, cores e videoIds vindos do Firestore entram em onclick/style/src, onde o esc()
+        // não basta: só passam se tiverem exatamente o formato esperado
+        const safeId = s => /^[A-Za-z0-9_-]{1,128}$/.test(s || '') ? s : '';
+        const safeColor = (c, dflt = '#DB7944') => /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : dflt;
+        const safeVideoId = v => /^[A-Za-z0-9_-]{11}$/.test(v || '') ? v : null;
 
         // ── MODERAÇÃO LEVE ──
         const BANNED_WORDS = ['porra','caralho','merda','buceta','putaria','fdp','vsf','pqp','cacete','viado','arrombado','desgraçad','cuzão','vagabund'];
@@ -1045,7 +1050,7 @@
             const djName = currentVideo?.addedByName || '';
             const isMe   = currentUser && djUid === currentUser.uid;
             const djUser = activeUsers.find(u => u.id === djUid);
-            const djColor = djUser?.color || '#DB7944';
+            const djColor = safeColor(djUser?.color);
             const djAvatar = djUser ? getAvatarUrl(djUser.avatarConfig) : '';
 
             const glowClass = playing ? 'booth-glow' : '';
@@ -1237,7 +1242,7 @@
         function setupFirebaseListeners() {
             if (!currentUser || !db) return;
 
-            onSnapshot(pcol('users'), snap => {
+            onSnapshot(query(pcol('users'), where('lastUpdate', '>', Date.now() - 120000)), snap => {
                 const now = Date.now();
                 activeUsers = snap.docs.map(d => ({id:d.id,...d.data()}))
                     .filter(u => u.lastUpdate && (now - u.lastUpdate) < 120000);
@@ -1247,10 +1252,11 @@
                 updatePlayerOverlay();
             }, console.error);
 
-            onSnapshot(pcol('chat'), snap => {
+            // só as 50 últimas: baixar a coleção inteira pesava num evento cheio
+            onSnapshot(query(pcol('chat'), orderBy('timestamp', 'desc'), limit(50)), snap => {
                 const msgs = snap.docs.map(d => ({id:d.id,...d.data()}));
                 msgs.sort((a,b) => a.timestamp - b.timestamp);
-                chatMessages = msgs.slice(-50);
+                chatMessages = msgs;
                 // mensagem recente vira balão de fala sobre o avatar de quem enviou
                 const now = Date.now();
                 snap.docChanges().forEach(ch => {
@@ -1265,7 +1271,7 @@
             }, console.error);
 
             onSnapshot(pcol('queue'), snap => {
-                const q = snap.docs.map(d => ({id:d.id,...d.data()}));
+                const q = snap.docs.map(d => ({id:d.id,...d.data()})).filter(it => safeVideoId(it.videoId));
                 q.sort((a,b) => a.timestamp - b.timestamp);
                 queue = q;
                 renderQueue();
@@ -1281,7 +1287,8 @@
                 if (state && tabHidden && currentUser &&
                     currentVideo?.addedByUid === currentUser.uid && state.addedByUid !== currentUser.uid)
                     perdiAVezAusente = true;
-                if (state) currentVideo = state;
+                // videoId vai parar no src do iframe: formato inválido vira "sem música"
+                if (state) currentVideo = {...state, videoId: safeVideoId(state.videoId)};
                 // só recria o iframe quando o vídeo de fato muda; votos/contagem atualizam o overlay
                 const key = `${currentVideo?.videoId || 'fallback'}_${currentVideo?.startedAt || 0}`;
                 if (key !== lastPlayerKey) { lastPlayerKey = key; renderPlayer(); }
@@ -1291,12 +1298,14 @@
             }, console.error);
 
             onSnapshot(pcol('partyVotes'), snap => {
-                partyVotes = snap.docs.map(d => ({id:d.id,...d.data()}));
+                partyVotes = snap.docs.map(d => ({id:d.id,...d.data()})).filter(v => safeVideoId(v.videoId));
                 updatePlayerOverlay();
                 if (!document.getElementById('rankingModal').classList.contains('hidden')) renderRanking();
             }, console.error);
 
-            onSnapshot(pcol('dm'), snap => {
+            // DMs e solicitações: a consulta já vem filtrada por participante — as regras do
+            // Firestore (firestore.rules) recusam ler conversa alheia
+            onSnapshot(query(pcol('dm'), where('participants', 'array-contains', currentUser.uid)), snap => {
                 dmMessages = snap.docs.map(d => ({id:d.id,...d.data()}))
                     .filter(m => m.from === currentUser.uid || m.to === currentUser.uid)
                     .sort((a,b) => a.timestamp - b.timestamp);
@@ -1304,7 +1313,7 @@
                 renderUsers();
             }, console.error);
 
-            onSnapshot(pcol('dmThreads'), snap => {
+            onSnapshot(query(pcol('dmThreads'), where('participants', 'array-contains', currentUser.uid)), snap => {
                 dmThreads = snap.docs.map(d => ({id:d.id,...d.data()}))
                     .filter(t => t.a === currentUser.uid || t.b === currentUser.uid);
                 dmThreads.forEach(t => {
@@ -1531,8 +1540,10 @@
             chatMessages.forEach(msg => {
                 const div = document.createElement('div');
                 div.className = 'fade-in-up group';
+                const uidSeguro = safeId(msg.uid);
+                const cor = safeColor(msg.color);
                 if (msg.uid && mutedUids.includes(msg.uid)) {
-                    div.innerHTML = `<div class="text-[10px] text-[#FFF7EB]/25 italic cursor-pointer hover:text-[#FFF7EB]/50 transition" onclick="window.toggleMute('${msg.uid}')">🔇 Mensagem de ${esc(msg.name)} oculta — toque para reexibir</div>`;
+                    div.innerHTML = `<div class="text-[10px] text-[#FFF7EB]/25 italic cursor-pointer hover:text-[#FFF7EB]/50 transition" onclick="window.toggleMute('${uidSeguro}')">🔇 Mensagem de ${esc(msg.name)} oculta — toque para reexibir</div>`;
                     c.appendChild(div);
                     return;
                 }
@@ -1542,7 +1553,7 @@
                 const isToday = d.toDateString() === new Date().toDateString();
                 const stamp = isToday ? time : `${d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ${time}`;
                 const muteBtn = (msg.uid && currentUser && msg.uid !== currentUser.uid)
-                    ? `<button onclick="window.toggleMute('${msg.uid}')" title="Silenciar ${esc(msg.name)}" class="text-[9px] opacity-0 group-hover:opacity-50 hover:!opacity-100 transition">🔇</button>` : '';
+                    ? `<button onclick="window.toggleMute('${uidSeguro}')" title="Silenciar ${esc(msg.name)}" class="text-[9px] opacity-0 group-hover:opacity-50 hover:!opacity-100 transition">🔇</button>` : '';
                 // avatar de quem escreveu: a coroa é um selo no canto dele, não um ícone no nome.
                 // Quem já saiu da pista não tem avatarConfig conhecido — cai no boneco neutro
                 // (CARD_BASE), que já vem pré-carregado e nunca mostra o avatar de outra pessoa.
@@ -1550,16 +1561,16 @@
                 div.innerHTML = `
 <div class="flex gap-2">
   <div class="relative shrink-0 mt-0.5">
-    ${imgAvatar(getAvatarUrl(autor?.avatarConfig || CARD_BASE), `alt="" class="w-7 h-7 rounded-full bg-[#111]" style="box-shadow:0 0 0 1.5px ${msg.color}60"`)}
+    ${imgAvatar(getAvatarUrl(autor?.avatarConfig || CARD_BASE), `alt="" class="w-7 h-7 rounded-full bg-[#111]" style="box-shadow:0 0 0 1.5px ${cor}60"`)}
     ${msg.isVIP ? `<span class="vip-crown" style="width:12px;height:12px;top:-4px;right:-4px">${Icons.crown}</span>` : ''}
   </div>
   <div class="flex-1 min-w-0">
     <div class="flex items-baseline gap-1.5 mb-0.5">
-      <span class="font-semibold text-xs tracking-wide truncate" style="color:${msg.color}">${esc(msg.name)}</span>
+      <span class="font-semibold text-xs tracking-wide truncate" style="color:${cor}">${esc(msg.name)}</span>
       <span class="text-[9px] text-[#FFF7EB]/30 shrink-0">${stamp}</span>
       ${muteBtn}
     </div>
-    <div class="text-xs text-[#FFF7EB]/85 break-words font-light${msg.isVIP?' border-l-2 pl-2':''}" style="${msg.isVIP?`border-color:${msg.color}`:''}">
+    <div class="text-xs text-[#FFF7EB]/85 break-words font-light${msg.isVIP?' border-l-2 pl-2':''}" style="${msg.isVIP?`border-color:${cor}`:''}">
       ${esc(msg.text)}
     </div>
   </div>
@@ -2128,7 +2139,7 @@ ${cd}`;
             trocarAvatar(document.getElementById('dmAvatar'), getAvatarUrl(u.avatarConfig));
             const nameEl = document.getElementById('dmName');
             nameEl.innerText = u.name;
-            nameEl.style.color = u.color || '#DB7944';
+            nameEl.style.color = safeColor(u.color);
             const p = document.getElementById('dmPanel');
             p.classList.remove('hidden');
             p.classList.add('flex');
@@ -2158,7 +2169,7 @@ ${cd}`;
                 return;
             }
             await setDoc(pdoc('dmThreads', convId(currentUser.uid, uid)), {
-                a: currentUser.uid, b: uid,
+                a: currentUser.uid, b: uid, participants: [currentUser.uid, uid],
                 requestedBy: currentUser.uid, requestedByName: localProfile.name,
                 status: 'pending', timestamp: Date.now()
             });
@@ -2193,14 +2204,14 @@ ${cd}`;
                 return true;
             });
             c.innerHTML = pending.map(t => {
-                const uid = t.requestedBy;
+                const uid = safeId(t.requestedBy);
                 const u = activeUsers.find(x => x.id === uid);
                 const name = esc(u?.name || t.requestedByName || 'Investidor');
                 return `
 <div class="fade-in-up bg-[#0d0d0d] border border-[#DB7944]/40 rounded-2xl p-3 shadow-2xl">
   <div class="flex items-center gap-2 mb-2">
     ${u ? imgAvatar(getAvatarUrl(u.avatarConfig), 'alt="" class="w-8 h-8 rounded-full bg-[#111]"') : ''}
-    <p class="flex-1 text-xs text-[#FFF7EB]/85 leading-snug"><span class="font-bold" style="color:${u?.color || '#DB7944'}">${name}</span> quer puxar um papo privado com você 🍸</p>
+    <p class="flex-1 text-xs text-[#FFF7EB]/85 leading-snug"><span class="font-bold" style="color:${safeColor(u?.color)}">${name}</span> quer puxar um papo privado com você 🍸</p>
   </div>
   <div class="flex gap-2">
     <button onclick="window.acceptDM('${uid}')" class="flex-1 bg-[#DB7944] hover:bg-[#c45d1b] text-white text-xs font-semibold py-1.5 rounded-lg transition">Aceitar</button>
@@ -2235,7 +2246,8 @@ ${cd}`;
             await addDoc(pcol('dm'), {
                 convId: convId(currentUser.uid, dmOpenWith),
                 from: currentUser.uid, fromName: localProfile.name, fromColor: localProfile.color,
-                to: dmOpenWith, text: censor(text), timestamp: Date.now()
+                to: dmOpenWith, participants: [currentUser.uid, dmOpenWith],
+                text: censor(text), timestamp: Date.now()
             });
             inp.value = '';
         });

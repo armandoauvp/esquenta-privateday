@@ -45,14 +45,15 @@ O cliente exibe as últimas 50, ordenadas por `timestamp`. Mensagens de dias ant
 
 ### `dm/{autoId}` — chat privado
 ```js
-{ convId, from, fromName, fromColor, to, text, timestamp }
+{ convId, from, fromName, fromColor, to, participants: [from, to], text, timestamp }
 ```
-`convId` = os dois uids ordenados e unidos por `_` (ex.: `abc_xyz`). Cada cliente filtra localmente as mensagens em que participa (`from === meuUid || to === meuUid`). Não-lidas: badge no avatar, contadas a partir do início da sessão (`dmSessionStart`) ou da última leitura (`dmReadAt`).
+`convId` = os dois uids ordenados e unidos por `_` (ex.: `abc_xyz`). O cliente assina só as próprias conversas (`where('participants', 'array-contains', meuUid)`) e as regras do Firestore recusam a leitura de conversa alheia. Mensagens antigas, sem `participants`, ficam ilegíveis para todos. Não-lidas: badge no avatar, contadas a partir do início da sessão (`dmSessionStart`) ou da última leitura (`dmReadAt`).
 
 ### `dmThreads/{convId}` — solicitações de chat privado
 ```js
-{ a, b, requestedBy, requestedByName, status, timestamp } // status: 'pending' | 'accepted' | 'declined'
+{ a, b, participants: [a, b], requestedBy, requestedByName, status, timestamp } // status: 'pending' | 'accepted' | 'declined'
 ```
+Mesma regra do `dm`: só os dois participantes leem; aceitar/recusar altera apenas `status`.
 O papo só é liberado (envio de mensagens e abertura do painel) com `status === 'accepted'`. O destinatário vê um card Aceitar/Recusar; quem pediu recebe aviso na transição `pending → accepted`. Recusar permite novo pedido depois (o doc é sobrescrito).
 
 ### `queue/{autoId}` — fila do DJ
@@ -166,5 +167,7 @@ Complementarmente, as opções são montadas **uma vez** (`montarOpcoes`) e a es
 - **Escape de HTML**: `esc()` é aplicado a nomes e mensagens antes de qualquer `innerHTML`.
 - **Whitelists**: `dance` e `emoji` vindos de outros usuários são validados contra listas fixas antes de virarem classe CSS ou conteúdo DOM.
 - **Moderação**: censura de palavrões no envio (`censor()`); silenciamento por usuário é local (localStorage), sem papel de admin.
-- **Auth anônima + regras públicas**: qualquer visitante pode escrever nas coleções públicas — modelo aceito para um evento efêmero. Não guarde nada sensível nessas coleções.
+- **Formatos validados**: `uid`, cor e `videoId` vindos do Firestore entram em `onclick`, `style` e `src`, onde o `esc()` não protege. Passam por `safeId()`, `safeColor()` e `safeVideoId()`; o `player/state` com `videoId` inválido vira "sem música".
+- **Regras do Firestore** ([`firestore.rules`](../firestore.rules)): auth anônima, cada um escreve só em nome próprio e o chat privado só é legível pelos participantes. Os demais dados continuam públicos para quem está logado, então não guarde nada sensível neles.
+- **Consultas enxutas**: chat limitado às 50 últimas (`orderBy + limit`), usuários só os ativos nos últimos 2 min.
 - A chave de API do Firebase no HTML **não é segredo** (é um identificador de projeto); a proteção real são as regras do Firestore.

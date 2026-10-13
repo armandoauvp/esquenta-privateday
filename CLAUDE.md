@@ -35,7 +35,8 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 - **Iframe estável**: `renderPlayer()` recria o iframe **só quando o vídeo muda** (`lastPlayerKey`); votos/contagem/avisos são desenhados em `#playerOverlay` por `updatePlayerOverlay()`. Nunca redesenhe o iframe em snapshots de votos/usuários, senão o vídeo reinicia para todo mundo.
 - **Líder**: ações automáticas (limite de 10 min, avanço ao fim do vídeo) são executadas apenas pelo cliente com **menor uid** entre os online (`isLeader()`), para evitar escrita duplicada.
 - **Contagem regressiva sincronizada**: doc `player/countdown` (`{endsAt, reason}`). Quem inicia a contagem executa a ação no `setTimeout`; os demais apenas exibem o overlay (ticker de 200 ms).
-- **Escape de HTML**: todo conteúdo vindo de usuário (nomes, mensagens) passa por `esc()` antes de entrar em `innerHTML`.
+- **Escape de HTML**: todo conteúdo vindo de usuário (nomes, mensagens) passa por `esc()` antes de entrar em `innerHTML`. Valores que vão para `onclick`, `style` ou `src` (uid, cor, videoId) passam por `safeId()`, `safeColor()` e `safeVideoId()`, porque o `esc()` não protege atributo de evento nem CSS.
+- **Regras do Firestore versionadas** em `firestore.rules`: mudou o formato de um documento? Ajuste as regras junto e avise no PR que é preciso republicá-las no console.
 - **Modo offline**: o app precisa abrir mesmo sem Firebase (`configValida === false` ou falha de auth) — mantenha os guards `if (!currentUser || !db) return;`.
 - **Timestamps**: `Date.now()` do cliente (sem serverTimestamp) — comparações toleram pequenos desvios de relógio.
 - **Mesa de DJ é só de quem tem ingresso** (`podeSerDJ()`): trava no envio da fila, no formulário e na promoção da música. O ingresso é declarado pela própria pessoa — a trava é de experiência, não de segurança.
@@ -61,8 +62,8 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 |---|---|
 | `users/{uid}` | presença + perfil (x, y, avatarConfig, color, isVIP, lastUpdate, away, awaySince) |
 | `chat/{auto}` | chat público |
-| `dm/{auto}` | chat privado (`convId` = uids ordenados unidos por `_`) |
-| `dmThreads/{convId}` | solicitação de papo (`{a, b, requestedBy, status}`) — DM só abre com `status='accepted'` |
+| `dm/{auto}` | chat privado (`convId` = uids ordenados unidos por `_`; `participants: [from, to]` — só os dois leem) |
+| `dmThreads/{convId}` | solicitação de papo (`{a, b, participants, requestedBy, status}`) — DM só abre com `status='accepted'` |
 | `queue/{auto}` | fila do DJ (`addedByVIP` marca quem tinha ingresso ao entrar na fila) |
 | `player/state` | vídeo atual (`videoId`, `startedAt`, `addedByUid`, `addedByName`, `title`) |
 | `player/skipVotes` | votos de pular (`{videoId, votes:{uid:true}}`) — resetado a cada troca |

@@ -43,18 +43,22 @@ O projeto usa **Auth anônimo** + **Firestore**. As credenciais ficam no bloco `
 1. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com).
 2. Ative **Authentication → Sign-in method → Anonymous**.
 3. Crie um banco **Firestore** (modo produção).
-4. Publique regras liberando o caminho público do app:
-   ```
-   rules_version = '2';
-   service cloud.firestore {
-     match /databases/{database}/documents {
-       match /artifacts/{appId}/public/data/{document=**} {
-         allow read, write: if request.auth != null;
-       }
-     }
-   }
-   ```
+4. Publique as regras do arquivo [`firestore.rules`](../firestore.rules) (ver "Regras do Firestore" abaixo).
 5. Copie o config (Configurações do projeto → Seus apps → Web) para `FIREBASE_CONFIG_FALLBACK` e ajuste `APP_ID_FALLBACK` para o `projectId`.
+
+### Regras do Firestore
+
+As regras ficam versionadas em [`firestore.rules`](../firestore.rules), na raiz do repositório. Elas garantem do lado do servidor o que o app só faria de boa-fé:
+
+- **Chat privado de verdade**: `dm` e `dmThreads` só podem ser lidos pelos dois participantes (campo `participants`). O app consulta só as próprias conversas (`where('participants', 'array-contains', uid)`).
+- **Ninguém escreve em nome de outro**: perfil (`users/{uid}`), chat, fila, reações e votos exigem que o uid do documento seja o de quem escreve.
+- **Chat e votos não são apagáveis pelo app** (a limpeza é pelo console); fila e reações podem ser apagadas, porque o líder faz a faxina.
+
+Para publicar: console do Firebase → **Firestore Database → Regras** → apague o conteúdo atual, cole o `firestore.rules` inteiro → **Publicar**. Antes de publicar, dá para testar no **Playground de regras** da mesma tela.
+
+> **Ordem importa:** publique primeiro o app novo (Vercel) e só depois as regras. Um navegador com o HTML antigo em cache faz a consulta sem filtro e passa a ser recusado. Basta recarregar a página.
+
+Nenhuma consulta do app precisa de índice composto: `array-contains`, `orderBy('timestamp')` e o filtro de `lastUpdate` usam os índices automáticos de campo único.
 
 ### Moderação / manutenção dos dados
 

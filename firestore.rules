@@ -1,0 +1,82 @@
+rules_version = '2';
+
+// Regras do Firestore do Esquenta AUVP Private Day.
+// Publicar: console.firebase.google.com → Firestore Database → Regras → colar → Publicar.
+// Passo a passo em docs/deploy.md (seção "Regras do Firestore").
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /artifacts/{appId}/public/data {
+
+      function logado() { return request.auth != null; }
+      function eu() { return request.auth.uid; }
+      function novo() { return request.resource.data; }
+      function dupla(lista) { return lista is list && lista.size() == 2 && eu() in lista; }
+
+      // presença + perfil: cada visitante só escreve o próprio documento
+      match /users/{uid} {
+        allow read: if logado();
+        allow write: if logado() && eu() == uid;
+      }
+
+      // chat público: só cria, sempre em nome próprio (limpeza é feita pelo console)
+      match /chat/{id} {
+        allow read: if logado();
+        allow create: if logado() && novo().uid == eu()
+          && novo().text is string && novo().text.size() <= 200;
+      }
+
+      // chat privado: só os dois participantes leem; só o remetente cria
+      match /dm/{id} {
+        allow read: if logado() && eu() in resource.data.participants;
+        allow create: if logado() && novo().from == eu()
+          && dupla(novo().participants) && novo().to in novo().participants
+          && novo().text is string && novo().text.size() <= 200;
+      }
+
+      // solicitações de papo: só os dois participantes veem e mexem
+      match /dmThreads/{convId} {
+        allow read: if logado() && eu() in resource.data.participants;
+        allow create: if logado() && novo().requestedBy == eu() && dupla(novo().participants);
+        allow update: if logado() && (
+          // aceitar/recusar: participante altera só o status
+          (('participants' in resource.data) && eu() in resource.data.participants
+            && novo().diff(resource.data).affectedKeys().hasOnly(['status']))
+          // pedir de novo por cima de um pedido antigo (inclusive do modelo sem participants)
+          || (novo().requestedBy == eu() && dupla(novo().participants)
+            && (!('participants' in resource.data) || eu() in resource.data.participants))
+        );
+      }
+
+      // fila do DJ: entra em nome próprio; o líder (qualquer cliente) faz a faxina
+      match /queue/{id} {
+        allow read: if logado();
+        allow create: if logado() && novo().addedByUid == eu();
+        allow delete: if logado();
+      }
+
+      // estado do player, votos de pular, contagem e sincronia: escritos por todos
+      match /player/{id} {
+        allow read, write: if logado();
+      }
+
+      // "Essa vai pra festa!": um voto por pessoa e vídeo, nunca apagado (curadoria)
+      match /partyVotes/{id} {
+        allow read: if logado();
+        allow create, update: if logado() && novo().uid == eu()
+          && id == novo().videoId + '_' + eu();
+      }
+
+      // histórico do ranking: o líder grava em nome do DJ, então qualquer um cria
+      match /history/{id} {
+        allow read, create: if logado();
+      }
+
+      // reações flutuantes: criadas em nome próprio; o líder apaga as antigas
+      match /reactions/{id} {
+        allow read: if logado();
+        allow create: if logado() && novo().uid == eu();
+        allow delete: if logado();
+      }
+    }
+  }
+}
