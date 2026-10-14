@@ -12,7 +12,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-13d">
+    <meta name="app-build" content="2026-10-14a">
     <title>Esquenta AUVP Private Day</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -897,7 +897,9 @@
         ];
 
         // ── CONSTANTES DA PISTA ──
-        const FALLBACK_PLAYLIST = 'PLyMBoXJME_lqvOTGagEL0vh43fSsbpRW1';
+        // playlist da casa: um vídeo só, com as músicas emendadas ("playlist parcial - private day",
+        // canal AUVP Capital), tocando em loop quando ninguém está na mesa
+        const FALLBACK_VIDEO = '5D_Of9Zpsgs';
         const MAX_PLAY_MS  = 10 * 60 * 1000; // todo vídeo é pulado ao completar 10 min
         const COUNTDOWN_MS = 5000;           // contagem regressiva antes de trocar de música
         const TICKETS_URL  = 'https://privateday.auvp.com.br/#ingressos';
@@ -919,7 +921,7 @@
         let dmOpenWith = null;      // uid da conversa privada aberta
         let dmReadAt = {};          // uid -> timestamp da última leitura
         const dmSessionStart = Date.now();
-        let fallbackIndex = 1 + Math.floor(Math.random() * 40);
+        let fallbackSorteado = false; // já pulou pra um trecho aleatório do vídeo da casa?
         let fallbackUnmuted = false;
         let lastPlayerKey = null;
         let perdiAVezAusente = false; // perdeu a mesa enquanto estava fora da tela (avisa ao voltar)
@@ -2095,11 +2097,13 @@
   frameBorder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen></iframe>
 <div id="playerOverlay" class="absolute inset-0 pointer-events-none"></div>`;
             } else {
-                // Ninguém na mesa: playlist reserva da casa, começando em um vídeo aleatório
-                fallbackIndex = 1 + Math.floor(Math.random() * 40);
+                // Ninguém na mesa: vídeo da casa em loop (loop=1 exige playlist=<o próprio id>).
+                // Começa num trecho sorteado assim que o player informa a duração, pra pista não
+                // abrir sempre na mesma música.
+                fallbackSorteado = false;
                 fallbackUnmuted = false;
                 c.innerHTML = `
-<iframe id="ytFrame" class="w-full h-full" src="https://www.youtube.com/embed/videoseries?list=${FALLBACK_PLAYLIST}&index=${fallbackIndex}&autoplay=1&mute=1&controls=1&enablejsapi=1"
+<iframe id="ytFrame" class="w-full h-full" src="https://www.youtube.com/embed/${FALLBACK_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${FALLBACK_VIDEO}&controls=1&enablejsapi=1&playsinline=1&rel=0"
   frameBorder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen></iframe>
 <div id="playerOverlay" class="absolute inset-0 pointer-events-none"></div>`;
             }
@@ -2411,6 +2415,11 @@ ${cd}`;
             let newState;
             if (d.event === 'infoDelivery' && d.info) {
                 if (typeof d.info.currentTime === 'number') ytInfo = {...(ytInfo || {}), time: d.info.currentTime, at: Date.now()};
+                // vídeo da casa: um salto só, pra um ponto sorteado (deixa os 10% finais de folga)
+                if (!currentVideo?.videoId && !fallbackSorteado && d.info.duration > 120) {
+                    fallbackSorteado = true;
+                    ytCmd('seekTo', [Math.floor(Math.random() * d.info.duration * 0.9), true]);
+                }
                 if (typeof d.info.playerState === 'number') newState = d.info.playerState;
             } else if (d.event === 'onStateChange' && typeof d.info === 'number') {
                 newState = d.info;
@@ -2608,7 +2617,7 @@ ${cd}`;
             showToast(!currentVideo?.videoId
                 ? `${Icons.music} Boa! Sua música vai entrar na pista agora.`
                 : `${Icons.music} Você entrou na fila — posição ${queue.filter(q => q.id !== docRef.id).length + 1}. Fique na tela pra não perder a vez!`);
-            // Se a pista está na playlist da casa, faz a contagem e entra com a música do usuário
+            // Se a pista está no vídeo da casa, faz a contagem e entra com a música do usuário
             if (!currentVideo?.videoId && !countdownActive()) {
                 const byName = localProfile.name, byUid = currentUser.uid;
                 startCountdown(`Música de ${byName} entrando na pista!`, async () => {
