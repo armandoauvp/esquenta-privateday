@@ -91,7 +91,7 @@ Também dá para automatizar via REST (auth anônima + Firestore REST API) — f
 
 | Constante | Padrão | Efeito |
 |---|---|---|
-| `FALLBACK_PLAYLIST` | `PLyMBoXJME_lqvOTGagEL0vh43fSsbpRW1` | Playlist da casa quando ninguém está tocando |
+| `FALLBACK_VIDEO` | `5D_Of9Zpsgs` | Vídeo da casa (músicas emendadas) que toca em loop quando ninguém está na mesa; cada visitante começa num trecho sorteado |
 | `MAX_PLAY_MS` | `600000` (10 min) | Tempo máximo de reprodução por vídeo |
 | `COUNTDOWN_MS` | `5000` | Duração da contagem regressiva de troca |
 | `TICKETS_URL` | `https://privateday.auvp.com.br/#ingressos` | Link do aviso de boas-vindas de quem entra sem ingresso e do toast da Área VIP |

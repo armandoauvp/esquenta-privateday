@@ -24,7 +24,7 @@ App de página única (**`index.html`**) — pista de dança virtual do esquenta
 1. Ícones SVG (`Icons`) e injeção nos `<span id="icon-*">`
 2. Config do Firebase (`FIREBASE_CONFIG_FALLBACK` — preencher para hospedar fora do ambiente Claude)
 3. Catálogos do avatar (`TOPS`, `EYES`, `AURA_COLORS`, …) e `getAvatarUrl()`
-4. Constantes da pista (`FALLBACK_PLAYLIST`, `MAX_PLAY_MS`, `COUNTDOWN_MS`, `TICKETS_URL`) e estado global (`currentVideo`, `queue`, `skipVotes`, `countdownState`, `partyVotes`, `dmMessages`, …)
+4. Constantes da pista (`FALLBACK_VIDEO`, `MAX_PLAY_MS`, `COUNTDOWN_MS`, `TICKETS_URL`) e estado global (`currentVideo`, `queue`, `skipVotes`, `countdownState`, `partyVotes`, `dmMessages`, …)
 5. Pista (ladrilhos, mesa de DJ), `iniciarUI()`, auth
 6. Helpers `pdoc()`/`pcol()` + listeners `onSnapshot` (users, chat, queue, player, partyVotes, dm)
 7. Presença (`updatePresence`, heartbeat de 30 s)
