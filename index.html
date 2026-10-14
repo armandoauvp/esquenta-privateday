@@ -8,6 +8,12 @@
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
     <meta name="app-build" content="2026-10-14c">
     <title>Esquenta AUVP Private Day</title>
+    <!-- abre as conexões cedo: fontes, avatares, Firebase e YouTube entram sem esperar o DNS/TLS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://api.dicebear.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://www.youtube.com">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -49,18 +55,26 @@
         .tile {
             border: 1px solid rgba(255,255,255,0.04);
         }
-        @keyframes t-pink   { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(255,0,200,.35);box-shadow:inset 0 0 18px rgba(255,0,200,.7),0 0 12px rgba(255,0,200,.4)} }
-        @keyframes t-cyan   { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(0,255,255,.35);box-shadow:inset 0 0 18px rgba(0,255,255,.7),0 0 12px rgba(0,255,255,.4)} }
-        @keyframes t-yellow { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(255,220,0,.35);box-shadow:inset 0 0 18px rgba(255,220,0,.7),0 0 12px rgba(255,220,0,.4)} }
-        @keyframes t-orange { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(255,100,0,.35);box-shadow:inset 0 0 18px rgba(255,100,0,.7),0 0 12px rgba(255,100,0,.4)} }
-        @keyframes t-purple { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(160,0,255,.35);box-shadow:inset 0 0 18px rgba(160,0,255,.7),0 0 12px rgba(160,0,255,.4)} }
-        @keyframes t-green  { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(0,255,100,.35);box-shadow:inset 0 0 18px rgba(0,255,100,.7),0 0 12px rgba(0,255,100,.4)} }
-        .t-pink   { animation: t-pink   var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-cyan   { animation: t-cyan   var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-yellow { animation: t-yellow var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-orange { animation: t-orange var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-purple { animation: t-purple var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-green  { animation: t-green  var(--dur,2s) ease-in-out var(--del,0s) infinite; }
+        /* O brilho do ladrilho é desenhado UMA vez (::after) e só a opacidade anima: roda no
+           compositor. Antes, ~48 ladrilhos animavam background + box-shadow e repintavam a
+           pista inteira a cada quadro (pesado no celular). */
+        .tile { position: relative; }
+        .tile::after {
+            content: ''; position: absolute; inset: 0; opacity: 0;
+            background: var(--cor); box-shadow: inset 0 0 18px var(--brilho);
+            animation: tile-pisca var(--dur,2s) ease-in-out var(--del,0s) infinite;
+        }
+        @keyframes tile-pisca { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
+        .t-pink   { --cor: rgba(255,0,200,.35); --brilho: rgba(255,0,200,.7); }
+        .t-cyan   { --cor: rgba(0,255,255,.35); --brilho: rgba(0,255,255,.7); }
+        .t-yellow { --cor: rgba(255,220,0,.35); --brilho: rgba(255,220,0,.7); }
+        .t-orange { --cor: rgba(255,100,0,.35); --brilho: rgba(255,100,0,.7); }
+        .t-purple { --cor: rgba(160,0,255,.35); --brilho: rgba(160,0,255,.7); }
+        .t-green  { --cor: rgba(0,255,100,.35); --brilho: rgba(0,255,100,.7); }
+        /* modal aberto cobre a pista: nada animando por baixo do desfoque */
+        .modal-aberto .tile::after, .modal-aberto .luz-ambiente { animation-play-state: paused; }
+        /* grão de filme: camada de tela cheia extra; no celular não compensa */
+        @media (max-width: 767px) { .film-grain { display: none; } }
 
         /* ── VINIL GIRATÓRIO ── */
         @keyframes spin-vinyl { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
@@ -397,9 +411,10 @@
                 <div class="dance-tiles" id="danceTiles"></div>
 
                 <!-- Luzes de palco ambiente -->
-                <div class="absolute top-0 left-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse mix-blend-screen pointer-events-none" style="background:rgba(255,0,200,.06)"></div>
-                <div class="absolute top-0 right-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse mix-blend-screen pointer-events-none" style="background:rgba(0,255,255,.06);animation-delay:.8s"></div>
-                <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-48 rounded-full blur-3xl animate-pulse mix-blend-screen pointer-events-none" style="background:rgba(219,121,68,.07);animation-delay:1.6s"></div>
+                <!-- gradiente radial em vez de blur-3xl + mix-blend: mesmo clima, sem repintar a tela -->
+                <div class="luz-ambiente absolute top-0 left-1/4 w-72 h-72 animate-pulse pointer-events-none" style="background:radial-gradient(closest-side,rgba(255,0,200,.10),transparent)"></div>
+                <div class="luz-ambiente absolute top-0 right-1/4 w-72 h-72 animate-pulse pointer-events-none" style="background:radial-gradient(closest-side,rgba(0,255,255,.10),transparent);animation-delay:.8s"></div>
+                <div class="luz-ambiente absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-48 animate-pulse pointer-events-none" style="background:radial-gradient(closest-side,rgba(219,121,68,.12),transparent);animation-delay:1.6s"></div>
 
                 <!-- Watermark -->
                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="opacity:.025">
@@ -728,7 +743,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, addDoc, deleteDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, onSnapshot, addDoc, deleteDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ── ÍCONES ──
         // Hugeicons (pacote gratuito @hugeicons/core-free-icons 4.3.5, licença MIT), embutidos
@@ -926,7 +941,7 @@
         let entrouDireto = false; // pulou o modal por já ter personalizado antes
         let playHistory = [];       // coleção history: músicas que já tocaram (ranking)
         let glPlaying = false;      // pista WebGL pulsa quando há música audível
-        const seenReactions = new Set();
+        const seenReactions = new Map(); // id → quando chegou (podado: não cresce a noite toda)
         const titleCache = {};      // videoId -> título (via oEmbed) | '' se falhou
         // ── CARIMBO DA VERSÃO ──
         // Aparece no rodapé do modal e no console: se o navegador estiver com o HTML
@@ -1082,8 +1097,12 @@
         const okOpt = (list, v, dflt) => list.some(o => o.v === v) ? v : dflt;
         const okHex = (v, dflt) => /^[0-9a-fA-F]{6}$/.test(v || '') ? v : dflt;
 
+        const cacheUrlAvatar = new Map(); // config serializada → URL (montar a URL custa)
         function getAvatarUrl(config, size, extra = null) {
             const c = config || localProfile.avatarConfig;
+            const chaveUrl = JSON.stringify([c, size || 0, extra]);
+            const pronta = cacheUrlAvatar.get(chaveUrl);
+            if (pronta) return pronta;
             const top   = okOpt(TOPS,   LEGACY_AVATAR.top[c.top]     ?? c.top,   'shortFlat');
             const eyes  = okOpt(EYES,   LEGACY_AVATAR.eyes[c.eyes]   ?? c.eyes,  'default');
             const mouth = okOpt(MOUTHS, LEGACY_AVATAR.mouth[c.mouth] ?? c.mouth, 'default');
@@ -1109,7 +1128,10 @@
             if (fh)  { params.facialHair  = fh;  params.facialHairProbability  = 100; }
             if (size) params.size = size; // miniaturas dos cards de opção
             if (extra) Object.assign(params, extra);
-            return `https://api.dicebear.com/8.x/avataaars/svg?${new URLSearchParams(params)}`;
+            const url = `https://api.dicebear.com/8.x/avataaars/svg?${new URLSearchParams(params)}`;
+            if (cacheUrlAvatar.size > 3000) cacheUrlAvatar.clear();
+            cacheUrlAvatar.set(chaveUrl, url);
+            return url;
         }
 
         // ── PRÉ-CARREGAMENTO DOS BONECOS ──
@@ -1204,8 +1226,9 @@
         function hidratarAvatares(raiz, urgente = true) {
             // de trás pra frente: cada urgente entra no INÍCIO da fila, então o lote
             // termina na ordem da tela (a primeira faixa do modal chega primeiro)
-            [...raiz.querySelectorAll('img[data-av]')].reverse().forEach(img => {
+            [...raiz.querySelectorAll('img[data-av]:not([data-agendado])')].reverse().forEach(img => {
                 const url = img.dataset.av;
+                img.dataset.agendado = '1';
                 // falhou nas 3 tentativas: põe o src mesmo assim, como última chance
                 carregarImagem(url, urgente).then(() => {
                     if (img.dataset.av !== url) return;
@@ -1231,7 +1254,8 @@
             const urls = [
                 'GLOBO.png', 'LETTERING.png',
                 getAvatarUrl(localProfile.avatarConfig),            // o boneco de quem chegou
-                ...CATEGORIAS.flatMap(([, lista, chave]) => lista.map(o => urlDoCard(chave, o.v)))
+                // quem já tem boneco entra direto na pista: as miniaturas do modal vêm depois
+                ...(perfilPronto ? [] : CATEGORIAS.flatMap(([, lista, chave]) => lista.map(o => urlDoCard(chave, o.v))))
             ];
             let feitos = 0;
             const passo = () => {
@@ -1273,6 +1297,7 @@
         const DJ_X = 89; // right area
         const DJ_Y = 78; // lower area (near the booth element at bottom-right)
 
+        let assinaturaMesa = '';
         function renderDJBooth() {
             const el = document.getElementById('djBooth');
             const playing = currentVideo && currentVideo.videoId;
@@ -1283,6 +1308,9 @@
             const djColor = safeColor(djUser?.color);
             const djAvatar = djUser ? getAvatarUrl(djUser.avatarConfig) : '';
 
+            const assinatura = JSON.stringify([!!playing, djUid, djName, isMe, djColor, djAvatar]);
+            if (assinatura === assinaturaMesa) return;
+            assinaturaMesa = assinatura;
             const glowClass = playing ? 'booth-glow' : '';
             const borderColor = playing ? (isMe ? '#ff00cc' : '#DB7944') : 'rgba(255,255,255,.12)';
 
@@ -1447,6 +1475,9 @@
             const ls = document.getElementById('loadingScreen');
             if (!ls || ls.style.display === 'none') return;
             ls.style.display = 'none';
+            // miniaturas do modal em segundo plano (pela fila), pra edição abrir pronta
+            if (perfilPronto) setTimeout(() => CATEGORIAS.forEach(([, lista, chave]) =>
+                lista.forEach(o => carregarImagem(urlDoCard(chave, o.v)))), 4000);
             if (entrouDireto)
                 setTimeout(() => showToast(`${Icons.party} Bem-vindo de volta, ${esc(localProfile.name)}! Toque no seu avatar no topo pra mudar o visual.`), 800);
         }
@@ -1517,19 +1548,91 @@
         const pdoc = (...p) => doc(db, 'artifacts', appId, 'public', 'data', ...p);
         const pcol = name => collection(db, 'artifacts', appId, 'public', 'data', name);
 
+        // ── AGENDADOR DE RENDERS ──
+        // Com 300 pessoas chegam ~10 snapshots por segundo (heartbeats). Cada snapshot só
+        // MARCA o que ficou sujo; um único quadro (rAF, no máximo a cada RENDER_MIN_MS)
+        // desenha tudo de uma vez. Antes cada snapshot redesenhava pista, mesa, fila e
+        // player na hora — 20–60% da CPU de um celular só nisso. Cada render ainda compara
+        // uma assinatura e não mexe no DOM se nada visível mudou.
+        const RENDER_MIN_MS = 250;
+        const sujo = new Set();
+        let renderAgendado = false, ultimoRender = 0;
+        function agendar(...partes) {
+            partes.forEach(p => sujo.add(p));
+            if (renderAgendado) return;
+            renderAgendado = true;
+            const espera = Math.max(0, RENDER_MIN_MS - (performance.now() - ultimoRender));
+            setTimeout(() => requestAnimationFrame(() => {
+                renderAgendado = false;
+                ultimoRender = performance.now();
+                const p = new Set(sujo);
+                sujo.clear();
+                if (p.has('users')) renderUsers();
+                if (p.has('mesa')) renderDJBooth();
+                if (p.has('fila')) renderQueue();
+                if (p.has('overlay')) updatePlayerOverlay();
+                if (p.has('chat')) renderChat();
+            }), espera);
+        }
+
+        // ── PRESENÇA INCREMENTAL ──
+        // Só os documentos que mudaram são processados (docChanges num Map). A consulta tem
+        // corte de tempo fixado na assinatura, então é refeita a cada 5 min com corte novo:
+        // senão o resultado acumula todo mundo que passou pela pista na noite.
+        const ONLINE_MS = 120000;
+        const usuarios = new Map();
+        let pararUsers = null;
+        function recalcularAtivos() {
+            const agora = Date.now();
+            activeUsers = [...usuarios.values()].filter(u => u.lastUpdate && agora - u.lastUpdate < ONLINE_MS);
+            agendar('users', 'mesa', 'fila', 'overlay'); // fila: "fora da pista"; overlay: limiar de pular
+        }
+        function assinarUsers() {
+            pararUsers?.();
+            const novos = new Map();
+            let primeiro = true;
+            pararUsers = onSnapshot(query(pcol('users'), where('lastUpdate', '>', Date.now() - ONLINE_MS)), snap => {
+                // na reassinatura o primeiro snapshot traz todo mundo de novo: troca o Map inteiro
+                const alvo = primeiro ? novos : usuarios;
+                snap.docChanges().forEach(ch => {
+                    if (ch.type === 'removed') alvo.delete(ch.doc.id);
+                    else alvo.set(ch.doc.id, {id: ch.doc.id, ...ch.doc.data()});
+                });
+                if (primeiro) {
+                    primeiro = false;
+                    usuarios.clear();
+                    novos.forEach((u, id) => usuarios.set(id, u));
+                }
+                recalcularAtivos();
+            }, console.error);
+        }
+        // quem sumiu sem escrever nada sai da pista mesmo sem snapshot novo
+        setInterval(() => { if (usuarios.size) recalcularAtivos(); }, 15000);
+
+        // ── VOTOS "ESSA VAI PRA FESTA!" ──
+        // O player só precisa dos votos da música ATUAL; antes a coleção inteira (que nunca
+        // é apagada) era lida por cada um que entrava. O ranking lê tudo só quando é aberto.
+        let pararVotosFesta = null, votosDoVideo = null;
+        function assinarVotosFesta() {
+            const vid = currentVideo?.videoId || null;
+            if (vid === votosDoVideo) return;
+            votosDoVideo = vid;
+            pararVotosFesta?.();
+            partyVotes = [];
+            agendar('overlay');
+            if (!vid || !db) return;
+            pararVotosFesta = onSnapshot(query(pcol('partyVotes'), where('videoId', '==', vid)), snap => {
+                partyVotes = snap.docs.map(d => ({id:d.id,...d.data()}));
+                agendar('overlay');
+            }, console.error);
+        }
+
         // ── FIREBASE LISTENERS ──
         function setupFirebaseListeners() {
             if (!currentUser || !db) return;
 
-            onSnapshot(query(pcol('users'), where('lastUpdate', '>', Date.now() - 120000)), snap => {
-                const now = Date.now();
-                activeUsers = snap.docs.map(d => ({id:d.id,...d.data()}))
-                    .filter(u => u.lastUpdate && (now - u.lastUpdate) < 120000);
-                renderUsers();
-                renderDJBooth();
-                renderQueue(); // o aviso "fora da pista" depende da presença
-                updatePlayerOverlay();
-            }, console.error);
+            assinarUsers();
+            setInterval(assinarUsers, 5 * 60 * 1000);
 
             // só as 50 últimas: baixar a coleção inteira pesava num evento cheio
             onSnapshot(query(pcol('chat'), orderBy('timestamp', 'desc'), limit(50)), snap => {
@@ -1545,17 +1648,16 @@
                     chatBubbles[m.uid] = {text: String(m.text).slice(0, 90), until: now + 6000, since: now};
                     if (abaFilaAberta() && m.uid !== currentUser.uid)
                         document.getElementById('chatNovo').classList.remove('hidden');
-                    setTimeout(renderUsers, 6200);
+                    setTimeout(() => agendar('users'), 6200);
                 });
-                renderChat();
-                renderUsers();
+                agendar('chat', 'users');
             }, console.error);
 
             onSnapshot(pcol('queue'), snap => {
                 const q = snap.docs.map(d => ({id:d.id,...d.data()})).filter(it => safeVideoId(it.videoId));
                 q.sort((a,b) => a.timestamp - b.timestamp);
                 queue = q;
-                renderQueue();
+                agendar('fila');
             }, console.error);
 
             onSnapshot(pcol('player'), snap => {
@@ -1573,15 +1675,9 @@
                 // só recria o iframe quando o vídeo de fato muda; votos/contagem atualizam o overlay
                 const key = `${currentVideo?.videoId || 'fallback'}_${currentVideo?.startedAt || 0}`;
                 if (key !== lastPlayerKey) { lastPlayerKey = key; renderPlayer(); }
-                else updatePlayerOverlay();
-                renderDJBooth();
-                renderUsers();
-            }, console.error);
-
-            onSnapshot(pcol('partyVotes'), snap => {
-                partyVotes = snap.docs.map(d => ({id:d.id,...d.data()})).filter(v => safeVideoId(v.videoId));
-                updatePlayerOverlay();
-                if (!document.getElementById('rankingModal').classList.contains('hidden')) renderRanking();
+                else agendar('overlay');
+                assinarVotosFesta();
+                agendar('mesa', 'users');
             }, console.error);
 
             // DMs e solicitações: a consulta já vem filtrada por participante — as regras do
@@ -1602,7 +1698,7 @@
                     showToast(`${Icons.message} Nova mensagem de ${esc(nome)}`, null, {acao: {rotulo: 'Abrir', fn: () => openDMPanel(de)}});
                 });
                 renderDM();
-                renderUsers();
+                agendar('users');
                 atualizarBadgeDM();
             }, console.error);
 
@@ -1622,27 +1718,29 @@
                 renderDMRequests();
             }, console.error);
 
-            onSnapshot(pcol('reactions'), snap => {
+            // só as reações mais recentes: quem entra no auge não baixa centenas delas
+            onSnapshot(query(pcol('reactions'), orderBy('timestamp', 'desc'), limit(30)), snap => {
                 const now = Date.now();
                 snap.docChanges().forEach(ch => {
                     if (ch.type !== 'added') return;
                     const r = {id: ch.doc.id, ...ch.doc.data()};
                     if (seenReactions.has(r.id) || now - r.timestamp > 6000 || mutedUids.includes(r.uid)) return;
-                    seenReactions.add(r.id);
+                    seenReactions.set(r.id, now);
                     spawnReaction(r);
                 });
-                // líder faz a faxina das reações antigas
-                if (isLeader()) snap.docs.forEach(d => {
-                    if (now - (d.data().timestamp || 0) > 120000)
-                        deleteDoc(pdoc('reactions', d.id)).catch(() => {});
-                });
-            }, console.error);
-
-            onSnapshot(pcol('history'), snap => {
-                playHistory = snap.docs.map(d => ({id:d.id,...d.data()}));
-                if (!document.getElementById('rankingModal').classList.contains('hidden')) renderRanking();
+                if (seenReactions.size > 400)
+                    for (const [id, em] of seenReactions) if (now - em > 60000) seenReactions.delete(id);
             }, console.error);
         }
+
+        // líder faz a faxina das reações antigas (fora do listener, que agora só vê as 30 últimas)
+        setInterval(async () => {
+            if (!currentUser || !db || !isLeader()) return;
+            try {
+                const velhas = await getDocs(query(pcol('reactions'), where('timestamp', '<', Date.now() - 120000), limit(100)));
+                velhas.forEach(d => deleteDoc(pdoc('reactions', d.id)).catch(() => {}));
+            } catch(e) {}
+        }, 60000);
 
         // ── PRESENÇA ──
         // cada visita começa num ponto aleatório da pista (fora da Área VIP e da cabine do DJ)
@@ -1778,7 +1876,12 @@
                 showToast(`${Icons.crown} Área VIP — só pra quem já garantiu o ingresso!`, TICKETS_URL);
                 return;
             }
-            updatePresence(x, y);
+            // anda na hora e grava agrupado: clicar várias vezes não vira uma escrita por clique
+            // (cada escrita é lida por todos da pista)
+            const me = activeUsers.find(u => u.id === currentUser.uid);
+            if (me) { me.x = x; me.y = y; renderUsers(); }
+            clearTimeout(escritaPosicao);
+            escritaPosicao = setTimeout(() => updatePresence(x, y), 250);
             document.getElementById('floorHint')?.classList.add('hidden'); // já aprendeu
         });
         // cliques na barra de reações/passinhos não movem o avatar
@@ -1821,6 +1924,13 @@
             document.getElementById('onlineCount').innerText = `${activeUsers.length} online`;
             const layer = document.getElementById('usersLayer');
             const vistos = new Set();
+            // não lidas por remetente, uma passada só (antes: um filter por avatar)
+            const naoLidas = new Map();
+            if (currentUser) dmMessages.forEach(m => {
+                if (m.to === currentUser.uid && m.timestamp > (dmReadAt[m.from] || dmSessionStart) &&
+                    dmOpenWith !== m.from && !mutedUids.includes(m.from))
+                    naoLidas.set(m.from, (naoLidas.get(m.from) || 0) + 1);
+            });
 
             activeUsers.forEach(u => {
                 const uid = safeId(u.id);
@@ -1832,7 +1942,7 @@
                 const posY   = isDJ ? DJ_Y : (u.y ?? 50);
                 const color  = safeColor(u.color);
                 // a aura VIP usa a COR ESCOLHIDA pelo usuário (mais intensa); a coroa marca o VIP
-                const vipGlow = `0 0 22px ${color}b0, 0 0 44px ${color}50, 0 0 0 3px ${color}`;
+                const vipGlow = `0 0 24px ${color}a0, 0 0 0 3px ${color}`;
                 const djGlow  = `0 0 20px rgba(255,0,200,.8), 0 0 40px rgba(255,0,200,.4), 0 0 0 3px #ff00cc`;
                 const normGlow = `0 0 14px ${color}60, 0 0 0 2px ${color}`;
                 const shadow  = isDJ ? djGlow : (u.isVIP ? vipGlow : normGlow);
@@ -1841,7 +1951,7 @@
                 // passinhos usam a duração da própria animação; DJ/VIP mantêm o override
                 const durStyle = (isDJ || !danceCls) ? `;animation-duration:${isDJ ? '.75s' : '2s'}` : '';
 
-                const unread = (!isMe && currentUser) ? dmUnread(uid) : 0;
+                const unread = (!isMe && currentUser) ? (naoLidas.get(uid) || 0) : 0;
                 const bubble = (chatBubbles[uid] && chatBubbles[uid].until > Date.now()) ? chatBubbles[uid] : null;
                 const inVipLounge = !isDJ && userInVipArea(u);
                 const loungeGlow = inVipLounge ? ', 0 0 26px rgba(255,215,0,.55)' : '';
@@ -1901,7 +2011,7 @@
   </div>
   <!-- rótulo com teto de largura: nome quilométrico não pode virar uma faixa
        atravessando a pista e cobrindo quem está do lado -->
-  <div class="mt-1.5 px-2 py-0.5 rounded text-[10px] max-w-[150px] border backdrop-blur-sm flex items-center gap-1 font-light" title="${esc(etiqueta)}" style="background:rgba(0,0,0,.85);border-color:${isDJ?'rgba(255,0,204,.25)':color+'25'}">
+  <div class="mt-1.5 px-2 py-0.5 rounded text-[10px] max-w-[150px] border flex items-center gap-1 font-light" title="${esc(etiqueta)}" style="background:rgba(0,0,0,.85);border-color:${isDJ?'rgba(255,0,204,.25)':color+'25'}">
     <span class="shrink-0" style="color:${isDJ?'#ff00cc':color}">●</span>
     <span class="truncate min-w-0">${esc(etiqueta)}</span>${isDJ?`<span class="shrink-0 text-[#ff00cc]">${Icons.headphones}</span>`:''}
   </div>
@@ -2034,9 +2144,18 @@
         const abaFilaAberta = () => innerWidth < 768 && document.getElementById('ladoDireito').dataset.aba === 'fila';
 
         // ── RENDER FILA ──
+        let assinaturaFila = '';
         function renderQueue() {
             document.getElementById('queueCount').innerText = `${queue.length} vídeos`;
             document.getElementById('abaFilaCount').textContent = queue.length;
+            queue.forEach(item => {
+                if (!item.title && titleCache[item.videoId] === undefined)
+                    fetchTitle(item.videoId).then(t => { if (t) agendar('fila'); });
+            });
+            const assinatura = JSON.stringify([currentUser?.uid, !!activeUsers.length, queue.map(it =>
+                [it.id, it.title || titleCache[it.videoId] || '', it.addedByName, presentUser(it.addedByUid)])]);
+            if (assinatura === assinaturaFila) return;
+            assinaturaFila = assinatura;
             const c = document.getElementById('queueList');
             c.innerHTML = '';
             if (!queue.length) {
@@ -2049,15 +2168,13 @@
                 // dono ausente: a música cai fora quando chegar a vez dela
                 const fora = !!activeUsers.length && !presentUser(item.addedByUid);
                 const title = item.title || titleCache[item.videoId] || '';
-                if (!item.title && titleCache[item.videoId] === undefined)
-                    fetchTitle(item.videoId).then(t => { if (t) renderQueue(); });
                 const div = document.createElement('div');
                 div.className = `flex items-center gap-2.5 p-2 rounded-lg border transition ${next?'border-[#DB7944]/60':'border-[#0B2A47]'} ${mine&&!next?'border-[#DB7944]/35':''} hover:border-[#DB7944]/60`;
                 div.style.background = next ? 'rgba(219,121,68,.12)' : 'rgba(11,42,71,.35)';
                 div.innerHTML = `
 <span class="w-5 h-5 shrink-0 rounded-full text-[10px] font-bold flex items-center justify-center ${next?'bg-[#DB7944] text-white':'bg-[#0B2A47] text-[#FFF7EB]/80 border border-[#FFF7EB]/15'}">${i+1}</span>
 <div class="relative shrink-0">
-  <img src="https://img.youtube.com/vi/${item.videoId}/default.jpg" class="w-12 h-8 object-cover rounded shadow"/>
+  <img src="https://img.youtube.com/vi/${item.videoId}/default.jpg" alt="" loading="lazy" class="w-12 h-8 object-cover rounded shadow"/>
   ${next?`<span class="absolute -top-1.5 -right-1.5 text-[8px] font-bold uppercase bg-[#DB7944] text-white px-1 py-0.5 rounded shadow">próx.</span>`:''}
 </div>
 <div class="flex-1 overflow-hidden">
@@ -2082,6 +2199,7 @@
             const c = document.getElementById('playerContainer');
             ytInfo = null; // iframe novo, estado local zera
             lastSyncSeekAt = 0;
+            assinaturaOverlay = ''; // overlay recriado vazio: desenha de novo
             iframeCriadoEm = Date.now();
             precisaTocar = false;
             if (currentVideo?.videoId) {
@@ -2122,9 +2240,18 @@
   <button type="button" onclick="window.cancelarContagem()" class="mt-1 bg-[#FFF7EB] text-[#0a0a0a] text-xs font-semibold px-4 py-2 rounded-full hover:bg-white transition">${Icons.undo} Cancelar, quero continuar</button>` : ''}
 </div>`;
 
+        let assinaturaOverlay = '';
         function updatePlayerOverlay() {
             const o = document.getElementById('playerOverlay');
             if (!o) return;
+            glPlaying = !!(currentVideo?.videoId) || fallbackUnmuted;
+            const assinatura = JSON.stringify([currentUser?.uid, currentVideo?.videoId, currentVideo?.addedByUid,
+                currentVideo?.title, validSkipVotes(), skipThreshold(), skipVotes?.votes?.[currentUser?.uid] && skipVotes?.videoId,
+                partyVoteCount(), partyVotes.some(v => v.uid === currentUser?.uid),
+                Date.now() < playerUnlockUntil ? Math.ceil((playerUnlockUntil - Date.now()) / 1000) : 0,
+                precisaTocar, countdownActive() && countdownState?.endsAt, !!minhaContagem?.cancelavel, fallbackUnmuted]);
+            if (assinatura === assinaturaOverlay) return;
+            assinaturaOverlay = assinatura;
             const cd = countdownActive() ? countdownOverlayHtml() : '';
 
             if (currentVideo?.videoId) {
@@ -2172,18 +2299,17 @@ ${cd}`;
 ${fallbackUnmuted ? '' : `<button onclick="window.unmuteFallback(this)" class="pointer-events-auto absolute bottom-3 left-3 bg-[#DB7944] text-white text-xs px-4 py-1.5 rounded-full font-semibold shadow-lg hover:bg-[#c45d1b] transition z-10">${Icons.volume} Ativar som</button>`}
 ${cd}`;
             }
-            glPlaying = !!(currentVideo?.videoId) || fallbackUnmuted;
-            applyModalAudioDuck();
         }
 
         // propagandas do YouTube: libera os cliques por 15 s para o usuário pular o anúncio
-        let playerUnlockUntil = 0;
+        let playerUnlockUntil = 0, intervaloLiberado = null;
         window.unlockPlayer = () => {
             playerUnlockUntil = Date.now() + 15000;
             updatePlayerOverlay();
-            const iv = setInterval(() => {
+            clearInterval(intervaloLiberado);
+            intervaloLiberado = setInterval(() => {
                 updatePlayerOverlay();
-                if (Date.now() >= playerUnlockUntil) clearInterval(iv);
+                if (Date.now() >= playerUnlockUntil) clearInterval(intervaloLiberado);
             }, 1000);
         };
 
@@ -2526,6 +2652,7 @@ ${cd}`;
         // O YouTube não expõe o áudio do embed pro Web Audio (cross-origin), então o
         // efeito abafado é simulado: volume bem baixo + leve desfoque no vídeo.
         function applyModalAudioDuck() {
+            document.body.classList.toggle('modal-aberto', modalOpen); // pausa a pista por baixo
             const f = document.getElementById('ytFrame');
             if (!f) return;
             ytCmd('setVolume', [modalOpen ? 10 : 100]);
@@ -2897,9 +3024,12 @@ ${cd}`;
         // ── REAÇÕES RÁPIDAS ──
         const REACTION_EMOJIS = ['🔥','❤️','👏','🕺','💃','😂'];
         const VIP_EMOJIS = ['🥂','💎','👑','✨']; // exclusivas de quem está na Área VIP
+        const REACOES_MAX_NA_TELA = 25; // no auge da música, 300 pessoas reagindo travavam o celular
+        let reacoesNaTela = 0, ultimaReacaoEnviada = 0;
         function spawnReaction(r) {
             const floor = document.getElementById('danceFloor');
-            if (!floor) return;
+            if (!floor || reacoesNaTela >= REACOES_MAX_NA_TELA) return;
+            reacoesNaTela++;
             const vip = VIP_EMOJIS.includes(r.emoji);
             const el = document.createElement('div');
             el.className = 'rx-float absolute pointer-events-none z-30 text-2xl';
@@ -2908,22 +3038,27 @@ ${cd}`;
             if (vip) el.style.filter = 'drop-shadow(0 0 8px rgba(255,215,0,.9))';
             el.textContent = (REACTION_EMOJIS.includes(r.emoji) || vip) ? r.emoji : '🔥';
             floor.appendChild(el);
-            setTimeout(() => el.remove(), 2700);
+            setTimeout(() => { el.remove(); reacoesNaTela--; }, 2700);
         }
         window.sendReaction = async emoji => {
             const vip = VIP_EMOJIS.includes(emoji);
             if (!REACTION_EMOJIS.includes(emoji) && !vip) return;
             if (vip && !meInVipArea()) { showToast(`${Icons.crown} Reação exclusiva de quem está na Área VIP!`); return; }
+            // uma reação a cada 1,2 s por pessoa: cada uma é lida por todos da pista
+            if (Date.now() - ultimaReacaoEnviada < 1200) return;
+            ultimaReacaoEnviada = Date.now();
             if (!currentUser || !db) {
                 spawnReaction({emoji, x: 50, y: 60}); // modo offline: só efeito local
                 return;
             }
             const me = activeUsers.find(u => u.id === currentUser.uid);
-            await addDoc(pcol('reactions'), {
-                uid: currentUser.uid, emoji,
-                x: me?.x ?? 50, y: (me?.y ?? 55) - 5,
-                timestamp: Date.now()
-            });
+            try {
+                await addDoc(pcol('reactions'), {
+                    uid: currentUser.uid, emoji,
+                    x: me?.x ?? 50, y: (me?.y ?? 55) - 5,
+                    timestamp: Date.now()
+                });
+            } catch(e) { console.warn('Reação não enviada', e); }
         };
 
         // barra de reações VIP: visível só com o avatar dentro do lounge
@@ -2981,7 +3116,7 @@ ${cd}`;
 </div>`).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Ninguém tocou ainda. Solta o som!</p>`;
 
             const songAgg = {};
-            partyVotes.forEach(v => { songAgg[v.videoId] = (songAgg[v.videoId] || 0) + 1; });
+            rankingVotos.forEach(v => { songAgg[v.videoId] = (songAgg[v.videoId] || 0) + 1; });
             const topSongs = Object.entries(songAgg).sort((a,b) => b[1] - a[1]).slice(0, 5);
             document.getElementById('rankingSongs').innerHTML = topSongs.length ? topSongs.map(([vid, n], i) => {
                 const t = titleCache[vid];
@@ -2995,9 +3130,22 @@ ${cd}`;
 </a>`;
             }).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Nenhum voto "Essa vai pra festa!" ainda.</p>`;
         }
-        document.getElementById('openRankingBtn').addEventListener('click', () => {
+        // histórico e votos completos só quando o ranking abre (antes: dois listeners da noite toda)
+        let rankingVotos = [], rankingLidoEm = 0;
+        async function carregarRanking() {
+            if (!currentUser || !db || Date.now() - rankingLidoEm < 60000) return;
+            rankingLidoEm = Date.now();
+            try {
+                const [hist, votos] = await Promise.all([getDocs(pcol('history')), getDocs(pcol('partyVotes'))]);
+                playHistory = hist.docs.map(d => d.data());
+                rankingVotos = votos.docs.map(d => d.data()).filter(v => safeVideoId(v.videoId));
+            } catch(e) { rankingLidoEm = 0; console.warn('Ranking indisponível', e); }
+        }
+        document.getElementById('openRankingBtn').addEventListener('click', async () => {
             renderRanking();
             abrirDialogo('rankingModal');
+            await carregarRanking();
+            renderRanking();
         });
 
         // ── QUEM ESTÁ NA PISTA ──
@@ -3100,12 +3248,20 @@ ${cd}`;
         // ── PISTA WEBGL (Three.js) ──
         // Globo de espelhos 3D, feixes de luz volumétricos e partículas pulsando no ritmo.
         // Se o CDN/WebGL falhar, o globo 2D em CSS continua no lugar.
+        // Leveza: entra só depois que a cortina sobe (não disputa o pré-carregamento), usa o
+        // build minificado, roda a no máximo 30 fps, com resolução contida no celular, e pausa
+        // com modal aberto ou pista fora da tela. Aparelho fraco fica com o globo 2D.
         (async () => {
             try {
-                const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
+                const fraco = (navigator.deviceMemory && navigator.deviceMemory <= 2) ||
+                    (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) || navigator.connection?.saveData;
+                if (fraco) return;
+                await assetsProntos;
+                const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js');
                 const holder = document.getElementById('webglLayer');
-                const renderer = new THREE.WebGLRenderer({alpha: true, antialias: true});
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                const dpr = window.devicePixelRatio || 1;
+                const renderer = new THREE.WebGLRenderer({alpha: true, antialias: dpr < 1.5});
+                renderer.setPixelRatio(Math.min(dpr, innerWidth < 768 ? 1 : 1.5));
                 // O canvas recebe o TAMANHO por CSS (100%) e a RESOLUÇÃO por setSize(w,h,false).
                 // Deixar o Three escrever o estilo com o pixelRatio embutido fazia o canvas
                 // ficar com o dobro do container em tela retina/celular: a cena era desenhada
@@ -3162,7 +3318,7 @@ ${cd}`;
                 const matsFeixe = [];
                 for (let i = 0; i < N_FEIXES; i++) {
                     const cor = new THREE.Color(NEONS[i % NEONS.length]);
-                    const geo = new THREE.ConeGeometry(RAIO_FEIXE, COMP_FEIXE, 24, 16, true);
+                    const geo = new THREE.ConeGeometry(RAIO_FEIXE, COMP_FEIXE, 16, 6, true);
                     const p = geo.attributes.position, cores = new Float32Array(p.count * 3);
                     for (let v = 0; v < p.count; v++) {
                         const t = (p.getY(v) + COMP_FEIXE / 2) / COMP_FEIXE; // 0 = ponta, 1 = globo
@@ -3233,7 +3389,12 @@ ${cd}`;
                 document.getElementById('cssDiscoBall')?.remove(); // o globo agora é 3D
 
                 const BPM = 118; // batida estimada pro pulso visual
-                const quadro = t => {
+                let pistaVisivel = true, ultimoQuadro = 0;
+                new IntersectionObserver(([e]) => { pistaVisivel = e.isIntersecting; }).observe(holder);
+                const quadro = (t, forcar = false) => {
+                    // 30 fps bastam pra luz e globo; pausa com modal aberto ou pista fora da tela
+                    if (!forcar && (!pistaVisivel || modalOpen || t - ultimoQuadro < 33)) return;
+                    ultimoQuadro = t;
                     const s = t / 1000;
                     const beat = (s * BPM / 60) % 1;
                     const pulse = glPlaying ? 1 + .2 * Math.pow(1 - beat, 3) : 1 + .04 * Math.sin(s * 2);
@@ -3250,8 +3411,8 @@ ${cd}`;
                 };
                 // movimento reduzido: cena parada (redesenha só quando a pista muda de tamanho)
                 if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                    quadro(0);
-                    new ResizeObserver(() => quadro(0)).observe(holder);
+                    quadro(0, true);
+                    new ResizeObserver(() => quadro(0, true)).observe(holder);
                 } else {
                     renderer.setAnimationLoop(quadro);
                 }

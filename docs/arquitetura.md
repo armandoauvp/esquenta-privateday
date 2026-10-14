@@ -152,6 +152,11 @@ No `load` do iframe o app envia `{event:'listening'}` (handshake da IFrame API) 
 ### Playlist da casa (fallback)
 Sem `videoId` no `player/state`, cada cliente monta o embed do `FALLBACK_VIDEO` (um vídeo só, com as músicas emendadas) em loop (`loop=1&playlist=<id>`), **mutado** (autoplay com som é bloqueado pelos navegadores sem interação) com botão "Ativar som". **Todo mundo ouve o mesmo trecho**, sem nenhuma escrita no Firestore: a posição sai de um relógio comum, `posicaoFallback() = ((Date.now() − FALLBACK_EPOCA) / 1000) % duracaoFallback`. O iframe já nasce com `start=` nesse ponto, e a sincronia (abaixo) corrige o atraso do carregamento. A duração é **fixa** no código: o YouTube informa primeiro o valor arredondado e depois o fracionado, e com ~200 voltas desde a época uma diferença de 0,5 s vira ~100 s entre clientes. Trocou o vídeo? Atualize `FALLBACK_VIDEO` e `duracaoFallback` juntos.
 
+### Desempenho: snapshots agendam, não desenham
+Com 300 pessoas chegam ~10 snapshots de presença por segundo. Os listeners só atualizam o estado e chamam `agendar(...)`; um único quadro (`requestAnimationFrame`, no máximo a cada 250 ms) desenha pista, mesa, fila, overlay e chat. Cada render compara uma assinatura do que mostra e não mexe no DOM se nada mudou: assim o botão "Pular" não é recriado no meio do toque e os vinis da mesa não reiniciam.
+
+Leituras: presença incremental (`docChanges` num `Map`, reassinada a cada 5 min com corte novo), votos "Essa vai pra festa!" só do vídeo atual, reações com `limit(30)` (faxina do líder por `getDocs` a cada minuto), histórico e votos completos só quando o ranking abre (cache de 60 s).
+
 ### Sincronia: todo mundo no mesmo segundo
 A cada 3 s, cada cliente (menos o DJ) compara a posição do próprio player com a referência e salta (`seekTo`) quando a diferença passa de `SINCRONIA_TOLERANCIA_S` (2 s). A referência é:
 - **vídeo da casa**: o relógio comum (considerando a volta do loop);
