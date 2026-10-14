@@ -6,7 +6,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-14b">
+    <meta name="app-build" content="2026-10-14c">
     <title>Esquenta AUVP Private Day</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -388,7 +388,9 @@
             <!-- PISTA DE DANÇA -->
             <div id="danceFloor" tabindex="0" aria-label="Pista de dança. Use as setas do teclado para mover seu avatar (Shift anda mais rápido)" class="flex-1 min-h-[140px] relative overflow-hidden cursor-crosshair" style="background:#050505;">
 
-                <!-- Camada WebGL (globo 3D, feixes de luz e partículas) — por cima da pista, abaixo dos avatares -->
+                <!-- Camada WebGL (globo 3D, feixes de luz e partículas) — POR CIMA dos avatares (z 8 > 7):
+                     quem anda pelo fundo da pista passa por trás do globo pendurado, e os feixes
+                     iluminam quem está embaixo deles. Profundidade de verdade, não adesivo. -->
                 <div id="webglLayer" class="absolute inset-0 pointer-events-none z-[8]"></div>
 
                 <!-- Ladrilhos 80s -->
@@ -441,10 +443,12 @@
                 </div>
 
                 <!-- Cabine de DJ (canto inferior direito) -->
-                <div id="djBooth" class="absolute z-10" style="right:10px;bottom:10px;pointer-events:none;"></div>
+                <!-- mesma camada dos avatares (z 7) e antes deles no HTML: o avatar do DJ fica por cima da mesa -->
+                <div id="djBooth" class="absolute z-[7]" style="right:10px;bottom:10px;pointer-events:none;"></div>
 
                 <!-- Avatares -->
-                <div id="usersLayer" class="absolute inset-0 w-full h-full pointer-events-none"></div>
+                <!-- z 7: abaixo do globo (8), acima da Área VIP (6) e dos ladrilhos -->
+                <div id="usersLayer" class="absolute inset-0 w-full h-full pointer-events-none z-[7]"></div>
             </div>
         </section>
 

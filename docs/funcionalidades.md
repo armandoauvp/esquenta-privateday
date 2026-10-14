@@ -69,6 +69,8 @@ Quem está com a música tocando vê o botão **"Pular minha vez"** — passa a 
 
 **Avisos em fila**: um aviso novo não apaga o anterior. Eles aparecem um por vez (até 3 esperando, sem repetir o mesmo texto; erros passam na frente), cada um com ✕ para dispensar. No celular ficam logo acima da lateral, sem cobrir o campo do chat.
 
+**Profundidade**: os avatares andam **por trás** do globo espelhado. Quem vai para o fundo da pista some atrás dele, e os feixes de luz iluminam quem passa embaixo. O avatar do DJ continua por cima da mesa.
+
 **Pista pelo teclado**: com a pista em foco (Tab ou um clique), as **setas** movem o avatar (4% por toque; com **Shift**, 10%), respeitando a Área VIP. O avatar anda na hora e a gravação no Firestore sai agrupada, então segurar a seta não gera uma escrita por tecla.
 
 **Botões do player no celular**: alvo de toque de 40 px e versão compacta (ícone + contador, como `🔥 3` e `▶ 1/4`; "Passar" e "Anúncio" no lugar dos textos longos). O texto completo continua no `aria-label` e volta a aparecer a partir de 640 px.
