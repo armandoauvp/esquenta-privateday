@@ -12,8 +12,14 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-14c">
+    <meta name="app-build" content="2026-10-14d">
     <title>Esquenta AUVP Private Day</title>
+    <!-- abre as conexões cedo: fontes, avatares, Firebase e YouTube entram sem esperar o DNS/TLS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://api.dicebear.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://www.youtube.com">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -55,29 +61,32 @@
         .tile {
             border: 1px solid rgba(255,255,255,0.04);
         }
-        @keyframes t-pink   { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(255,0,200,.35);box-shadow:inset 0 0 18px rgba(255,0,200,.7),0 0 12px rgba(255,0,200,.4)} }
-        @keyframes t-cyan   { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(0,255,255,.35);box-shadow:inset 0 0 18px rgba(0,255,255,.7),0 0 12px rgba(0,255,255,.4)} }
-        @keyframes t-yellow { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(255,220,0,.35);box-shadow:inset 0 0 18px rgba(255,220,0,.7),0 0 12px rgba(255,220,0,.4)} }
-        @keyframes t-orange { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(255,100,0,.35);box-shadow:inset 0 0 18px rgba(255,100,0,.7),0 0 12px rgba(255,100,0,.4)} }
-        @keyframes t-purple { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(160,0,255,.35);box-shadow:inset 0 0 18px rgba(160,0,255,.7),0 0 12px rgba(160,0,255,.4)} }
-        @keyframes t-green  { 0%,100%{background:transparent;box-shadow:none} 50%{background:rgba(0,255,100,.35);box-shadow:inset 0 0 18px rgba(0,255,100,.7),0 0 12px rgba(0,255,100,.4)} }
-        .t-pink   { animation: t-pink   var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-cyan   { animation: t-cyan   var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-yellow { animation: t-yellow var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-orange { animation: t-orange var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-purple { animation: t-purple var(--dur,2s) ease-in-out var(--del,0s) infinite; }
-        .t-green  { animation: t-green  var(--dur,2s) ease-in-out var(--del,0s) infinite; }
+        /* O brilho do ladrilho é desenhado UMA vez (::after) e só a opacidade anima: roda no
+           compositor. Antes, ~48 ladrilhos animavam background + box-shadow e repintavam a
+           pista inteira a cada quadro (pesado no celular). */
+        .tile { position: relative; }
+        .tile::after {
+            content: ''; position: absolute; inset: 0; opacity: 0;
+            background: var(--cor); box-shadow: inset 0 0 18px var(--brilho);
+            animation: tile-pisca var(--dur,2s) ease-in-out var(--del,0s) infinite;
+        }
+        @keyframes tile-pisca { 0%,100% { opacity: 0; } 50% { opacity: 1; } }
+        .t-pink   { --cor: rgba(255,0,200,.35); --brilho: rgba(255,0,200,.7); }
+        .t-cyan   { --cor: rgba(0,255,255,.35); --brilho: rgba(0,255,255,.7); }
+        .t-yellow { --cor: rgba(255,220,0,.35); --brilho: rgba(255,220,0,.7); }
+        .t-orange { --cor: rgba(255,100,0,.35); --brilho: rgba(255,100,0,.7); }
+        .t-purple { --cor: rgba(160,0,255,.35); --brilho: rgba(160,0,255,.7); }
+        .t-green  { --cor: rgba(0,255,100,.35); --brilho: rgba(0,255,100,.7); }
+        /* modal aberto cobre a pista: nada animando por baixo do desfoque */
+        .modal-aberto .tile::after, .modal-aberto .luz-ambiente { animation-play-state: paused; }
+        /* grão de filme: camada de tela cheia extra; no celular não compensa */
+        @media (max-width: 767px) { .film-grain { display: none; } }
 
         /* ── VINIL GIRATÓRIO ── */
         @keyframes spin-vinyl { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
         .spin-vinyl { transform-origin: center; animation: spin-vinyl 2s linear infinite; }
 
         /* ── EQUALIZER ── */
-        @keyframes eq1 { 0%,100%{height:3px} 50%{height:10px} }
-        @keyframes eq2 { 0%,100%{height:6px} 50%{height:3px}  }
-        @keyframes eq3 { 0%,100%{height:8px} 50%{height:4px}  }
-        @keyframes eq4 { 0%,100%{height:2px} 50%{height:12px} }
-        @keyframes eq5 { 0%,100%{height:10px} 50%{height:2px} }
 
         /* ── DJ AVATAR ── */
         @keyframes dj-bounce { 0%,100%{transform:translateY(0) scale(1.12)} 50%{transform:translateY(-7px) scale(1.18)} }
@@ -212,19 +221,12 @@
         .cfg-dot-lg { width: 38px; height: 38px; border-color: transparent; }
         .cfg-dot-lg.cfg-dot-on { border-color: #fff; }
 
-        /* ── GLOW DA CABINE ── */
-        @keyframes booth-glow {
-            0%,100% { box-shadow: 0 0 16px rgba(255,0,200,.5), 0 0 32px rgba(255,0,200,.2); }
-            33%      { box-shadow: 0 0 16px rgba(0,255,255,.5), 0 0 32px rgba(0,255,255,.2); }
-            66%      { box-shadow: 0 0 16px rgba(255,220,0,.5),  0 0 32px rgba(255,220,0,.2);  }
-        }
-        .booth-glow { animation: booth-glow 3s ease-in-out infinite; }
-
         @keyframes my-turn-pulse {
             0%,100% { opacity:1; transform:scale(1); }
             50%      { opacity:.8; transform:scale(1.04); }
         }
-        .my-turn-badge { animation: my-turn-pulse .9s ease-in-out infinite; }
+        /* pulsa 3 vezes e para: piscando a música inteira cansava */
+        .my-turn-badge { animation: my-turn-pulse .9s ease-in-out 3; }
 
         /* ── GLOBO REFLETOR NA PISTA ── */
         @keyframes ball-sway { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg)} }
@@ -279,12 +281,113 @@
         }
         .chat-mudo:hover, .chat-mudo:focus-visible { opacity: 1 !important; }
 
+        /* ── MESA DE DJ: palco com cabine ──
+           Medidas por variável (--mesa-w): 232 px no desktop, 200 no tablet, 128 no celular.
+           Animações só de transform/opacity; tudo para no movimento reduzido. */
+        #danceFloor { --mesa-w: 232px; }
+        @media (max-width: 1023px) { #danceFloor { --mesa-w: 200px; } }
+        @media (max-width: 767px)  { #danceFloor { --mesa-w: 128px; } }
+        .mesa {
+            right: 12px; bottom: 6px; width: var(--mesa-w);
+            display: flex; flex-direction: column; align-items: center;
+            --cor-dj: #DB7944;
+        }
+        .mesa-holofote {
+            position: absolute; left: 50%; bottom: 30%; width: 150%; height: 190%;
+            transform-origin: 50% 0; transform: translateX(-50%);
+            clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
+            background: linear-gradient(rgba(255,247,235,0), rgba(255,247,235,.16));
+            opacity: .25; pointer-events: none;
+        }
+        .mesa:not([data-estado="casa"]) .mesa-holofote { opacity: .7; animation: holofote 5s ease-in-out infinite; }
+        .mesa[data-estado="eu"] .mesa-holofote { background: linear-gradient(rgba(255,0,204,0), rgba(255,0,204,.2)); }
+        @keyframes holofote {
+            0%,100% { transform: translateX(-50%) rotate(-5deg); opacity: .55; }
+            50%     { transform: translateX(-50%) rotate(5deg);  opacity: .85; }
+        }
+        .mesa-letreiro {
+            position: relative; z-index: 2; max-width: 96%; padding: 2px 12px 3px;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+            font-size: 18px; line-height: 1.25; color: #FFF7EB;
+            background: #0B2A47; border: 1px solid #DB7944; border-radius: 6px;
+            box-shadow: 0 2px 0 var(--cor-dj); text-shadow: 0 0 8px rgba(255,0,204,.45);
+        }
+        .mesa[data-estado="eu"] .mesa-letreiro { border-color: #ff00cc; box-shadow: 0 0 12px rgba(255,0,204,.55); }
+        .mesa-cabine { position: relative; width: 100%; aspect-ratio: 232 / 132; margin-top: 4px; }
+        .mesa-fundo {
+            position: absolute; inset: 14% 7% 30% 7%; border-radius: 12px 12px 0 0;
+            background: linear-gradient(#0B2A47, #050505); border-top: 2px solid #DB7944;
+            display: flex; justify-content: space-around; align-items: flex-start; padding-top: 6px;
+        }
+        .mesa-fundo i { width: 4px; height: 4px; border-radius: 50%; background: #00ffff; opacity: .35; }
+        .mesa-fundo i:nth-child(even) { background: #ff00cc; }
+        .mesa:not([data-estado="casa"]) .mesa-fundo i { animation: led 1.017s ease-in-out infinite; }
+        .mesa-fundo i:nth-child(even) { animation-delay: .5s; }
+        @keyframes led { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
+        .mesa-dj {
+            position: absolute; left: 50%; bottom: 26%; width: 44%; aspect-ratio: 1;
+            transform: translateX(-50%); padding: 0; border: 0; background: none; z-index: 1;
+            pointer-events: auto; cursor: pointer; transition: opacity .35s ease, transform .35s ease;
+        }
+        .mesa-dj img { display: block; width: 100%; height: 100%; animation: cabeceio 1.017s ease-in-out infinite; }
+        @keyframes cabeceio { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-3%) rotate(2deg); } }
+        .mesa-fones { position: absolute; left: 4%; bottom: 30%; font-size: clamp(12px, 18%, 20px); color: #ff00cc; filter: drop-shadow(0 0 4px rgba(255,0,204,.8)); }
+        .mesa-dj .vip-crown { width: 22%; height: 22%; top: 2%; right: 8%; }
+        .mesa[data-estado="casa"] .mesa-dj { opacity: 0; transform: translateX(-50%) translateY(40%); pointer-events: none; }
+        .mesa[data-estado="eu"] .mesa-dj { cursor: default; }
+        .mesa[data-ausente] .mesa-dj { opacity: .45; }
+        .mesa[data-pausado] .mesa-dj img, .mesa[data-estado="casa"] .mesa-dj img { animation-play-state: paused; }
+        .mesa-vazia {
+            position: absolute; left: 50%; bottom: 44%; transform: translateX(-50%);
+            font-size: clamp(18px, 14%, 34px); color: rgba(255,247,235,.35); opacity: 0; transition: opacity .35s ease;
+        }
+        .mesa[data-estado="casa"] .mesa-vazia { opacity: 1; }
+        .mesa-tampo { position: absolute; left: 0; bottom: 0; width: 100%; height: auto; z-index: 2; overflow: visible; }
+        .mesa-prato { transform-box: fill-box; transform-origin: center; animation: spin-vinyl 1.8s linear infinite; }
+        .mesa[data-estado="casa"] .mesa-prato, .mesa[data-pausado] .mesa-prato { animation-play-state: paused; }
+        .mesa-led-faixa { opacity: .85; }
+        .mesa[data-estado="casa"] .mesa-led-faixa { opacity: .25; }
+        .mesa-visor {
+            position: relative; z-index: 2; width: 100%; margin-top: 4px; padding: 5px 8px 6px;
+            background: rgba(5,5,5,.88); border: 1px solid rgba(255,247,235,.14); border-radius: 8px;
+        }
+        .mesa-titulo { font-size: 11px; font-weight: 600; color: rgba(255,247,235,.92); }
+        .mesa-barra { height: 3px; margin: 4px 0 3px; border-radius: 2px; background: rgba(255,247,235,.12); overflow: hidden; }
+        .mesa-barra i { display: block; height: 100%; background: #DB7944; transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 1s linear; }
+        .mesa[data-corte] .mesa-barra i { background: #932621; }
+        .mesa-info { display: flex; justify-content: space-between; gap: 6px; font-size: 10px; color: rgba(255,247,235,.7); font-variant-numeric: tabular-nums; }
+        .mesa[data-corte] #mesaTempo { color: #ff8a80; font-weight: 600; }
+        .mesa-proximo { width: 100%; margin-top: 3px; font-size: 10px; color: rgba(255,247,235,.65); text-align: center; }
+        .mesa-assumir {
+            display: none; margin-top: 5px; pointer-events: auto; font-size: 11px; font-weight: 600;
+            color: #fff; background: #DB7944; border-radius: 9999px; padding: 6px 12px; min-height: 32px;
+        }
+        .mesa-assumir:hover { background: #c45d1b; }
+        .mesa[data-estado="casa"] .mesa-assumir { display: inline-flex; align-items: center; }
+        /* celular: sem letreiro grande nem texto no visor; só a barra de progresso no tampo */
+        @media (max-width: 767px) {
+            .mesa { right: 8px; bottom: 4px; }
+            .mesa-letreiro { font-size: 13px; padding: 1px 8px 2px; }
+            .mesa-visor { padding: 3px 5px 4px; }
+            .mesa-titulo, .mesa-info, .mesa-proximo { display: none; }
+            .mesa-barra { margin: 0; }
+            .mesa-assumir { font-size: 10px; padding: 4px 9px; min-height: 28px; }
+        }
+        /* pista baixinha (360×640): só cabine e barra */
+        #danceFloor[data-pista="curta"] .mesa-letreiro, #danceFloor[data-pista="curta"] .mesa-assumir { display: none; }
+        /* a barra de reações nunca entra embaixo da mesa */
+        #actionBar { max-width: calc(100% - var(--mesa-w) - 32px); flex-wrap: wrap; }
+        /* avatar do DJ sai da pista (está na mesa); a casca fica no lugar e volta quando ele sai */
+        .na-mesa { opacity: 0 !important; }
+        .na-mesa, .na-mesa * { pointer-events: none !important; }
+
         /* ── MOVIMENTO REDUZIDO ──
            Quem pede menos movimento no sistema (e celular fraco agradece) fica sem
            ladrilhos piscando, bounce, brilhos e giros; o WebGL desenha um quadro só. */
         @media (prefers-reduced-motion: reduce) {
             .dance-tiles *, .spin-vinyl, .dj-bounce, .disco-ball-wrap, .disco-ball-img,
-            .booth-glow, .my-turn-badge, .count-glow, .dance-spin, .dance-jump,
+            .mesa-holofote, .mesa-fundo i, .mesa-dj img, .mesa-prato,
+            .my-turn-badge, .count-glow, .dance-spin, .dance-jump,
             .dance-shake, .dance-moonwalk, .animate-bounce, .animate-pulse,
             .fade-in-up, .toast-in, .rx-btn { animation: none !important; transition: none !important; }
         }
@@ -300,10 +403,6 @@
         /* ── AJUSTES MOBILE: nada se sobrepõe na pista curta ── */
         #floorHint .hint-short { display: none; }
         @media (max-width: 767px) {
-            /* mesa de DJ menor para sobrar espaço à esquerda */
-            #djBooth { transform: scale(.72); transform-origin: bottom right; }
-            /* barra de reações quebra linha antes de alcançar a mesa */
-            #actionBar { max-width: calc(100% - 128px); flex-wrap: wrap; }
             #actionBar .rx-btn, #danceMenuBtn { font-size: 13px; }
             /* dica curta no lugar da longa */
             #floorHint .hint-full { display: none; }
@@ -403,9 +502,10 @@
                 <div class="dance-tiles" id="danceTiles"></div>
 
                 <!-- Luzes de palco ambiente -->
-                <div class="absolute top-0 left-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse mix-blend-screen pointer-events-none" style="background:rgba(255,0,200,.06)"></div>
-                <div class="absolute top-0 right-1/4 w-72 h-72 rounded-full blur-3xl animate-pulse mix-blend-screen pointer-events-none" style="background:rgba(0,255,255,.06);animation-delay:.8s"></div>
-                <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-48 rounded-full blur-3xl animate-pulse mix-blend-screen pointer-events-none" style="background:rgba(219,121,68,.07);animation-delay:1.6s"></div>
+                <!-- gradiente radial em vez de blur-3xl + mix-blend: mesmo clima, sem repintar a tela -->
+                <div class="luz-ambiente absolute top-0 left-1/4 w-72 h-72 animate-pulse pointer-events-none" style="background:radial-gradient(closest-side,rgba(255,0,200,.10),transparent)"></div>
+                <div class="luz-ambiente absolute top-0 right-1/4 w-72 h-72 animate-pulse pointer-events-none" style="background:radial-gradient(closest-side,rgba(0,255,255,.10),transparent);animation-delay:.8s"></div>
+                <div class="luz-ambiente absolute bottom-0 left-1/2 -translate-x-1/2 w-96 h-48 animate-pulse pointer-events-none" style="background:radial-gradient(closest-side,rgba(219,121,68,.12),transparent);animation-delay:1.6s"></div>
 
                 <!-- Watermark -->
                 <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="opacity:.025">
@@ -449,8 +549,52 @@
                 </div>
 
                 <!-- Cabine de DJ (canto inferior direito) -->
-                <!-- mesma camada dos avatares (z 7) e antes deles no HTML: o avatar do DJ fica por cima da mesa -->
-                <div id="djBooth" class="absolute z-[7]" style="right:10px;bottom:10px;pointer-events:none;"></div>
+                <!-- MESA DE DJ: palco com cabine. O DJ aparece ATRÁS do tampo (só cabeça e ombros),
+                     com letreiro, holofote e um visor com a música, o tempo e quem vem depois.
+                     Montada uma vez; renderDJBooth() só troca textos, atributos e classes.
+                     Mesma camada dos avatares (z 7) e abaixo do globo (z 8). -->
+                <div id="djBooth" class="mesa absolute z-[7] pointer-events-none" data-estado="casa">
+                    <div class="mesa-holofote" aria-hidden="true"></div>
+                    <p id="mesaNome" class="mesa-letreiro font-discodiva">Playlist da casa</p>
+                    <div class="mesa-cabine">
+                        <div class="mesa-fundo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                        <button type="button" id="mesaDJ" class="mesa-dj" tabindex="-1" aria-label="DJ na mesa">
+                            <img id="mesaAvatar" src="" alt="">
+                            <span class="mesa-fones" data-icone="headphones"></span>
+                            <span id="mesaCoroa" class="vip-crown hidden" data-icone="crown"></span>
+                        </button>
+                        <span class="mesa-vazia" data-icone="headphones" aria-hidden="true"></span>
+                        <svg class="mesa-tampo" viewBox="0 0 232 64" aria-hidden="true">
+                            <rect x="2" y="6" width="228" height="56" rx="7" fill="#0d0d0d" stroke="#DB7944" stroke-width="1.5"/>
+                            <rect class="mesa-led-faixa" x="10" y="6" width="212" height="2" rx="1" fill="#00ffff"/>
+                            <g transform="translate(46 36)"><g class="mesa-prato">
+                                <circle r="21" fill="#141414" stroke="#2a2a2a"/>
+                                <circle r="14" fill="none" stroke="#202020"/>
+                                <circle r="7" fill="#DB7944"/>
+                                <circle cx="9" cy="-9" r="2.2" fill="#FFF7EB" opacity=".75"/>
+                            </g></g>
+                            <g transform="translate(186 36)"><g class="mesa-prato">
+                                <circle r="21" fill="#141414" stroke="#2a2a2a"/>
+                                <circle r="14" fill="none" stroke="#202020"/>
+                                <circle r="7" fill="#DB7944"/>
+                                <circle cx="-9" cy="9" r="2.2" fill="#FFF7EB" opacity=".75"/>
+                            </g></g>
+                            <rect x="92" y="16" width="48" height="38" rx="4" fill="#0B2A47" stroke="#1d3a57"/>
+                            <circle cx="104" cy="26" r="3.2" fill="#FFF7EB"/>
+                            <circle cx="116" cy="26" r="3.2" fill="#DB7944"/>
+                            <circle cx="128" cy="26" r="3.2" fill="#FFF7EB"/>
+                            <rect x="102" y="42" width="28" height="2" rx="1" fill="#2a3f55"/>
+                            <rect class="mesa-fader" x="112" y="38" width="8" height="10" rx="2" fill="#ff00cc"/>
+                        </svg>
+                    </div>
+                    <div class="mesa-visor">
+                        <p id="mesaTitulo" class="mesa-titulo truncate">Mesa livre</p>
+                        <div class="mesa-barra"><i></i></div>
+                        <p class="mesa-info"><span id="mesaTempo"></span><span id="mesaVotos"></span></p>
+                    </div>
+                    <p id="mesaProximo" class="mesa-proximo truncate"></p>
+                    <button type="button" id="mesaAssumir" class="mesa-assumir" onclick="window.assumirMesa()">Assumir a mesa</button>
+                </div>
 
                 <!-- Avatares -->
                 <!-- z 7: abaixo do globo (8), acima da Área VIP (6) e dos ladrilhos -->
@@ -745,7 +889,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, onSnapshot, addDoc, deleteDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, getDocFromServer, onSnapshot, addDoc, deleteDoc, query, where, orderBy, limit, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ── ÍCONES ──
         // Hugeicons (pacote gratuito @hugeicons/core-free-icons 4.3.5, licença MIT), embutidos
@@ -817,6 +961,15 @@
             ? JSON.parse(__firebase_config)
             : FIREBASE_CONFIG_FALLBACK;
         const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID_FALLBACK;
+
+        // ── RELÓGIO CORRIGIDO ──
+        // Tudo que é COMPARTILHADO entre aparelhos (início da música, presença, contagem,
+        // relógio da playlist da casa) usa agora(): a hora do aparelho mais o desvio medido
+        // contra o servidor do Firebase (medirRelogio). Um PC com o relógio 80 s adiantado
+        // achava que ninguém estava presente, virava "líder" e apagava a fila de todo mundo.
+        // Durações locais (intervalos, throttles, posição do próprio player) seguem Date.now().
+        let desvioRelogio = 0;
+        function agora() { return Date.now() + desvioRelogio; }
 
         const configValida = !!(firebaseConfig.apiKey);
         const app   = configValida ? initializeApp(firebaseConfig) : null;
@@ -912,7 +1065,7 @@
         // Trocou o vídeo? Atualize os dois valores (a duração do YouTube, em segundos).
         const FALLBACK_EPOCA = Date.UTC(2026, 9, 1);
         const duracaoFallback = 5751; // 1:35:51
-        const posicaoFallback = () => ((Date.now() - FALLBACK_EPOCA) / 1000) % duracaoFallback;
+        const posicaoFallback = () => ((agora() - FALLBACK_EPOCA) / 1000) % duracaoFallback;
         // tolerância de sincronia: acima disso, o player salta pro ponto de todo mundo
         const SINCRONIA_TOLERANCIA_S = 2;
         const MAX_PLAY_MS  = 10 * 60 * 1000; // todo vídeo é pulado ao completar 10 min
@@ -943,7 +1096,7 @@
         let entrouDireto = false; // pulou o modal por já ter personalizado antes
         let playHistory = [];       // coleção history: músicas que já tocaram (ranking)
         let glPlaying = false;      // pista WebGL pulsa quando há música audível
-        const seenReactions = new Set();
+        const seenReactions = new Map(); // id → quando chegou (podado: não cresce a noite toda)
         const titleCache = {};      // videoId -> título (via oEmbed) | '' se falhou
         // ── CARIMBO DA VERSÃO ──
         // Aparece no rodapé do modal e no console: se o navegador estiver com o HTML
@@ -1099,8 +1252,12 @@
         const okOpt = (list, v, dflt) => list.some(o => o.v === v) ? v : dflt;
         const okHex = (v, dflt) => /^[0-9a-fA-F]{6}$/.test(v || '') ? v : dflt;
 
+        const cacheUrlAvatar = new Map(); // config serializada → URL (montar a URL custa)
         function getAvatarUrl(config, size, extra = null) {
             const c = config || localProfile.avatarConfig;
+            const chaveUrl = JSON.stringify([c, size || 0, extra]);
+            const pronta = cacheUrlAvatar.get(chaveUrl);
+            if (pronta) return pronta;
             const top   = okOpt(TOPS,   LEGACY_AVATAR.top[c.top]     ?? c.top,   'shortFlat');
             const eyes  = okOpt(EYES,   LEGACY_AVATAR.eyes[c.eyes]   ?? c.eyes,  'default');
             const mouth = okOpt(MOUTHS, LEGACY_AVATAR.mouth[c.mouth] ?? c.mouth, 'default');
@@ -1126,7 +1283,10 @@
             if (fh)  { params.facialHair  = fh;  params.facialHairProbability  = 100; }
             if (size) params.size = size; // miniaturas dos cards de opção
             if (extra) Object.assign(params, extra);
-            return `https://api.dicebear.com/8.x/avataaars/svg?${new URLSearchParams(params)}`;
+            const url = `https://api.dicebear.com/8.x/avataaars/svg?${new URLSearchParams(params)}`;
+            if (cacheUrlAvatar.size > 3000) cacheUrlAvatar.clear();
+            cacheUrlAvatar.set(chaveUrl, url);
+            return url;
         }
 
         // ── PRÉ-CARREGAMENTO DOS BONECOS ──
@@ -1221,8 +1381,9 @@
         function hidratarAvatares(raiz, urgente = true) {
             // de trás pra frente: cada urgente entra no INÍCIO da fila, então o lote
             // termina na ordem da tela (a primeira faixa do modal chega primeiro)
-            [...raiz.querySelectorAll('img[data-av]')].reverse().forEach(img => {
+            [...raiz.querySelectorAll('img[data-av]:not([data-agendado])')].reverse().forEach(img => {
                 const url = img.dataset.av;
+                img.dataset.agendado = '1';
                 // falhou nas 3 tentativas: põe o src mesmo assim, como última chance
                 carregarImagem(url, urgente).then(() => {
                     if (img.dataset.av !== url) return;
@@ -1248,7 +1409,8 @@
             const urls = [
                 window.__ASSETS.globo, window.__ASSETS.lettering,
                 getAvatarUrl(localProfile.avatarConfig),            // o boneco de quem chegou
-                ...CATEGORIAS.flatMap(([, lista, chave]) => lista.map(o => urlDoCard(chave, o.v)))
+                // quem já tem boneco entra direto na pista: as miniaturas do modal vêm depois
+                ...(perfilPronto ? [] : CATEGORIAS.flatMap(([, lista, chave]) => lista.map(o => urlDoCard(chave, o.v))))
             ];
             let feitos = 0;
             const passo = () => {
@@ -1286,109 +1448,107 @@
         }
 
         // ── MESA DE DJ ──
-        // Position the DJ avatar here in % of dance floor
-        const DJ_X = 89; // right area
-        const DJ_Y = 78; // lower area (near the booth element at bottom-right)
-
+        // A mesa é montada uma vez no HTML (#djBooth) e aqui só muda texto, atributo e
+        // classe — refazer o innerHTML reiniciava pratos, LEDs e o cabeceio a cada snapshot.
+        // O avatar do DJ sai da pista (casca .na-mesa) e aparece atrás do tampo.
+        let assinaturaMesa = '';
+        let duracaoVideoAtual = 0; // duração informada pelo player (s) — barra de progresso
         function renderDJBooth() {
-            const el = document.getElementById('djBooth');
-            const playing = currentVideo && currentVideo.videoId;
-            const djUid  = currentVideo?.addedByUid || '';
-            const djName = currentVideo?.addedByName || '';
-            const isMe   = currentUser && djUid === currentUser.uid;
-            const djUser = activeUsers.find(u => u.id === djUid);
-            const djColor = safeColor(djUser?.color);
-            const djAvatar = djUser ? getAvatarUrl(djUser.avatarConfig) : '';
+            const r = document.getElementById('djBooth');
+            const tocando = !!currentVideo?.videoId;
+            const djUid = tocando ? currentVideo.addedByUid : null;
+            const eu = !!(currentUser && djUid && djUid === currentUser.uid);
+            const djUser = djUid ? activeUsers.find(u => u.id === djUid) : null;
+            const estado = !tocando ? 'casa' : eu ? 'eu' : 'dj';
+            const urlAvatar = tocando ? getAvatarUrl(djUser?.avatarConfig || CARD_BASE) : '';
+            const cor = safeColor(djUser?.color);
+            const pausado = tocando && playbackState?.videoId === currentVideo.videoId && playbackState.state === 'paused';
+            const ausente = tocando && !!djUser && !isPresent(djUser);
+            const titulo = tocando ? (currentVideo.title || titleCache[currentVideo.videoId] || '') : '';
+            const prox = queue.find(q => !activeUsers.length || presentUser(q.addedByUid));
+            const votos = tocando ? validSkipVotes() : 0;
+            const festa = tocando ? partyVoteCount() : 0;
+            const assinatura = JSON.stringify([estado, djUid, currentVideo?.addedByName, urlAvatar, cor, !!djUser?.isVIP,
+                pausado, ausente, titulo, prox?.id, prox?.addedByName, votos, skipThreshold(), festa, podeSerDJ()]);
+            if (assinatura === assinaturaMesa) return;
+            assinaturaMesa = assinatura;
 
-            const glowClass = playing ? 'booth-glow' : '';
-            const borderColor = playing ? (isMe ? '#ff00cc' : '#DB7944') : 'rgba(255,255,255,.12)';
-
-            el.innerHTML = `
-<div class="${glowClass} rounded-2xl p-2.5 transition-all" style="background:#0a0a0a;border:1px solid ${borderColor};min-width:148px;">
-  <p class="text-center text-[9px] uppercase tracking-[.2em] text-[#DB7944] font-bold mb-1.5">${Icons.fila} Mesa de DJ</p>
-
-  <!-- SVG DA MESA -->
-  <svg width="140" height="72" viewBox="0 0 140 72" xmlns="http://www.w3.org/2000/svg">
-    <!-- base da mesa -->
-    <rect x="2" y="40" width="136" height="28" rx="5" fill="#111" stroke="#2a2a2a" stroke-width="1"/>
-    <!-- reflexo da mesa -->
-    <rect x="2" y="40" width="136" height="6" rx="5" fill="#222"/>
-
-    <!-- Toca-disco esquerdo -->
-    <g transform="translate(28,24)">
-      ${playing ? `<circle r="22" fill="#0d0d0d" stroke="#1a1a1a" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center"/>
-      <circle r="16" fill="none" stroke="#1a1a1a" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center"/>
-      <circle r="10" fill="none" stroke="#222" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center"/>` : `<circle r="22" fill="#0d0d0d" stroke="#1a1a1a" stroke-width="1"/>
-      <circle r="16" fill="none" stroke="#1a1a1a" stroke-width="1"/>
-      <circle r="10" fill="none" stroke="#222" stroke-width="1"/>`}
-      <circle r="3.5" fill="#DB7944"/>
-      <circle r="1" fill="#060606"/>
-    </g>
-    <!-- braço do toca-disco esq -->
-    <line x1="50" y1="8" x2="40" y2="22" stroke="#DB7944" stroke-width="1.5" stroke-linecap="round" opacity=".8"/>
-
-    <!-- Toca-disco direito -->
-    <g transform="translate(112,24)">
-      ${playing ? `<circle r="22" fill="#0d0d0d" stroke="#1a1a1a" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center;animation-delay:.4s"/>
-      <circle r="16" fill="none" stroke="#1a1a1a" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center;animation-delay:.4s"/>
-      <circle r="10" fill="none" stroke="#222" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center;animation-delay:.4s"/>` : `<circle r="22" fill="#0d0d0d" stroke="#1a1a1a" stroke-width="1"/>
-      <circle r="16" fill="none" stroke="#1a1a1a" stroke-width="1"/>
-      <circle r="10" fill="none" stroke="#222" stroke-width="1"/>`}
-      <circle r="3.5" fill="#DB7944"/>
-      <circle r="1" fill="#060606"/>
-    </g>
-    <!-- braço do toca-disco dir -->
-    <line x1="134" y1="8" x2="124" y2="22" stroke="#DB7944" stroke-width="1.5" stroke-linecap="round" opacity=".8"/>
-
-    <!-- Mixer central -->
-    <rect x="57" y="14" width="26" height="32" rx="3" fill="#0d0d0d" stroke="#2a2a2a" stroke-width="1"/>
-    <!-- knobs -->
-    <circle cx="65" cy="22" r="3" fill="#DB7944" stroke="#a6460f" stroke-width=".5"/>
-    <circle cx="75" cy="22" r="3" fill="#00ffff" stroke="#00cccc" stroke-width=".5"/>
-    <circle cx="70" cy="32" r="4" fill="#ff00cc" stroke="#cc0099" stroke-width=".5"/>
-    <!-- fader -->
-    <rect x="64" y="40" width="12" height="1.5" rx="1" fill="#333"/>
-    <rect x="68" y="38" width="4" height="5" rx="1" fill="#555"/>
-
-    <!-- Equalizer bars EQ -->
-    ${playing ? `
-    <rect x="6"  y="58" width="3" height="8" rx="1" fill="#00ff88" style="animation:eq1 .28s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box"/>
-    <rect x="11" y="55" width="3" height="11" rx="1" fill="#00ff88" style="animation:eq3 .35s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.1s"/>
-    <rect x="16" y="60" width="3" height="6" rx="1" fill="#00ff88" style="animation:eq2 .42s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.07s"/>
-    <rect x="21" y="56" width="3" height="10" rx="1" fill="#00ccff" style="animation:eq4 .31s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.18s"/>
-    <rect x="26" y="59" width="3" height="7" rx="1" fill="#00ccff" style="animation:eq5 .38s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.05s"/>
-
-    <rect x="108" y="57" width="3" height="9"  rx="1" fill="#ff00cc" style="animation:eq2 .33s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box"/>
-    <rect x="113" y="54" width="3" height="12" rx="1" fill="#ff00cc" style="animation:eq4 .29s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.12s"/>
-    <rect x="118" y="60" width="3" height="6"  rx="1" fill="#ff6600" style="animation:eq1 .4s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.08s"/>
-    <rect x="123" y="56" width="3" height="10" rx="1" fill="#ff6600" style="animation:eq3 .35s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.2s"/>
-    <rect x="128" y="58" width="3" height="8"  rx="1" fill="#ffff00" style="animation:eq5 .44s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.06s"/>
-    ` : `
-    <rect x="6" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="11" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="16" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="21" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="26" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="108" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="113" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="118" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="123" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="128" y="63" width="3" height="3" rx="1" fill="#333"/>
-    `}
-  </svg>
-
-  <!-- DJ atual -->
-  ${playing && djName ? `
-  <div class="flex items-center gap-2 justify-center mt-1.5">
-    ${djAvatar ? imgAvatar(djAvatar, `alt="" class="w-7 h-7 rounded-full bg-[#111] ${isMe ? 'dj-bounce' : ''}" style="box-shadow:0 0 8px ${djColor}80"`) : ''}
-    <div>
-      <p class="text-[9px] text-[#FFF7EB]/65">${Icons.headphones} Na mesa agora:</p>
-      <p class="text-[10px] font-bold truncate max-w-[85px]" style="color:${djColor}">${esc(djName)}${isMe ? ' (Você!)' : ''}</p>
-    </div>
-  </div>` : `<p class="text-center text-[9px] text-[#FFF7EB]/60 mt-1">${Icons.playlist} Tocando a playlist da casa</p>`}
-</div>`;
-            hidratarAvatares(el);
+            r.dataset.estado = estado;
+            r.toggleAttribute('data-pausado', pausado);
+            r.toggleAttribute('data-ausente', ausente);
+            r.style.setProperty('--cor-dj', cor);
+            const nomeDJ = currentVideo?.addedByName || 'DJ';
+            document.getElementById('mesaNome').textContent =
+                estado === 'casa' ? 'Playlist da casa' : estado === 'eu' ? 'Você na mesa' : nomeDJ;
+            if (tocando) trocarAvatar(document.getElementById('mesaAvatar'), urlAvatar);
+            const dj = document.getElementById('mesaDJ');
+            const conversavel = estado === 'dj' && !!currentUser;
+            dj.tabIndex = conversavel ? 0 : -1;
+            dj.setAttribute('aria-label', estado === 'dj' ? `Conversar com ${nomeDJ}, DJ agora` : estado === 'eu' ? 'Você na mesa de DJ' : 'Mesa livre');
+            dj.title = estado === 'dj' ? `${nomeDJ} na mesa${ausente ? ' (fora da tela)' : ''}` : '';
+            document.getElementById('mesaCoroa').classList.toggle('hidden', !(tocando && djUser?.isVIP));
+            document.getElementById('mesaTitulo').textContent = tocando ? (titulo || 'Tocando agora') : 'Mesa livre';
+            document.getElementById('mesaVotos').innerHTML = [
+                festa ? `<span title="Votos pra essa tocar na festa">${Icons.fire} ${festa}</span>` : '',
+                votos ? `<span title="Votos pra pular">pular ${votos}/${skipThreshold()}</span>` : ''
+            ].filter(Boolean).join(' · ');
+            document.getElementById('mesaProximo').textContent = prox
+                ? `A seguir: ${prox.addedByName || 'Investidor'}`
+                : (tocando ? 'Ninguém na fila ainda' : 'Fila vazia');
+            const assumir = document.getElementById('mesaAssumir');
+            assumir.textContent = podeSerDJ() ? 'Assumir a mesa' : 'Mesa só com ingresso';
+            atualizarProgressoMesa();
         }
+
+        // barra e tempo: 1×/s, só mexe em uma variável CSS e um texto
+        const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+        function atualizarProgressoMesa() {
+            const r = document.getElementById('djBooth');
+            const tempo = document.getElementById('mesaTempo');
+            if (!currentVideo?.videoId) {
+                r.style.setProperty('--p', 0);
+                r.removeAttribute('data-corte');
+                tempo.textContent = '';
+                return;
+            }
+            const decorrido = minhaPosicao() ?? Math.max(0, (agora() - (currentVideo.startedAt || agora())) / 1000);
+            const limite = MAX_PLAY_MS / 1000;
+            const fim = duracaoVideoAtual ? Math.min(duracaoVideoAtual, limite) : limite;
+            const resta = Math.max(0, fim - decorrido);
+            // o corte de 10 min é o que vai encerrar a música? avisa no último minuto
+            const corte = (!duracaoVideoAtual || duracaoVideoAtual > limite) && resta < 60;
+            r.style.setProperty('--p', Math.min(1, decorrido / fim).toFixed(3));
+            r.toggleAttribute('data-corte', corte);
+            tempo.textContent = corte ? `corte em ${mmss(resta)}` : `faltam ${mmss(resta)}`;
+        }
+        setInterval(() => { if (!document.hidden) atualizarProgressoMesa(); }, 1000);
+
+        // estado "casa": quem tem ingresso vai direto pro campo da fila; quem não tem, pra confirmação
+        window.assumirMesa = () => {
+            if (!podeSerDJ()) { window.abrirConfirmacaoIngresso(); return; }
+            if (innerWidth < 768) window.setAbaLateral('fila');
+            document.getElementById('videoUrlInput').focus();
+        };
+        document.getElementById('mesaDJ').addEventListener('click', () => {
+            const djUid = currentVideo?.videoId ? currentVideo.addedByUid : null;
+            if (djUid && currentUser && djUid !== currentUser.uid) window.openDM(djUid);
+        });
+
+        // área da mesa: ninguém para na frente do tampo (calculada do retângulo real da mesa)
+        function zonaMesa() {
+            const f = document.getElementById('danceFloor').getBoundingClientRect();
+            const m = document.getElementById('djBooth').getBoundingClientRect();
+            if (!f.width || !f.height || !m.width) return null;
+            return {x1: (m.left - f.left) / f.width * 100 - 4, y1: (m.top - f.top) / f.height * 100 - 8};
+        }
+        const naMesa = (x, y) => { const z = zonaMesa(); return !!z && x >= z.x1 && y >= z.y1; };
+        const foraDaMesa = (x, y) => { const z = zonaMesa(); return z && x >= z.x1 && y >= z.y1 ? {x: z.x1 - 1, y} : {x, y}; };
+
+        // pista baixinha (celular pequeno): esconde letreiro e botão da mesa
+        new ResizeObserver(([e]) => {
+            document.getElementById('danceFloor').toggleAttribute('data-pista', false);
+            if (e.contentRect.height < 180) document.getElementById('danceFloor').dataset.pista = 'curta';
+        }).observe(document.getElementById('danceFloor'));
 
         // ── INICIALIZAÇÃO DA UI (chamada após auth OK ou em modo offline) ──
         // iniciarUI não toca em currentUser — o caller define currentUser antes de chamar
@@ -1419,7 +1579,7 @@
             setupFirebaseListeners();
             // confere o ingresso ANTES do primeiro heartbeat: com isVIP sem vínculo, as
             // regras recusariam a presença inteira e a pessoa sumiria da pista
-            conferirIngressoSalvo().finally(startHeartbeat);
+            conferirIngressoSalvo().then(medirRelogio).finally(startHeartbeat);
         }
 
         // VIP salvo no navegador ainda tem vínculo válido pra este uid? Recria pelo hash
@@ -1445,7 +1605,7 @@
         }
         // faixa "sem conexão" + campos travados com explicação, em vez de botões mudos
         function atualizarConexao() {
-            const online = !!(currentUser && db) && navigator.onLine !== false;
+            const online = !!(currentUser && db) && navigator.onLine !== false && conectadoAoServidor && !listenersQuebrados;
             const faixa = document.getElementById('semConexao');
             faixa.classList.toggle('hidden', online);
             faixa.classList.toggle('flex', !online);
@@ -1464,6 +1624,9 @@
             const ls = document.getElementById('loadingScreen');
             if (!ls || ls.style.display === 'none') return;
             ls.style.display = 'none';
+            // miniaturas do modal em segundo plano (pela fila), pra edição abrir pronta
+            if (perfilPronto) setTimeout(() => CATEGORIAS.forEach(([, lista, chave]) =>
+                lista.forEach(o => carregarImagem(urlDoCard(chave, o.v)))), 4000);
             if (entrouDireto)
                 setTimeout(() => showToast(`${Icons.party} Bem-vindo de volta, ${esc(localProfile.name)}! Toque no seu avatar no topo pra mudar o visual.`), 800);
         }
@@ -1534,22 +1697,160 @@
         const pdoc = (...p) => doc(db, 'artifacts', appId, 'public', 'data', ...p);
         const pcol = name => collection(db, 'artifacts', appId, 'public', 'data', name);
 
+        // ── AGENDADOR DE RENDERS ──
+        // Com 300 pessoas chegam ~10 snapshots por segundo (heartbeats). Cada snapshot só
+        // MARCA o que ficou sujo; um único quadro (rAF, no máximo a cada RENDER_MIN_MS)
+        // desenha tudo de uma vez. Antes cada snapshot redesenhava pista, mesa, fila e
+        // player na hora — 20–60% da CPU de um celular só nisso. Cada render ainda compara
+        // uma assinatura e não mexe no DOM se nada visível mudou.
+        const RENDER_MIN_MS = 250;
+        const sujo = new Set();
+        let renderAgendado = false, ultimoRender = 0;
+        function agendar(...partes) {
+            partes.forEach(p => sujo.add(p));
+            if (renderAgendado) return;
+            renderAgendado = true;
+            const espera = Math.max(0, RENDER_MIN_MS - (performance.now() - ultimoRender));
+            setTimeout(() => requestAnimationFrame(() => {
+                renderAgendado = false;
+                ultimoRender = performance.now();
+                const p = new Set(sujo);
+                sujo.clear();
+                if (p.has('users')) renderUsers();
+                if (p.has('mesa')) renderDJBooth();
+                if (p.has('fila')) renderQueue();
+                if (p.has('overlay')) updatePlayerOverlay();
+                if (p.has('chat')) renderChat();
+            }), espera);
+        }
+
+        // ── SAÚDE DA CONEXÃO ──
+        // conectadoAoServidor vem do metadata dos snapshots (fromCache = sem servidor). Sem
+        // servidor, com listener caído ou com o relógio ainda não medido, ninguém é líder:
+        // um celular sem rede se achava o único presente e apagava a fila quando voltava.
+        let conectadoAoServidor = true, listenersQuebrados = false, relogioMedido = false;
+        function registrarServidor(snap) {
+            const antes = conectadoAoServidor;
+            conectadoAoServidor = !snap.metadata.fromCache;
+            if (conectadoAoServidor) listenersQuebrados = false;
+            if (antes !== conectadoAoServidor) atualizarConexao();
+        }
+        let esperaReconexao = 2000, reconexaoAgendada = null;
+        function falhaListener(e) {
+            console.error('Listener do Firestore caiu', e);
+            listenersQuebrados = true;
+            atualizarConexao();
+            if (reconexaoAgendada) return;
+            reconexaoAgendada = setTimeout(() => {
+                reconexaoAgendada = null;
+                esperaReconexao = Math.min(esperaReconexao * 2, 30000);
+                reiniciarListeners();
+            }, esperaReconexao);
+        }
+
+        // Desvio do relógio: grava serverTimestamp e lê de volta do servidor. A hora do
+        // servidor caiu entre t0 e t1, então desvio ≈ srv − (t0+t1)/2 (erro < metade da ida
+        // e volta). Fica a amostra de menor ida e volta. Repete a cada 5 min.
+        let melhorIdaVolta = Infinity, falhasRelogio = 0;
+        async function medirRelogio() {
+            if (!currentUser || !db) return;
+            const ref = pdoc('users', currentUser.uid);
+            try {
+                const t0 = Date.now();
+                await setDoc(ref, {srv: serverTimestamp()}, {merge: true});
+                const t1 = Date.now();
+                const srv = (await getDocFromServer(ref)).get('srv')?.toMillis?.();
+                if (!srv) throw new Error('sem srv');
+                const idaVolta = t1 - t0;
+                if (idaVolta <= melhorIdaVolta * 1.5) {
+                    melhorIdaVolta = Math.min(melhorIdaVolta, idaVolta);
+                    desvioRelogio = srv - (t0 + t1) / 2;
+                }
+                relogioMedido = true;
+                falhasRelogio = 0;
+                if (Math.abs(desvioRelogio) > 2000) console.info(`Relógio deste aparelho corrigido em ${(desvioRelogio / 1000).toFixed(1)} s`);
+            } catch(e) {
+                // sem medir não dá pra liderar; depois de 3 falhas segue com o relógio local
+                if (++falhasRelogio >= 3 && !relogioMedido) { relogioMedido = true; console.warn('Relógio não medido; usando o do aparelho', e); }
+                else setTimeout(medirRelogio, 10000);
+            }
+        }
+
+        // ── PRESENÇA INCREMENTAL ──
+        // Só os documentos que mudaram são processados (docChanges num Map). A consulta tem
+        // corte de tempo fixado na assinatura, então é refeita a cada 5 min com corte novo:
+        // senão o resultado acumula todo mundo que passou pela pista na noite.
+        const ONLINE_MS = 120000;
+        const usuarios = new Map();
+        let pararUsers = null;
+        function recalcularAtivos() {
+            const t = agora();
+            activeUsers = [...usuarios.values()].filter(u => u.lastUpdate && t - u.lastUpdate < ONLINE_MS);
+            agendar('users', 'mesa', 'fila', 'overlay'); // fila: "fora da pista"; overlay: limiar de pular
+        }
+        function assinarUsers() {
+            pararUsers?.();
+            const novos = new Map();
+            let primeiro = true;
+            pararUsers = onSnapshot(query(pcol('users'), where('lastUpdate', '>', agora() - ONLINE_MS)), {includeMetadataChanges: true}, snap => {
+                registrarServidor(snap);
+                // na reassinatura o primeiro snapshot traz todo mundo de novo: troca o Map inteiro
+                const alvo = primeiro ? novos : usuarios;
+                snap.docChanges().forEach(ch => {
+                    if (ch.type === 'removed') alvo.delete(ch.doc.id);
+                    else alvo.set(ch.doc.id, {id: ch.doc.id, ...ch.doc.data()});
+                });
+                if (primeiro) {
+                    primeiro = false;
+                    usuarios.clear();
+                    novos.forEach((u, id) => usuarios.set(id, u));
+                }
+                recalcularAtivos();
+            }, falhaListener);
+        }
+        // quem sumiu sem escrever nada sai da pista mesmo sem snapshot novo
+        setInterval(() => { if (usuarios.size) recalcularAtivos(); }, 15000);
+
+        // ── VOTOS "ESSA VAI PRA FESTA!" ──
+        // O player só precisa dos votos da música ATUAL; antes a coleção inteira (que nunca
+        // é apagada) era lida por cada um que entrava. O ranking lê tudo só quando é aberto.
+        let pararVotosFesta = null, votosDoVideo = null;
+        function assinarVotosFesta() {
+            const vid = currentVideo?.videoId || null;
+            if (vid === votosDoVideo) return;
+            votosDoVideo = vid;
+            pararVotosFesta?.();
+            partyVotes = [];
+            agendar('overlay');
+            if (!vid || !db) return;
+            pararVotosFesta = onSnapshot(query(pcol('partyVotes'), where('videoId', '==', vid)), snap => {
+                partyVotes = snap.docs.map(d => ({id:d.id,...d.data()}));
+                agendar('overlay');
+            }, falhaListener);
+        }
+
         // ── FIREBASE LISTENERS ──
+        // `ouvir` guarda o "desligar" de cada listener: se um cair, reiniciarListeners()
+        // derruba todos e assina de novo (antes o app nem percebia e seguia congelado)
+        let inscricoes = [];
+        const ouvir = (alvo, ...resto) => inscricoes.push(onSnapshot(alvo, ...resto));
+        function reiniciarListeners() {
+            inscricoes.forEach(parar => { try { parar(); } catch(e) {} });
+            inscricoes = [];
+            pararVotosFesta?.(); pararVotosFesta = null; votosDoVideo = undefined;
+            setupFirebaseListeners();
+            assinarVotosFesta();
+        }
+        setInterval(() => { if (conectado) assinarUsers(); }, 5 * 60 * 1000);
+        setInterval(() => { if (conectado) medirRelogio(); }, 5 * 60 * 1000);
+
         function setupFirebaseListeners() {
             if (!currentUser || !db) return;
 
-            onSnapshot(query(pcol('users'), where('lastUpdate', '>', Date.now() - 120000)), snap => {
-                const now = Date.now();
-                activeUsers = snap.docs.map(d => ({id:d.id,...d.data()}))
-                    .filter(u => u.lastUpdate && (now - u.lastUpdate) < 120000);
-                renderUsers();
-                renderDJBooth();
-                renderQueue(); // o aviso "fora da pista" depende da presença
-                updatePlayerOverlay();
-            }, console.error);
+            assinarUsers();
 
             // só as 50 últimas: baixar a coleção inteira pesava num evento cheio
-            onSnapshot(query(pcol('chat'), orderBy('timestamp', 'desc'), limit(50)), snap => {
+            ouvir(query(pcol('chat'), orderBy('timestamp', 'desc'), limit(50)), snap => {
                 const msgs = snap.docs.map(d => ({id:d.id,...d.data()}));
                 msgs.sort((a,b) => a.timestamp - b.timestamp);
                 chatMessages = msgs;
@@ -1558,24 +1859,24 @@
                 snap.docChanges().forEach(ch => {
                     if (ch.type !== 'added') return;
                     const m = ch.doc.data();
-                    if (!m.uid || !m.text || now - m.timestamp > 10000 || mutedUids.includes(m.uid)) return;
+                    if (!m.uid || !m.text || agora() - m.timestamp > 10000 || mutedUids.includes(m.uid)) return;
                     chatBubbles[m.uid] = {text: String(m.text).slice(0, 90), until: now + 6000, since: now};
                     if (abaFilaAberta() && m.uid !== currentUser.uid)
                         document.getElementById('chatNovo').classList.remove('hidden');
-                    setTimeout(renderUsers, 6200);
+                    setTimeout(() => agendar('users'), 6200);
                 });
-                renderChat();
-                renderUsers();
-            }, console.error);
+                agendar('chat', 'users');
+            }, falhaListener);
 
-            onSnapshot(pcol('queue'), snap => {
+            ouvir(pcol('queue'), snap => {
                 const q = snap.docs.map(d => ({id:d.id,...d.data()})).filter(it => safeVideoId(it.videoId));
                 q.sort((a,b) => a.timestamp - b.timestamp);
                 queue = q;
-                renderQueue();
-            }, console.error);
+                agendar('fila');
+            }, falhaListener);
 
-            onSnapshot(pcol('player'), snap => {
+            ouvir(pcol('player'), {includeMetadataChanges: true}, snap => {
+                registrarServidor(snap);
                 const docs = snap.docs.map(d => ({id:d.id,...d.data()}));
                 const state = docs.find(s => s.id === 'state');
                 skipVotes      = docs.find(s => s.id === 'skipVotes') || null;
@@ -1590,20 +1891,14 @@
                 // só recria o iframe quando o vídeo de fato muda; votos/contagem atualizam o overlay
                 const key = `${currentVideo?.videoId || 'fallback'}_${currentVideo?.startedAt || 0}`;
                 if (key !== lastPlayerKey) { lastPlayerKey = key; renderPlayer(); }
-                else updatePlayerOverlay();
-                renderDJBooth();
-                renderUsers();
-            }, console.error);
-
-            onSnapshot(pcol('partyVotes'), snap => {
-                partyVotes = snap.docs.map(d => ({id:d.id,...d.data()})).filter(v => safeVideoId(v.videoId));
-                updatePlayerOverlay();
-                if (!document.getElementById('rankingModal').classList.contains('hidden')) renderRanking();
-            }, console.error);
+                else agendar('overlay');
+                assinarVotosFesta();
+                agendar('mesa', 'users');
+            }, falhaListener);
 
             // DMs e solicitações: a consulta já vem filtrada por participante — as regras do
             // Firestore (firestore.rules) recusam ler conversa alheia
-            onSnapshot(query(pcol('dm'), where('participants', 'array-contains', currentUser.uid)), snap => {
+            ouvir(query(pcol('dm'), where('participants', 'array-contains', currentUser.uid)), snap => {
                 dmMessages = snap.docs.map(d => ({id:d.id,...d.data()}))
                     .filter(m => m.from === currentUser.uid || m.to === currentUser.uid)
                     .sort((a,b) => a.timestamp - b.timestamp);
@@ -1613,17 +1908,17 @@
                     if (ch.type !== 'added') return;
                     const m = ch.doc.data();
                     if (m.to !== currentUser.uid || m.from === dmOpenWith || mutedUids.includes(m.from)) return;
-                    if (m.timestamp <= dmSessionStart || Date.now() - m.timestamp > 20000) return;
+                    if (m.timestamp <= dmSessionStart || agora() - m.timestamp > 20000) return;
                     const de = safeId(m.from);
                     const nome = activeUsers.find(u => u.id === de)?.name || m.fromName || 'Alguém';
                     showToast(`${Icons.message} Nova mensagem de ${esc(nome)}`, null, {acao: {rotulo: 'Abrir', fn: () => openDMPanel(de)}});
                 });
                 renderDM();
-                renderUsers();
+                agendar('users');
                 atualizarBadgeDM();
-            }, console.error);
+            }, falhaListener);
 
-            onSnapshot(query(pcol('dmThreads'), where('participants', 'array-contains', currentUser.uid)), snap => {
+            ouvir(query(pcol('dmThreads'), where('participants', 'array-contains', currentUser.uid)), snap => {
                 dmThreads = snap.docs.map(d => ({id:d.id,...d.data()}))
                     .filter(t => t.a === currentUser.uid || t.b === currentUser.uid);
                 dmThreads.forEach(t => {
@@ -1637,29 +1932,31 @@
                     prevThreadStatus[t.id] = t.status;
                 });
                 renderDMRequests();
-            }, console.error);
+            }, falhaListener);
 
-            onSnapshot(pcol('reactions'), snap => {
+            // só as reações mais recentes: quem entra no auge não baixa centenas delas
+            ouvir(query(pcol('reactions'), orderBy('timestamp', 'desc'), limit(30)), snap => {
                 const now = Date.now();
                 snap.docChanges().forEach(ch => {
                     if (ch.type !== 'added') return;
                     const r = {id: ch.doc.id, ...ch.doc.data()};
-                    if (seenReactions.has(r.id) || now - r.timestamp > 6000 || mutedUids.includes(r.uid)) return;
-                    seenReactions.add(r.id);
+                    if (seenReactions.has(r.id) || agora() - r.timestamp > 6000 || mutedUids.includes(r.uid)) return;
+                    seenReactions.set(r.id, now);
                     spawnReaction(r);
                 });
-                // líder faz a faxina das reações antigas
-                if (isLeader()) snap.docs.forEach(d => {
-                    if (now - (d.data().timestamp || 0) > 120000)
-                        deleteDoc(pdoc('reactions', d.id)).catch(() => {});
-                });
-            }, console.error);
-
-            onSnapshot(pcol('history'), snap => {
-                playHistory = snap.docs.map(d => ({id:d.id,...d.data()}));
-                if (!document.getElementById('rankingModal').classList.contains('hidden')) renderRanking();
-            }, console.error);
+                if (seenReactions.size > 400)
+                    for (const [id, em] of seenReactions) if (now - em > 60000) seenReactions.delete(id);
+            }, falhaListener);
         }
+
+        // líder faz a faxina das reações antigas (fora do listener, que agora só vê as 30 últimas)
+        setInterval(async () => {
+            if (!currentUser || !db || !isLeader()) return;
+            try {
+                const velhas = await getDocs(query(pcol('reactions'), where('timestamp', '<', agora() - 120000), limit(100)));
+                velhas.forEach(d => deleteDoc(pdoc('reactions', d.id)).catch(() => {}));
+            } catch(e) {}
+        }, 60000);
 
         // ── PRESENÇA ──
         // cada visita começa num ponto aleatório da pista (fora da Área VIP e da cabine do DJ)
@@ -1672,7 +1969,7 @@
                 x = 8 + Math.random() * 84;
                 y = 18 + Math.random() * 70;
                 t++;
-            } while (t < 30 && (inVipZone(x, y) || (x > 78 && y > 62)));
+            } while (t < 30 && (inVipZone(x, y) || naMesa(x, y)));
             spawnPoint = {x, y};
             return spawnPoint;
         }
@@ -1685,12 +1982,12 @@
         const AWAY_GRACE_MS     = 45000; // fora da tela além disso = fora da pista
         const PRESENCE_STALE_MS = 75000; // sem heartbeat por esse tempo = fechou a aba
         let tabHidden   = document.hidden === true;
-        let hiddenSince = tabHidden ? Date.now() : 0;
+        let hiddenSince = tabHidden ? agora() : 0;
 
         // "presente" = heartbeat recente E não está fora da tela além da tolerância
         const isPresent = u => {
             if (!u || !u.lastUpdate) return false;
-            const now = Date.now();
+            const now = agora();
             if (now - u.lastUpdate > PRESENCE_STALE_MS) return false;
             if (u.away && now - (u.awaySince || u.lastUpdate) > AWAY_GRACE_MS) return false;
             return true;
@@ -1699,7 +1996,8 @@
 
         document.addEventListener('visibilitychange', () => {
             tabHidden   = document.hidden;
-            hiddenSince = tabHidden ? Date.now() : 0;
+            hiddenSince = tabHidden ? agora() : 0;
+            if (!tabHidden) lastSyncSeekAt = 0; // voltou pra tela: realinha a música na hora
             updatePresence(); // a pista sabe na hora que você saiu (ou voltou)
             if (!tabHidden && perdiAVezAusente) {
                 perdiAVezAusente = false;
@@ -1709,7 +2007,7 @@
         // fechar/recarregar: melhor esforço de avisar a ausência antes de sumir
         // (se a escrita não completar, o heartbeat velho resolve pelo PRESENCE_STALE_MS)
         window.addEventListener('pagehide', () => {
-            tabHidden = true; hiddenSince = Date.now();
+            tabHidden = true; hiddenSince = agora();
             updatePresence();
         });
 
@@ -1718,7 +2016,7 @@
             const ref = doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.uid);
             // o hash do ingresso fica só no navegador e em vip/{uid}: no perfil público, qualquer um copiaria
             const {ingresso: _privado, ...perfilPublico} = localProfile;
-            const data = { ...perfilPublico, lastUpdate: Date.now(), away: tabHidden, awaySince: tabHidden ? hiddenSince : 0 };
+            const data = { ...perfilPublico, lastUpdate: agora(), away: tabHidden, awaySince: tabHidden ? hiddenSince : 0 };
             if (x !== null && y !== null) { data.x = x; data.y = y; spawned = true; }
             else {
                 const me = activeUsers.find(u => u.id === currentUser.uid);
@@ -1789,13 +2087,18 @@
         document.getElementById('danceFloor').addEventListener('click', e => {
             if (!currentUser) return;
             const r = e.currentTarget.getBoundingClientRect();
-            const x = ((e.clientX - r.left) / r.width) * 100;
-            const y = ((e.clientY - r.top) / r.height) * 100;
+            // clique em cima da mesa: para logo ao lado dela
+            const {x, y} = foraDaMesa(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
             if (inVipZone(x, y) && !localProfile.isVIP) {
                 showToast(`${Icons.crown} Área VIP — só pra quem já garantiu o ingresso!`, TICKETS_URL);
                 return;
             }
-            updatePresence(x, y);
+            // anda na hora e grava agrupado: clicar várias vezes não vira uma escrita por clique
+            // (cada escrita é lida por todos da pista)
+            const me = activeUsers.find(u => u.id === currentUser.uid);
+            if (me) { me.x = x; me.y = y; renderUsers(); }
+            clearTimeout(escritaPosicao);
+            escritaPosicao = setTimeout(() => updatePresence(x, y), 250);
             document.getElementById('floorHint')?.classList.add('hidden'); // já aprendeu
         });
         // cliques na barra de reações/passinhos não movem o avatar
@@ -1815,8 +2118,7 @@
             if (!me) return;
             const passo = e.shiftKey ? 10 : 4;
             const limita = v => Math.min(96, Math.max(4, v));
-            const x = limita((me.x ?? 50) + dir[0] * passo);
-            const y = limita((me.y ?? 50) + dir[1] * passo);
+            const {x, y} = foraDaMesa(limita((me.x ?? 50) + dir[0] * passo), limita((me.y ?? 50) + dir[1] * passo));
             if (inVipZone(x, y) && !localProfile.isVIP) {
                 showToast(`${Icons.crown} Área VIP — só pra quem já garantiu o ingresso!`, TICKETS_URL);
                 return;
@@ -1838,6 +2140,13 @@
             document.getElementById('onlineCount').innerText = `${activeUsers.length} online`;
             const layer = document.getElementById('usersLayer');
             const vistos = new Set();
+            // não lidas por remetente, uma passada só (antes: um filter por avatar)
+            const naoLidas = new Map();
+            if (currentUser) dmMessages.forEach(m => {
+                if (m.to === currentUser.uid && m.timestamp > (dmReadAt[m.from] || dmSessionStart) &&
+                    dmOpenWith !== m.from && !mutedUids.includes(m.from))
+                    naoLidas.set(m.from, (naoLidas.get(m.from) || 0) + 1);
+            });
 
             activeUsers.forEach(u => {
                 const uid = safeId(u.id);
@@ -1845,11 +2154,11 @@
                 vistos.add(uid);
                 const isDJ   = !!(currentVideo?.videoId) && currentVideo?.addedByUid === uid;
                 const isMe   = uid === currentUser?.uid;
-                const posX   = isDJ ? DJ_X : (u.x ?? 50);
-                const posY   = isDJ ? DJ_Y : (u.y ?? 50);
+                const posX   = u.x ?? 50;
+                const posY   = u.y ?? 50;
                 const color  = safeColor(u.color);
                 // a aura VIP usa a COR ESCOLHIDA pelo usuário (mais intensa); a coroa marca o VIP
-                const vipGlow = `0 0 22px ${color}b0, 0 0 44px ${color}50, 0 0 0 3px ${color}`;
+                const vipGlow = `0 0 24px ${color}a0, 0 0 0 3px ${color}`;
                 const djGlow  = `0 0 20px rgba(255,0,200,.8), 0 0 40px rgba(255,0,200,.4), 0 0 0 3px #ff00cc`;
                 const normGlow = `0 0 14px ${color}60, 0 0 0 2px ${color}`;
                 const shadow  = isDJ ? djGlow : (u.isVIP ? vipGlow : normGlow);
@@ -1858,7 +2167,7 @@
                 // passinhos usam a duração da própria animação; DJ/VIP mantêm o override
                 const durStyle = (isDJ || !danceCls) ? `;animation-duration:${isDJ ? '.75s' : '2s'}` : '';
 
-                const unread = (!isMe && currentUser) ? dmUnread(uid) : 0;
+                const unread = (!isMe && currentUser) ? (naoLidas.get(uid) || 0) : 0;
                 const bubble = (chatBubbles[uid] && chatBubbles[uid].until > Date.now()) ? chatBubbles[uid] : null;
                 const inVipLounge = !isDJ && userInVipArea(u);
                 const loungeGlow = inVipLounge ? ', 0 0 26px rgba(255,215,0,.55)' : '';
@@ -1887,7 +2196,8 @@
                 // posição sempre: é ela que desliza com a transição
                 reg.el.style.left = `${posX}%`;
                 reg.el.style.top = `${posY}%`;
-                reg.el.style.zIndex = bubble ? 55 : isMe ? 50 : isDJ ? 40 : 10;
+                reg.el.style.zIndex = bubble ? 55 : isMe ? 50 : 10;
+                reg.el.classList.toggle('na-mesa', isDJ); // o DJ aparece na mesa, não na pista
 
                 // conteúdo só quando algo visível mudou (refazer reinicia os passinhos)
                 const assinatura = JSON.stringify([urlAvatar, etiqueta, isDJ, !!u.isVIP, color, danceCls,
@@ -1918,7 +2228,7 @@
   </div>
   <!-- rótulo com teto de largura: nome quilométrico não pode virar uma faixa
        atravessando a pista e cobrindo quem está do lado -->
-  <div class="mt-1.5 px-2 py-0.5 rounded text-[10px] max-w-[150px] border backdrop-blur-sm flex items-center gap-1 font-light" title="${esc(etiqueta)}" style="background:rgba(0,0,0,.85);border-color:${isDJ?'rgba(255,0,204,.25)':color+'25'}">
+  <div class="mt-1.5 px-2 py-0.5 rounded text-[10px] max-w-[150px] border flex items-center gap-1 font-light" title="${esc(etiqueta)}" style="background:rgba(0,0,0,.85);border-color:${isDJ?'rgba(255,0,204,.25)':color+'25'}">
     <span class="shrink-0" style="color:${isDJ?'#ff00cc':color}">●</span>
     <span class="truncate min-w-0">${esc(etiqueta)}</span>${isDJ?`<span class="shrink-0 text-[#ff00cc]">${Icons.headphones}</span>`:''}
   </div>
@@ -2051,9 +2361,18 @@
         const abaFilaAberta = () => innerWidth < 768 && document.getElementById('ladoDireito').dataset.aba === 'fila';
 
         // ── RENDER FILA ──
+        let assinaturaFila = '';
         function renderQueue() {
             document.getElementById('queueCount').innerText = `${queue.length} vídeos`;
             document.getElementById('abaFilaCount').textContent = queue.length;
+            queue.forEach(item => {
+                if (!item.title && titleCache[item.videoId] === undefined)
+                    fetchTitle(item.videoId).then(t => { if (t) agendar('fila'); });
+            });
+            const assinatura = JSON.stringify([currentUser?.uid, !!activeUsers.length, queue.map(it =>
+                [it.id, it.title || titleCache[it.videoId] || '', it.addedByName, presentUser(it.addedByUid)])]);
+            if (assinatura === assinaturaFila) return;
+            assinaturaFila = assinatura;
             const c = document.getElementById('queueList');
             c.innerHTML = '';
             if (!queue.length) {
@@ -2066,15 +2385,13 @@
                 // dono ausente: a música cai fora quando chegar a vez dela
                 const fora = !!activeUsers.length && !presentUser(item.addedByUid);
                 const title = item.title || titleCache[item.videoId] || '';
-                if (!item.title && titleCache[item.videoId] === undefined)
-                    fetchTitle(item.videoId).then(t => { if (t) renderQueue(); });
                 const div = document.createElement('div');
                 div.className = `flex items-center gap-2.5 p-2 rounded-lg border transition ${next?'border-[#DB7944]/60':'border-[#0B2A47]'} ${mine&&!next?'border-[#DB7944]/35':''} hover:border-[#DB7944]/60`;
                 div.style.background = next ? 'rgba(219,121,68,.12)' : 'rgba(11,42,71,.35)';
                 div.innerHTML = `
 <span class="w-5 h-5 shrink-0 rounded-full text-[10px] font-bold flex items-center justify-center ${next?'bg-[#DB7944] text-white':'bg-[#0B2A47] text-[#FFF7EB]/80 border border-[#FFF7EB]/15'}">${i+1}</span>
 <div class="relative shrink-0">
-  <img src="https://img.youtube.com/vi/${item.videoId}/default.jpg" class="w-12 h-8 object-cover rounded shadow"/>
+  <img src="https://img.youtube.com/vi/${item.videoId}/default.jpg" alt="" loading="lazy" class="w-12 h-8 object-cover rounded shadow"/>
   ${next?`<span class="absolute -top-1.5 -right-1.5 text-[8px] font-bold uppercase bg-[#DB7944] text-white px-1 py-0.5 rounded shadow">próx.</span>`:''}
 </div>
 <div class="flex-1 overflow-hidden">
@@ -2099,12 +2416,14 @@
             const c = document.getElementById('playerContainer');
             ytInfo = null; // iframe novo, estado local zera
             lastSyncSeekAt = 0;
+            assinaturaOverlay = ''; // overlay recriado vazio: desenha de novo
             iframeCriadoEm = Date.now();
+            duracaoVideoAtual = 0;
             precisaTocar = false;
             if (currentVideo?.videoId) {
                 const isMe = currentUser && currentVideo.addedByUid === currentUser.uid;
                 // entra já no ponto certo da música (sincronizado com quem chegou antes)
-                const startSec = Math.max(0, Math.floor((Date.now() - (currentVideo.startedAt || Date.now())) / 1000));
+                const startSec = Math.max(0, Math.floor((agora() - (currentVideo.startedAt || agora())) / 1000));
                 // Só o DJ controla a música: no aparelho dele o player tem os controles do
                 // YouTube (pausar, arrastar a barra pra outro momento) e a pista inteira segue
                 // via player/playback. Os demais ficam sem controles, sem teclado e com a
@@ -2129,19 +2448,28 @@
             updatePlayerOverlay();
         }
 
-        const countdownActive = () => !!(countdownState?.endsAt && countdownState.endsAt > Date.now());
+        const countdownActive = () => !!(countdownState?.endsAt && countdownState.endsAt > agora());
 
         const countdownOverlayHtml = () => `
 <div class="absolute inset-0 bg-black/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-2 pointer-events-auto">
   <p class="text-[11px] md:text-xs uppercase tracking-[.25em] text-[#DB7944] font-bold text-center px-4">${Icons.music} ${esc(countdownState?.reason || 'Trocando de música...')}</p>
-  <span id="countdownNum" class="font-discodiva text-7xl md:text-8xl text-[#FFF7EB] count-glow">${Math.max(0, Math.ceil((countdownState.endsAt - Date.now()) / 1000))}</span>
+  <span id="countdownNum" class="font-discodiva text-7xl md:text-8xl text-[#FFF7EB] count-glow">${Math.max(0, Math.ceil((countdownState.endsAt - agora()) / 1000))}</span>
   ${minhaContagem?.cancelavel && minhaContagem.endsAt === countdownState?.endsAt ? `
   <button type="button" onclick="window.cancelarContagem()" class="mt-1 bg-[#FFF7EB] text-[#0a0a0a] text-xs font-semibold px-4 py-2 rounded-full hover:bg-white transition">${Icons.undo} Cancelar, quero continuar</button>` : ''}
 </div>`;
 
+        let assinaturaOverlay = '';
         function updatePlayerOverlay() {
             const o = document.getElementById('playerOverlay');
             if (!o) return;
+            glPlaying = !!(currentVideo?.videoId) || fallbackUnmuted;
+            const assinatura = JSON.stringify([currentUser?.uid, currentVideo?.videoId, currentVideo?.addedByUid,
+                currentVideo?.title, validSkipVotes(), skipThreshold(), skipVotes?.votes?.[currentUser?.uid] && skipVotes?.videoId,
+                partyVoteCount(), partyVotes.some(v => v.uid === currentUser?.uid),
+                Date.now() < playerUnlockUntil ? Math.ceil((playerUnlockUntil - Date.now()) / 1000) : 0,
+                precisaTocar, countdownActive() && countdownState?.endsAt, !!minhaContagem?.cancelavel, fallbackUnmuted]);
+            if (assinatura === assinaturaOverlay) return;
+            assinaturaOverlay = assinatura;
             const cd = countdownActive() ? countdownOverlayHtml() : '';
 
             if (currentVideo?.videoId) {
@@ -2189,18 +2517,17 @@ ${cd}`;
 ${fallbackUnmuted ? '' : `<button onclick="window.unmuteFallback(this)" class="pointer-events-auto absolute bottom-3 left-3 bg-[#DB7944] text-white text-xs px-4 py-1.5 rounded-full font-semibold shadow-lg hover:bg-[#c45d1b] transition z-10">${Icons.volume} Ativar som</button>`}
 ${cd}`;
             }
-            glPlaying = !!(currentVideo?.videoId) || fallbackUnmuted;
-            applyModalAudioDuck();
         }
 
         // propagandas do YouTube: libera os cliques por 15 s para o usuário pular o anúncio
-        let playerUnlockUntil = 0;
+        let playerUnlockUntil = 0, intervaloLiberado = null;
         window.unlockPlayer = () => {
             playerUnlockUntil = Date.now() + 15000;
             updatePlayerOverlay();
-            const iv = setInterval(() => {
+            clearInterval(intervaloLiberado);
+            intervaloLiberado = setInterval(() => {
                 updatePlayerOverlay();
-                if (Date.now() >= playerUnlockUntil) clearInterval(iv);
+                if (Date.now() >= playerUnlockUntil) clearInterval(intervaloLiberado);
             }, 1000);
         };
 
@@ -2228,7 +2555,10 @@ ${cd}`;
 
         // ── VOTOS: PULAR & "ESSA VAI PRA FESTA!" ──
         // pular exige 50%+1 dos presentes OU 10 votos, o que for menor
-        const skipThreshold = () => Math.max(1, Math.min(10, Math.floor(activeUsers.length / 2) + 1));
+        const skipThreshold = () => {
+            const ouvintes = activeUsers.filter(u => isPresent(u) && u.id !== currentVideo?.addedByUid).length;
+            return Math.max(1, Math.min(10, Math.floor(ouvintes / 2) + 1));
+        };
         const validSkipVotes = () =>
             (skipVotes && currentVideo?.videoId && skipVotes.videoId === currentVideo.videoId)
                 ? Object.keys(skipVotes.votes || {}).length : 0;
@@ -2237,20 +2567,29 @@ ${cd}`;
 
         window.voteSkip = async () => {
             if (!currentUser || !db || !currentVideo?.videoId || countdownActive()) return;
-            const votes = (skipVotes?.videoId === currentVideo.videoId) ? {...(skipVotes.votes || {})} : {};
-            if (votes[currentUser.uid]) return;
-            votes[currentUser.uid] = true;
-            try { await setDoc(pdoc('player', 'skipVotes'), {videoId: currentVideo.videoId, votes}); }
-            catch(err) { console.error(err); avisoErro('registrar seu voto'); return; }
-            if (Object.keys(votes).length >= skipThreshold())
-                startCountdown('A pista votou: próxima música!', () => window.playNextVideo());
+            if (skipVotes?.videoId === currentVideo.videoId && skipVotes?.votes?.[currentUser.uid]) return;
+            const vid = currentVideo.videoId, chave = chaveAtual();
+            let total = 0;
+            try {
+                total = await runTransaction(db, async tx => {
+                    const s = await tx.get(pdoc('player', 'skipVotes'));
+                    const d = s.exists() ? s.data() : {};
+                    const votes = d.videoId === vid ? {...(d.votes || {})} : {};
+                    votes[currentUser.uid] = true;
+                    tx.set(pdoc('player', 'skipVotes'), {videoId: vid, votes});
+                    return Object.keys(votes).length;
+                });
+            } catch(err) { console.error(err); avisoErro('registrar seu voto'); return; }
+            if (total >= skipThreshold())
+                startCountdown('A pista votou: próxima música!', () => avancar(chave));
         };
 
         // o DJ da vez pode passar a própria vez sem precisar de votação
         window.skipMyTurn = () => {
             if (!currentUser || !db || !currentVideo?.videoId || countdownActive()) return;
             if (currentVideo.addedByUid !== currentUser.uid) return;
-            startCountdown('O DJ passou a vez!', () => window.playNextVideo(), {cancelavel: true});
+            const chave = chaveAtual();
+            startCountdown('O DJ passou a vez!', () => avancar(chave), {cancelavel: true});
         };
 
         window.votePartySong = async () => {
@@ -2261,7 +2600,7 @@ ${cd}`;
                     uid: currentUser.uid,
                     name: localProfile.name,
                     addedByName: currentVideo.addedByName || null,
-                    timestamp: Date.now()
+                    timestamp: agora()
                 });
                 showToast(`${Icons.fire} Voto registrado! Essa tá mais perto da festa.`);
             } catch(err) { console.error(err); avisoErro('registrar seu voto'); }
@@ -2270,18 +2609,40 @@ ${cd}`;
         // ── CONTAGEM REGRESSIVA SINCRONIZADA ──
         // `cancelavel`: só o "Pular minha vez" — toque acidental do DJ não custa a música
         let minhaContagem = null; // {endsAt, timer, cancelavel} da contagem que EU iniciei
+        // A contagem é reivindicada numa transação: se outra já está correndo, esta não
+        // começa (antes duas pessoas enviando juntas geravam duas contagens e dois avanços).
+        // Ao terminar, só quem iniciou zera o doc — e só se ainda for a contagem dele.
         async function startCountdown(reason, action, {cancelavel = false} = {}) {
             if (!db) { action(); return; }
             if (countdownActive()) return;
-            const endsAt = Date.now() + COUNTDOWN_MS;
-            countdownState = {endsAt, reason};
+            const endsAt = agora() + COUNTDOWN_MS;
+            const uid = currentUser.uid;
+            let ganhei = false;
+            try {
+                ganhei = await runTransaction(db, async tx => {
+                    const s = await tx.get(pdoc('player', 'countdown'));
+                    if (s.exists() && (s.data().endsAt || 0) > agora()) return false;
+                    tx.set(pdoc('player', 'countdown'), {endsAt, reason, por: uid});
+                    return true;
+                });
+            } catch(e) { console.warn('Contagem não iniciada (sem conexão?)', e); return; }
+            if (!ganhei) return;
+            countdownState = {endsAt, reason, por: uid};
             const timer = setTimeout(async () => {
                 minhaContagem = null;
                 try { await action(); }
-                finally { try { await setDoc(pdoc('player', 'countdown'), {endsAt: null, reason: null}); } catch(e) {} }
+                finally {
+                    try {
+                        await runTransaction(db, async tx => {
+                            const s = await tx.get(pdoc('player', 'countdown'));
+                            if (s.data()?.por === uid && s.data()?.endsAt === endsAt)
+                                tx.set(pdoc('player', 'countdown'), {endsAt: null, reason: null, por: null});
+                        });
+                    } catch(e) {}
+                }
             }, COUNTDOWN_MS);
             minhaContagem = {endsAt, timer, cancelavel};
-            try { await setDoc(pdoc('player', 'countdown'), {endsAt, reason}); } catch(e) { console.error(e); }
+            agendar('overlay');
         }
         window.cancelarContagem = async () => {
             if (!minhaContagem?.cancelavel) return;
@@ -2300,7 +2661,7 @@ ${cd}`;
             if (active !== cdShown) { cdShown = active; updatePlayerOverlay(); }
             if (active) {
                 const el = document.getElementById('countdownNum');
-                const n = Math.max(0, Math.ceil((countdownState.endsAt - Date.now()) / 1000));
+                const n = Math.max(0, Math.ceil((countdownState.endsAt - agora()) / 1000));
                 if (el && el.textContent != n) el.textContent = n;
             }
         }, 200);
@@ -2309,7 +2670,7 @@ ${cd}`;
         // Prioriza quem está com a aba na frente: aba escondida tem timer estrangulado
         // pelo navegador e não serviria como líder (as verificações não rodariam a tempo).
         const isLeader = () => {
-            if (!currentUser) return false;
+            if (!currentUser || !conectadoAoServidor || listenersQuebrados || !relogioMedido) return false;
             const presentes = activeUsers.filter(isPresent);
             const ids = (presentes.length ? presentes : activeUsers).map(u => u.id).sort();
             return !ids.length || ids[0] === currentUser.uid;
@@ -2329,7 +2690,8 @@ ${cd}`;
             const proximo = queue.find(q => !activeUsers.length || presentUser(q.addedByUid));
             if (!proximo) return;
             const nome = proximo.addedByName || 'Investidor';
-            startCountdown(`Música de ${nome} entrando na pista!`, () => window.playNextVideo());
+            const chave = chaveAtual();
+            startCountdown(`Música de ${nome} entrando na pista!`, () => avancar(chave));
         }, 4000);
 
         // ── FAXINA DA FILA: QUEM SAIU DA PISTA PERDE O LUGAR ──
@@ -2344,7 +2706,7 @@ ${cd}`;
                 if (item.addedByVIP === false) { deleteDoc(pdoc('queue', item.id)).catch(() => {}); return; }
                 if (presentUser(item.addedByUid)) return;
                 // respiro pra quem acabou de entrar na fila e ainda não bateu heartbeat
-                if (Date.now() - (item.timestamp || 0) < AWAY_GRACE_MS) return;
+                if (agora() - (item.timestamp || 0) < AWAY_GRACE_MS) return;
                 deleteDoc(pdoc('queue', item.id)).catch(() => {});
             });
         }, 10000);
@@ -2359,18 +2721,31 @@ ${cd}`;
             if (countdownActive() || !isLeader()) return;
             if (!activeUsers.length) return; // sem dados de presença: não chuta
             // respiro no começo da música: dá tempo do doc de presença do DJ chegar
-            if (Date.now() - (currentVideo.startedAt || 0) < 30000) return;
+            if (agora() - (currentVideo.startedAt || 0) < 30000) return;
             if (presentUser(currentVideo.addedByUid)) return;
             const nome = currentVideo.addedByName || 'O DJ';
-            startCountdown(`${nome} saiu da pista — próxima música!`, () => window.playNextVideo());
+            const chave = chaveAtual();
+            startCountdown(`${nome} saiu da pista — próxima música!`, () => avancar(chave));
+        }, 5000);
+
+        // líder confere o que pode ter ficado sem dono: votos de pular acima do limiar (quem
+        // votou por último fechou a aba na contagem) e player parado no fim sem ninguém avançar
+        setInterval(() => {
+            if (!currentUser || !db || !currentVideo?.videoId || countdownActive() || !isLeader()) return;
+            const chave = chaveAtual();
+            if (validSkipVotes() >= skipThreshold()) {
+                startCountdown('A pista votou: próxima música!', () => avancar(chave));
+                return;
+            }
+            if (ytInfo?.state === 0 && Date.now() - (ytInfo.at || 0) > 12000) avancar(chave);
         }, 5000);
 
         // ── LIMITE DE 10 MIN POR VÍDEO ──
         setInterval(() => {
             if (!currentUser || !db || !currentVideo?.videoId || !currentVideo.startedAt) return;
-            if (Date.now() - currentVideo.startedAt < MAX_PLAY_MS) return;
+            if (agora() - currentVideo.startedAt < MAX_PLAY_MS) return;
             if (countdownActive() || !isLeader()) return;
-            window.playNextVideo();
+            avancar(chaveAtual());
         }, 5000);
 
         // ── FIM DE VÍDEO (via YouTube IFrame API por postMessage) ──
@@ -2381,10 +2756,15 @@ ${cd}`;
                 try { f.contentWindow.postMessage(JSON.stringify({event:'listening', id:'ytFrame', channel:'widget'}), '*'); } catch(e) {}
             };
             f.addEventListener('load', () => {
-                // repete o handshake algumas vezes — uma única tentativa pode se perder
+                // insiste até o player responder (rede lenta: o YouTube fica pronto depois de
+                // vários segundos), com teto de 30 s. Antes eram 3,5 s: em 3G o app nunca
+                // sabia a posição e a sincronia e o fim da música não funcionavam
                 handshake();
-                let n = 0;
-                const iv = setInterval(() => { handshake(); if (++n >= 5) clearInterval(iv); }, 700);
+                const inicio = Date.now();
+                const iv = setInterval(() => {
+                    if (ytInfo || Date.now() - inicio > 30000 || document.getElementById('ytFrame') !== f) { clearInterval(iv); return; }
+                    handshake();
+                }, 500);
                 setTimeout(applyModalAudioDuck, 800);
             });
         }
@@ -2392,31 +2772,35 @@ ${cd}`;
         // dispara só uma vez por (vídeo, startedAt), mesmo com eventos repetidos
         let endedHandledKey = null;
         function onVideoEnded() {
-            if (!currentVideo?.videoId || countdownActive()) return;
-            const key = `${currentVideo.videoId}_${currentVideo.startedAt || 0}`;
+            if (!currentVideo?.videoId) return;
+            // acabou durante uma contagem (que pode ser "fantasma", de quem fechou a aba):
+            // reavalia logo depois que ela terminar, em vez de ignorar o fim
+            if (countdownActive()) { setTimeout(onVideoEnded, Math.max(500, countdownState.endsAt - agora() + 1000)); return; }
+            const key = chaveAtual();
             if (endedHandledKey === key) return;
             endedHandledKey = key;
             const stillSame = () => currentVideo?.videoId &&
                 `${currentVideo.videoId}_${currentVideo.startedAt || 0}` === key && !countdownActive();
             // 1º: o DJ avança na hora (é quem certamente recebeu o evento de fim)
-            if (isCurrentDJ()) { window.playNextVideo(); return; }
+            if (isCurrentDJ()) { avancar(key); return; }
             // 2º: se o DJ não avançou em 4 s, o líder assume
-            setTimeout(() => { if (stillSame() && isLeader()) window.playNextVideo(); }, 4000);
-            // 3º: última linha de defesa — qualquer cliente resolve após 9 s
-            setTimeout(() => { if (stillSame()) window.playNextVideo(); }, 9000);
+            setTimeout(() => { if (stillSame() && isLeader()) avancar(key); }, 4000);
+            // 3º: última linha de defesa — qualquer cliente, espalhado entre 9 e 15 s (a
+            // transação garante que só um troca; o espalhamento evita 300 tentativas juntas)
+            setTimeout(() => { if (stillSame()) avancar(key); }, 9000 + Math.random() * 6000);
         }
         // ── VÍDEO QUE NÃO TOCA (removido, privado, embed bloqueado, região) ──
         // Sem isso o vídeo nunca "termina" e a pista fica na tela preta até os 10 min.
         let erroTratadoKey = null;
         function onPlayerError(code) {
             if (!currentVideo?.videoId || countdownActive()) return;
-            const key = `${currentVideo.videoId}_${currentVideo.startedAt || 0}`;
+            const key = chaveAtual();
             if (erroTratadoKey === key) return;
             erroTratadoKey = key;
             console.warn('YouTube não conseguiu tocar o vídeo (código ' + code + ')');
             const aindaOMesmo = () => currentVideo?.videoId &&
                 `${currentVideo.videoId}_${currentVideo.startedAt || 0}` === key && !countdownActive();
-            const passar = () => startCountdown('Vídeo indisponível — próxima música!', () => window.playNextVideo());
+            const passar = () => startCountdown('Vídeo indisponível — próxima música!', () => avancar(key));
             // o DJ resolve na hora; se ele nem está aqui, o líder assume em 6 s
             if (isCurrentDJ()) { passar(); return; }
             setTimeout(() => { if (aindaOMesmo() && isLeader()) passar(); }, 6000);
@@ -2442,6 +2826,7 @@ ${cd}`;
                     if (saltou) publishPlayback();
                 }
                 if (typeof d.info.playerState === 'number') newState = d.info.playerState;
+                if (currentVideo?.videoId && d.info.duration > 0) duracaoVideoAtual = d.info.duration;
             } else if (d.event === 'onStateChange' && typeof d.info === 'number') {
                 newState = d.info;
             }
@@ -2456,18 +2841,26 @@ ${cd}`;
         // ── SINCRONIA DE REPRODUÇÃO (o DJ manda, os outros seguem) ──
         const isCurrentDJ = () => !!(currentUser && currentVideo?.videoId && currentVideo.addedByUid === currentUser.uid);
 
+        // Só publica estados reais (1 tocando, 2 pausado) com posição já conhecida.
+        // Buffering, anúncio e carregamento (3, -1, 5) viravam "tocando" com o tempo parado
+        // e puxavam a pista para trás; recarregar o DJ publicava time 0. Tocando, exige
+        // posição fresca (aba escondida congela o player) e que ela tenha andado.
+        let ultimaPublicada = null;
         async function publishPlayback() {
-            if (!isCurrentDJ() || !db || !ytInfo) return;
-            if (ytInfo.state === 0) return; // vídeo terminou: quem age é o fluxo de fim, não a sincronia
-            // aba do DJ em segundo plano congela o player: sem info fresca, não publica
-            // (posição congelada com carimbo novo prendia os seguidores num loop de seek)
-            if (Date.now() - (ytInfo.at || 0) > 8000) return;
+            if (!isCurrentDJ() || !db || !ytInfo?.tempoEm) return;
+            if (ytInfo.state !== 1 && ytInfo.state !== 2) return;
+            const tocando = ytInfo.state === 1;
+            if (tocando && Date.now() - ytInfo.tempoEm > 8000) return;
+            const time = minhaPosicao();
+            if (tocando && ultimaPublicada?.estado === 'playing' && Math.abs(time - ultimaPublicada.time) < 0.5 &&
+                Date.now() - ultimaPublicada.em > 3000) return; // não andou: anúncio ou travado
+            ultimaPublicada = {estado: tocando ? 'playing' : 'paused', time, em: Date.now()};
             try {
                 await setDoc(pdoc('player', 'playback'), {
                     videoId: currentVideo.videoId,
-                    state: ytInfo.state === 2 ? 'paused' : 'playing',
-                    time: ytInfo.time || 0,
-                    at: Date.now()
+                    state: tocando ? 'playing' : 'paused',
+                    time,
+                    at: agora()
                 });
             } catch(e) {}
         }
@@ -2504,8 +2897,10 @@ ${cd}`;
                 return;
             }
 
+            // pausado vale até o DJ retomar: o YouTube não manda posição com o vídeo pausado,
+            // então a publicação "envelhecia" e todo mundo voltava a tocar sozinho em ~20 s
             const djAoVivo = playbackState?.videoId === currentVideo.videoId &&
-                Date.now() - (playbackState.at || 0) < 15000;
+                (playbackState.state === 'paused' || agora() - (playbackState.at || 0) < 15000);
             if (djAoVivo && playbackState.state === 'paused') {
                 if (ytInfo?.state === 1) ytCmd('pauseVideo');
                 if (atual != null && Math.abs(atual - (playbackState.time || 0)) > SINCRONIA_TOLERANCIA_S)
@@ -2514,8 +2909,8 @@ ${cd}`;
             }
             // referência: o DJ ao vivo; sem ele, o tempo desde o início da música
             const esperado = djAoVivo
-                ? (playbackState.time || 0) + (Date.now() - playbackState.at) / 1000
-                : (currentVideo.startedAt ? (Date.now() - currentVideo.startedAt) / 1000 : null);
+                ? (playbackState.time || 0) + (agora() - playbackState.at) / 1000
+                : (currentVideo.startedAt ? (agora() - currentVideo.startedAt) / 1000 : null);
             if (esperado == null) return;
             if (ytInfo?.state === 2) ytCmd('playVideo');
             if (atual != null && ytInfo?.state === 1 && Math.abs(atual - esperado) > SINCRONIA_TOLERANCIA_S)
@@ -2526,12 +2921,19 @@ ${cd}`;
         // Buffer infinito / iframe morto costuma travar em um cliente só. Em vez de
         // pular a música pra pista inteira, o cliente recria o próprio player — que
         // volta no ponto certo (renderPlayer calcula o start pelo startedAt).
-        let ultimoResgateAt = 0;
+        let ultimoResgateAt = 0, resgateSemRespostaKey = null;
         setInterval(() => {
+            // player que nunca respondeu (20 s depois de criado): recria uma vez por música
+            if (!ytInfo && !document.hidden && Date.now() - iframeCriadoEm > 20000 && resgateSemRespostaKey !== chaveAtual()) {
+                resgateSemRespostaKey = chaveAtual();
+                console.warn('Player não respondeu em 20 s — recriando o iframe');
+                renderPlayer();
+                return;
+            }
             if (!currentVideo?.videoId || document.hidden || countdownActive()) return;
             if (!ytInfo || ytInfo.state === 0 || ytInfo.state === 2) return; // terminou/pausado: não é travamento
             if (playbackState?.state === 'paused') return;                   // o DJ pausou pra todo mundo
-            if (Date.now() - (currentVideo.startedAt || 0) < 30000) return;  // ainda carregando
+            if (agora() - (currentVideo.startedAt || 0) < 30000) return;  // ainda carregando
             if (Date.now() - (ytInfo.at || 0) < 45000) return;               // player deu sinal há pouco
             if (Date.now() - ultimoResgateAt < 90000) return;                // um resgate por vez
             ultimoResgateAt = Date.now();
@@ -2543,6 +2945,7 @@ ${cd}`;
         // O YouTube não expõe o áudio do embed pro Web Audio (cross-origin), então o
         // efeito abafado é simulado: volume bem baixo + leve desfoque no vídeo.
         function applyModalAudioDuck() {
+            document.body.classList.toggle('modal-aberto', modalOpen); // pausa a pista por baixo
             const f = document.getElementById('ytFrame');
             if (!f) return;
             ytCmd('setVolume', [modalOpen ? 10 : 100]);
@@ -2569,7 +2972,7 @@ ${cd}`;
             btn.disabled = true;
             inp.readOnly = true; // readOnly e não disabled: no celular, disabled fecha o teclado
             try {
-                await addDoc(pcol('chat'), {uid:currentUser.uid, name:localProfile.name, isVIP:localProfile.isVIP, color:localProfile.color, text:censor(text), timestamp:Date.now()});
+                await addDoc(pcol('chat'), {uid:currentUser.uid, name:localProfile.name, isVIP:localProfile.isVIP, color:localProfile.color, text:censor(text), timestamp:agora()});
                 inp.value = '';
                 rolarChatAoFim = true;
             } catch(err) {
@@ -2646,7 +3049,7 @@ ${cd}`;
                 title = await fetchTitle(videoId);
                 // addedByVIP viaja no doc: a checagem na hora de subir pra mesa não depende
                 // de a pessoa estar online para consultar o perfil dela
-                docRef = await addDoc(pcol('queue'), {videoId, title: title || null, addedByName:localProfile.name, addedByUid:currentUser.uid, addedByVIP:true, timestamp:Date.now()});
+                docRef = await addDoc(pcol('queue'), {videoId, title: title || null, addedByName:localProfile.name, addedByUid:currentUser.uid, addedByVIP:true, timestamp:agora()});
             } catch(err) {
                 console.error(err);
                 avisoErro('colocar a música na fila');
@@ -2663,65 +3066,68 @@ ${cd}`;
                 : `${Icons.music} Você entrou na fila — posição ${queue.filter(q => q.id !== docRef.id).length + 1}. Fique na tela pra não perder a vez!`);
             // Se a pista está no vídeo da casa, faz a contagem e entra com a música do usuário
             if (!currentVideo?.videoId && !countdownActive()) {
-                const byName = localProfile.name, byUid = currentUser.uid;
-                startCountdown(`Música de ${byName} entrando na pista!`, async () => {
-                    await setNowPlaying(videoId, byName, byUid, title);
-                    try { await deleteDoc(pdoc('queue', docRef.id)); } catch(e) {}
-                });
+                const chave = chaveAtual();
+                startCountdown(`Música de ${localProfile.name} entrando na pista!`, () => avancar(chave, {preferido: docRef.id}));
             }
         });
 
-        // grava o vídeo atual + reset dos votos + histórico (ranking da noite)
-        async function setNowPlaying(vid, byName, byUid, title) {
-            await setDoc(pdoc('player', 'state'), {videoId:vid, startedAt:Date.now(), addedByName:byName, addedByUid:byUid, title: title || null});
-            await setDoc(pdoc('player', 'skipVotes'), {videoId:vid, votes:{}});
-            setDoc(pdoc('player', 'playback'), {videoId:vid, state:'playing', time:0, at:Date.now()}).catch(() => {});
-            if (vid) addDoc(pcol('history'), {videoId:vid, byUid, byName, title: title || null, timestamp:Date.now()}).catch(() => {});
+        // ── TROCA DE MÚSICA ATÔMICA E CONDICIONAL ──
+        // Numa transação: só avança se o player ainda estiver na música que ESTE cliente viu
+        // (`chaveEsperada`). DJ, líder, "qualquer um aos 9 s", limite de 10 min e contagens
+        // podem chamar ao mesmo tempo: o primeiro troca, os outros viram no-op. Antes, duas
+        // chamadas juntas pulavam duas músicas ou sumiam com a música de alguém. Transação
+        // não roda offline: um celular sem rede não despeja exclusões velhas quando volta.
+        const chaveDe = v => `${v?.videoId || 'fallback'}_${v?.startedAt || 0}`;
+        const chaveAtual = () => chaveDe(currentVideo);
+        async function avancar(chaveEsperada = chaveAtual(), {preferido = null} = {}) {
+            if (!currentUser || !db) return false;
+            // candidatos na ordem da fila (no máximo 10 lidos por transação)
+            const ordem = preferido
+                ? [preferido, ...queue.map(q => q.id).filter(id => id !== preferido)]
+                : queue.map(q => q.id);
+            try {
+                return await runTransaction(db, async tx => {
+                    const estadoSnap = await tx.get(pdoc('player', 'state'));
+                    const atual = estadoSnap.exists() ? estadoSnap.data() : {};
+                    if (chaveDe({videoId: safeVideoId(atual.videoId), startedAt: atual.startedAt}) !== chaveEsperada) return false;
+                    let escolhido = null;
+                    const descartar = [];
+                    for (const id of ordem.slice(0, 10)) {
+                        const s = await tx.get(pdoc('queue', id));
+                        if (!s.exists()) continue; // outro cliente já tirou
+                        const d = s.data();
+                        // fantasma: a música que estava tocando ainda na fila (delete atrasado)
+                        const fantasma = atual.videoId && d.videoId === atual.videoId && (d.timestamp || 0) <= (atual.startedAt || Infinity);
+                        // sem ingresso não toca; quem saiu da tela perde a vez (quem acabou de
+                        // enviar — o preferido — está na tela por definição)
+                        const ausente = id !== preferido && activeUsers.length && !presentUser(d.addedByUid);
+                        if (fantasma || d.addedByVIP === false || !safeVideoId(d.videoId) || ausente) { descartar.push(id); continue; }
+                        escolhido = {id, ...d};
+                        break;
+                    }
+                    if (!escolhido && !atual.videoId && !descartar.length) return false; // já na playlist da casa
+                    descartar.forEach(id => tx.delete(pdoc('queue', id)));
+                    const ts = agora();
+                    if (escolhido) {
+                        const title = escolhido.title || titleCache[escolhido.videoId] || null;
+                        const byName = escolhido.addedByName || 'Investidor', byUid = escolhido.addedByUid;
+                        tx.delete(pdoc('queue', escolhido.id));
+                        tx.set(pdoc('player', 'state'), {videoId: escolhido.videoId, startedAt: ts, addedByName: byName, addedByUid: byUid, title});
+                        tx.set(pdoc('player', 'skipVotes'), {videoId: escolhido.videoId, votes: {}});
+                        tx.set(pdoc('player', 'playback'), {videoId: escolhido.videoId, state: 'playing', time: 0, at: ts});
+                        tx.set(doc(pcol('history')), {videoId: escolhido.videoId, byUid, byName, title, timestamp: ts});
+                    } else if (atual.videoId) {
+                        tx.set(pdoc('player', 'state'), {videoId: null, startedAt: null, addedByName: null, addedByUid: null, title: null});
+                        tx.set(pdoc('player', 'skipVotes'), {videoId: null, votes: {}});
+                    }
+                    return true;
+                });
+            } catch(e) {
+                console.warn('Troca de música não aplicada (sem conexão ou disputa)', e);
+                return false;
+            }
         }
-
-        window.playNextVideo = async (overrideId = null) => {
-            if (!currentUser || !db) return;
-            let vid = overrideId, docId = null, title = null;
-            let byName = localProfile.name, byUid = currentUser.uid;
-            if (!vid) {
-                const list = [...queue];
-                // descarta docs "fantasma": a música que estava tocando ainda na fila
-                // (delete que falhou/atrasou) — senão ela recomeçaria ao terminar
-                while (list.length && currentVideo?.videoId &&
-                       list[0].videoId === currentVideo.videoId &&
-                       (list[0].timestamp || 0) <= (currentVideo.startedAt || Infinity)) {
-                    try { await deleteDoc(pdoc('queue', list[0].id)); } catch(e) {}
-                    list.shift();
-                }
-                // sem ingresso, sem mesa (docs antigos, sem o campo, continuam valendo)
-                while (list.length && list[0].addedByVIP === false) {
-                    try { await deleteDoc(pdoc('queue', list[0].id)); } catch(e) {}
-                    list.shift();
-                }
-                // quem saiu da tela perde a vez: a música só sobe pra mesa se o dono
-                // estiver presente pra tocá-la. Recarregar a página não custa o lugar —
-                // a pessoa volta em segundos, bem dentro da tolerância de ausência.
-                while (activeUsers.length && list.length && !presentUser(list[0].addedByUid)) {
-                    try { await deleteDoc(pdoc('queue', list[0].id)); } catch(e) {}
-                    list.shift();
-                }
-                if (list.length) {
-                    vid = list[0].videoId; docId = list[0].id;
-                    title  = list[0].title || titleCache[vid] || null;
-                    byName = list[0].addedByName || byName;
-                    byUid  = list[0].addedByUid  || byUid;
-                }
-            }
-            if (vid) {
-                // apaga da fila ANTES de tocar: se algo falhar no meio, a música é
-                // descartada em vez de ficar presa em loop
-                if (docId) { try { await deleteDoc(pdoc('queue', docId)); } catch(e) {} }
-                await setNowPlaying(vid, byName, byUid, title);
-            } else {
-                await setDoc(pdoc('player', 'state'), {videoId:null, startedAt:null, addedByName:null, addedByUid:null, title:null});
-                await setDoc(pdoc('player', 'skipVotes'), {videoId:null, votes:{}});
-            }
-        };
+        window.playNextVideo = () => avancar(chaveAtual());
 
         // ── CHAT PRIVADO (DM) ──
         const convId = (a, b) => [a, b].sort().join('_');
@@ -2789,7 +3195,7 @@ ${cd}`;
                 await setDoc(pdoc('dmThreads', convId(currentUser.uid, uid)), {
                     a: currentUser.uid, b: uid, participants: [currentUser.uid, uid],
                     requestedBy: currentUser.uid, requestedByName: localProfile.name,
-                    status: 'pending', timestamp: Date.now()
+                    status: 'pending', timestamp: agora()
                 });
                 showToast(`${Icons.mail} Solicitação de papo enviada para ${esc(u.name)}!`);
             } catch(err) { console.error(err); avisoErro('enviar o pedido de papo'); }
@@ -2816,7 +3222,7 @@ ${cd}`;
             if (!currentUser) { c.innerHTML = ''; return; }
             const pending = dmThreads.filter(t => {
                 if (t.status !== 'pending' || t.requestedBy === currentUser.uid) return false;
-                if (Date.now() - (t.timestamp || 0) > 10 * 60 * 1000) return false; // pedido velho expira
+                if (agora() - (t.timestamp || 0) > 10 * 60 * 1000) return false; // pedido velho expira
                 if (mutedUids.includes(t.requestedBy)) return false;
                 // dentro da Área VIP, só chegam solicitações de quem também está no lounge
                 if (meInVipArea()) {
@@ -2879,7 +3285,7 @@ ${cd}`;
                     convId: convId(currentUser.uid, dmOpenWith),
                     from: currentUser.uid, fromName: localProfile.name, fromColor: localProfile.color,
                     to: dmOpenWith, participants: [currentUser.uid, dmOpenWith],
-                    text: censor(text), timestamp: Date.now()
+                    text: censor(text), timestamp: agora()
                 });
                 inp.value = '';
             } catch(err) {
@@ -2914,9 +3320,12 @@ ${cd}`;
         // ── REAÇÕES RÁPIDAS ──
         const REACTION_EMOJIS = ['🔥','❤️','👏','🕺','💃','😂'];
         const VIP_EMOJIS = ['🥂','💎','👑','✨']; // exclusivas de quem está na Área VIP
+        const REACOES_MAX_NA_TELA = 25; // no auge da música, 300 pessoas reagindo travavam o celular
+        let reacoesNaTela = 0, ultimaReacaoEnviada = 0;
         function spawnReaction(r) {
             const floor = document.getElementById('danceFloor');
-            if (!floor) return;
+            if (!floor || reacoesNaTela >= REACOES_MAX_NA_TELA) return;
+            reacoesNaTela++;
             const vip = VIP_EMOJIS.includes(r.emoji);
             const el = document.createElement('div');
             el.className = 'rx-float absolute pointer-events-none z-30 text-2xl';
@@ -2925,22 +3334,27 @@ ${cd}`;
             if (vip) el.style.filter = 'drop-shadow(0 0 8px rgba(255,215,0,.9))';
             el.textContent = (REACTION_EMOJIS.includes(r.emoji) || vip) ? r.emoji : '🔥';
             floor.appendChild(el);
-            setTimeout(() => el.remove(), 2700);
+            setTimeout(() => { el.remove(); reacoesNaTela--; }, 2700);
         }
         window.sendReaction = async emoji => {
             const vip = VIP_EMOJIS.includes(emoji);
             if (!REACTION_EMOJIS.includes(emoji) && !vip) return;
             if (vip && !meInVipArea()) { showToast(`${Icons.crown} Reação exclusiva de quem está na Área VIP!`); return; }
+            // uma reação a cada 1,2 s por pessoa: cada uma é lida por todos da pista
+            if (Date.now() - ultimaReacaoEnviada < 1200) return;
+            ultimaReacaoEnviada = Date.now();
             if (!currentUser || !db) {
                 spawnReaction({emoji, x: 50, y: 60}); // modo offline: só efeito local
                 return;
             }
             const me = activeUsers.find(u => u.id === currentUser.uid);
-            await addDoc(pcol('reactions'), {
-                uid: currentUser.uid, emoji,
-                x: me?.x ?? 50, y: (me?.y ?? 55) - 5,
-                timestamp: Date.now()
-            });
+            try {
+                await addDoc(pcol('reactions'), {
+                    uid: currentUser.uid, emoji,
+                    x: me?.x ?? 50, y: (me?.y ?? 55) - 5,
+                    timestamp: agora()
+                });
+            } catch(e) { console.warn('Reação não enviada', e); }
         };
 
         // barra de reações VIP: visível só com o avatar dentro do lounge
@@ -2998,7 +3412,7 @@ ${cd}`;
 </div>`).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Ninguém tocou ainda. Solta o som!</p>`;
 
             const songAgg = {};
-            partyVotes.forEach(v => { songAgg[v.videoId] = (songAgg[v.videoId] || 0) + 1; });
+            rankingVotos.forEach(v => { songAgg[v.videoId] = (songAgg[v.videoId] || 0) + 1; });
             const topSongs = Object.entries(songAgg).sort((a,b) => b[1] - a[1]).slice(0, 5);
             document.getElementById('rankingSongs').innerHTML = topSongs.length ? topSongs.map(([vid, n], i) => {
                 const t = titleCache[vid];
@@ -3012,9 +3426,22 @@ ${cd}`;
 </a>`;
             }).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Nenhum voto "Essa vai pra festa!" ainda.</p>`;
         }
-        document.getElementById('openRankingBtn').addEventListener('click', () => {
+        // histórico e votos completos só quando o ranking abre (antes: dois listeners da noite toda)
+        let rankingVotos = [], rankingLidoEm = 0;
+        async function carregarRanking() {
+            if (!currentUser || !db || Date.now() - rankingLidoEm < 60000) return;
+            rankingLidoEm = Date.now();
+            try {
+                const [hist, votos] = await Promise.all([getDocs(pcol('history')), getDocs(pcol('partyVotes'))]);
+                playHistory = hist.docs.map(d => d.data());
+                rankingVotos = votos.docs.map(d => d.data()).filter(v => safeVideoId(v.videoId));
+            } catch(e) { rankingLidoEm = 0; console.warn('Ranking indisponível', e); }
+        }
+        document.getElementById('openRankingBtn').addEventListener('click', async () => {
             renderRanking();
             abrirDialogo('rankingModal');
+            await carregarRanking();
+            renderRanking();
         });
 
         // ── QUEM ESTÁ NA PISTA ──
@@ -3117,12 +3544,20 @@ ${cd}`;
         // ── PISTA WEBGL (Three.js) ──
         // Globo de espelhos 3D, feixes de luz volumétricos e partículas pulsando no ritmo.
         // Se o CDN/WebGL falhar, o globo 2D em CSS continua no lugar.
+        // Leveza: entra só depois que a cortina sobe (não disputa o pré-carregamento), usa o
+        // build minificado, roda a no máximo 30 fps, com resolução contida no celular, e pausa
+        // com modal aberto ou pista fora da tela. Aparelho fraco fica com o globo 2D.
         (async () => {
             try {
-                const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js');
+                const fraco = (navigator.deviceMemory && navigator.deviceMemory <= 2) ||
+                    (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2) || navigator.connection?.saveData;
+                if (fraco) return;
+                await assetsProntos;
+                const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.min.js');
                 const holder = document.getElementById('webglLayer');
-                const renderer = new THREE.WebGLRenderer({alpha: true, antialias: true});
-                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                const dpr = window.devicePixelRatio || 1;
+                const renderer = new THREE.WebGLRenderer({alpha: true, antialias: dpr < 1.5});
+                renderer.setPixelRatio(Math.min(dpr, innerWidth < 768 ? 1 : 1.5));
                 // O canvas recebe o TAMANHO por CSS (100%) e a RESOLUÇÃO por setSize(w,h,false).
                 // Deixar o Three escrever o estilo com o pixelRatio embutido fazia o canvas
                 // ficar com o dobro do container em tela retina/celular: a cena era desenhada
@@ -3179,7 +3614,7 @@ ${cd}`;
                 const matsFeixe = [];
                 for (let i = 0; i < N_FEIXES; i++) {
                     const cor = new THREE.Color(NEONS[i % NEONS.length]);
-                    const geo = new THREE.ConeGeometry(RAIO_FEIXE, COMP_FEIXE, 24, 16, true);
+                    const geo = new THREE.ConeGeometry(RAIO_FEIXE, COMP_FEIXE, 16, 6, true);
                     const p = geo.attributes.position, cores = new Float32Array(p.count * 3);
                     for (let v = 0; v < p.count; v++) {
                         const t = (p.getY(v) + COMP_FEIXE / 2) / COMP_FEIXE; // 0 = ponta, 1 = globo
@@ -3250,7 +3685,12 @@ ${cd}`;
                 document.getElementById('cssDiscoBall')?.remove(); // o globo agora é 3D
 
                 const BPM = 118; // batida estimada pro pulso visual
-                const quadro = t => {
+                let pistaVisivel = true, ultimoQuadro = 0;
+                new IntersectionObserver(([e]) => { pistaVisivel = e.isIntersecting; }).observe(holder);
+                const quadro = (t, forcar = false) => {
+                    // 30 fps bastam pra luz e globo; pausa com modal aberto ou pista fora da tela
+                    if (!forcar && (!pistaVisivel || modalOpen || t - ultimoQuadro < 33)) return;
+                    ultimoQuadro = t;
                     const s = t / 1000;
                     const beat = (s * BPM / 60) % 1;
                     const pulse = glPlaying ? 1 + .2 * Math.pow(1 - beat, 3) : 1 + .04 * Math.sin(s * 2);
@@ -3267,8 +3707,8 @@ ${cd}`;
                 };
                 // movimento reduzido: cena parada (redesenha só quando a pista muda de tamanho)
                 if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-                    quadro(0);
-                    new ResizeObserver(() => quadro(0)).observe(holder);
+                    quadro(0, true);
+                    new ResizeObserver(() => quadro(0, true)).observe(holder);
                 } else {
                     renderer.setAnimationLoop(quadro);
                 }
