@@ -152,6 +152,15 @@ No `load` do iframe o app envia `{event:'listening'}` (handshake da IFrame API) 
 ### Playlist da casa (fallback)
 Sem `videoId` no `player/state`, cada cliente monta o embed do `FALLBACK_VIDEO` (um vídeo só, com as músicas emendadas) em loop (`loop=1&playlist=<id>`), **mutado** (autoplay com som é bloqueado pelos navegadores sem interação) com botão "Ativar som". **Todo mundo ouve o mesmo trecho**, sem nenhuma escrita no Firestore: a posição sai de um relógio comum, `posicaoFallback() = ((Date.now() − FALLBACK_EPOCA) / 1000) % duracaoFallback`. O iframe já nasce com `start=` nesse ponto, e a sincronia (abaixo) corrige o atraso do carregamento. A duração é **fixa** no código: o YouTube informa primeiro o valor arredondado e depois o fracionado, e com ~200 voltas desde a época uma diferença de 0,5 s vira ~100 s entre clientes. Trocou o vídeo? Atualize `FALLBACK_VIDEO` e `duracaoFallback` juntos.
 
+### Robustez: relógio, transações e saúde da conexão
+Não há backend, então três proteções evitam que **um** aparelho bagunce a pista de todos:
+
+- **Relógio corrigido (`agora()`)**: cada cliente mede o desvio do próprio relógio contra o servidor (grava `serverTimestamp()` no próprio doc de `users` e lê de volta com `getDocFromServer`; desvio ≈ `srv − (t0+t1)/2`, erro menor que metade da ida e volta). Tudo que é compartilhado usa a hora corrigida.
+- **Transações**: `avancar(chave)` troca de música só se `player/state` ainda estiver na chave que o cliente viu, e faz tudo junto (estado, votos zerados, posição, histórico, item da fila). `startCountdown` reivindica `player/countdown` numa transação (`por: uid`), e só quem iniciou zera ao final. Votos de pular também entram por transação.
+- **Saúde da conexão**: `users` e `player` assinam com `includeMetadataChanges`; `fromCache` indica que o servidor sumiu. Sem servidor, com listener caído ou com o relógio não medido, o cliente não é líder e a faixa "sem conexão" aparece. Listener que cai é reassinado com espera crescente.
+
+Também: a pausa do DJ vale até ele retomar (o YouTube não manda posição com vídeo pausado). O DJ só publica estados reais (tocando ou pausado), com a posição projetada. O handshake com o player insiste por até 30 s, e o player que não responde em 20 s é recriado uma vez. Fim de música durante uma contagem é reavaliado quando ela acaba. O líder confere a cada 5 s se há votos de pular acima do limiar ou player parado no fim. O limiar conta só quem está na tela, sem o DJ.
+
 ### Desempenho: snapshots agendam, não desenham
 Com 300 pessoas chegam ~10 snapshots de presença por segundo. Os listeners só atualizam o estado e chamam `agendar(...)`; um único quadro (`requestAnimationFrame`, no máximo a cada 250 ms) desenha pista, mesa, fila, overlay e chat. Cada render compara uma assinatura do que mostra e não mexe no DOM se nada mudou: assim o botão "Pular" não é recriado no meio do toque e os vinis da mesa não reiniciam.
 
