@@ -86,7 +86,8 @@ Botão ao lado do "Pular". Um clique = um voto por pessoa por música (fica lara
 
 ### Reprodução sincronizada — o DJ no comando
 - **Todo mundo assiste ao mesmo ponto do vídeo**: quem entra no meio da música já começa nos segundos certos, e um ajuste automático corrige qualquer descompasso maior que 6 s.
-- **Só o DJ controla o player** — e mesmo ele não avança nem retrocede: ninguém tem a barra de progresso do YouTube. O DJ pausa/retoma tocando no vídeo; para os demais, cliques e teclado ficam bloqueados (aviso "🔒 Só o DJ controla o player").
+- **Só o DJ controla o player**: no aparelho do DJ o YouTube vem com todos os controles, então ele pausa, retoma e arrasta a barra para outro momento da música, e a pista inteira vai junto na hora. Para os demais, o player fica sem controles e com cliques e teclado bloqueados (aviso "Só o DJ controla o player").
+- **Playlist da casa travada para todos**: sem controles, sem teclado e sem a interface do YouTube, com uma camada de bloqueio por cima. Só o botão "Ativar som" responde. Mexer no player tiraria a pessoa do trecho que todo mundo está ouvindo.
 - **Propagandas**: o botão **"📺 Pular propaganda"** libera os cliques no player por 15 s — tempo de apertar o "Pular anúncio" do YouTube — e depois re-trava sozinho. Se alguém pausar sem querer nesse intervalo, a sincronia corrige em segundos.
 - **O que o DJ faz, todos veem**: pausar e retomar no player do DJ replica para toda a pista em segundos.
 

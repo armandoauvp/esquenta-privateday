@@ -2084,18 +2084,23 @@
                 const isMe = currentUser && currentVideo.addedByUid === currentUser.uid;
                 // entra já no ponto certo da música (sincronizado com quem chegou antes)
                 const startSec = Math.max(0, Math.floor((Date.now() - (currentVideo.startedAt || Date.now())) / 1000));
-                // ninguém tem a barra de progresso — nem o DJ: avançar/retroceder é proibido.
-                // O DJ ainda pausa/retoma tocando no vídeo (sem camada de bloqueio pra ele).
+                // Só o DJ controla a música: no aparelho dele o player tem os controles do
+                // YouTube (pausar, arrastar a barra pra outro momento) e a pista inteira segue
+                // via player/playback. Os demais ficam sem controles, sem teclado e com a
+                // camada de bloqueio do overlay.
+                const controles = isMe ? 'controls=1' : 'controls=0&disablekb=1&fs=0';
                 c.innerHTML = `
-<iframe id="ytFrame" class="w-full h-full" src="https://www.youtube.com/embed/${currentVideo.videoId}?autoplay=1&controls=0&disablekb=1&enablejsapi=1&start=${startSec}&rel=0&playsinline=1"
+<iframe id="ytFrame" class="w-full h-full" src="https://www.youtube.com/embed/${currentVideo.videoId}?autoplay=1&${controles}&enablejsapi=1&start=${startSec}&rel=0&playsinline=1&iv_load_policy=3"
   frameBorder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen></iframe>
 <div id="playerOverlay" class="absolute inset-0 pointer-events-none"></div>`;
             } else {
                 // Ninguém na mesa: vídeo da casa em loop (loop=1 exige playlist=<o próprio id>),
-                // já entrando no trecho que todo mundo está ouvindo; a sincronia acerta o resto
+                // já entrando no trecho que todo mundo está ouvindo; a sincronia acerta o resto.
+                // Travado para todos: sem controles, sem teclado e com camada de bloqueio no
+                // overlay (mexer no player tiraria a pessoa do trecho comum).
                 fallbackUnmuted = false;
                 c.innerHTML = `
-<iframe id="ytFrame" class="w-full h-full" src="https://www.youtube.com/embed/${FALLBACK_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${FALLBACK_VIDEO}&start=${Math.floor(posicaoFallback())}&controls=1&enablejsapi=1&playsinline=1&rel=0"
+<iframe id="ytFrame" class="w-full h-full" src="https://www.youtube.com/embed/${FALLBACK_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${FALLBACK_VIDEO}&start=${Math.floor(posicaoFallback())}&controls=0&disablekb=1&fs=0&iv_load_policy=3&enablejsapi=1&playsinline=1&rel=0"
   frameBorder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen></iframe>
 <div id="playerOverlay" class="absolute inset-0 pointer-events-none"></div>`;
             }
@@ -2158,6 +2163,7 @@ ${currentVideo.title ? `<div class="absolute bottom-2 left-2 max-w-[44%] md:max-
 ${cd}`;
             } else {
                 o.innerHTML = `
+<div class="absolute inset-0 pointer-events-auto" title="Playlist da casa: ninguém controla o player"></div>
 <div class="absolute top-2 left-2 max-w-[80%] truncate bg-black/75 backdrop-blur-md text-[#FFF7EB]/85 text-[11px] px-3 py-1 rounded-full border border-[#FFF7EB]/15 shadow-lg">${Icons.playlist} Playlist da casa<span class="hidden sm:inline"> — adicione um vídeo pra assumir a mesa!</span></div>
 ${fallbackUnmuted ? '' : `<button onclick="window.unmuteFallback(this)" class="pointer-events-auto absolute bottom-3 left-3 bg-[#DB7944] text-white text-xs px-4 py-1.5 rounded-full font-semibold shadow-lg hover:bg-[#c45d1b] transition z-10">${Icons.volume} Ativar som</button>`}
 ${cd}`;
@@ -2406,8 +2412,14 @@ ${cd}`;
             // guarda o estado do MEU player (posição/tocando/pausado)
             let newState;
             if (d.event === 'infoDelivery' && d.info) {
-                if (typeof d.info.currentTime === 'number')
+                if (typeof d.info.currentTime === 'number') {
+                    // o DJ arrastou a barra? posição fora do esperado = salto: publica na hora
+                    // (sem isso a pista só iria junto na publicação seguinte, até 5 s depois)
+                    const previsto = minhaPosicao();
+                    const saltou = isCurrentDJ() && previsto != null && Math.abs(d.info.currentTime - previsto) > SINCRONIA_TOLERANCIA_S;
                     ytInfo = {...(ytInfo || {}), time: d.info.currentTime, at: Date.now(), tempoEm: Date.now()};
+                    if (saltou) publishPlayback();
+                }
                 if (typeof d.info.playerState === 'number') newState = d.info.playerState;
             } else if (d.event === 'onStateChange' && typeof d.info === 'number') {
                 newState = d.info;
