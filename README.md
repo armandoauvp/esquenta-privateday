@@ -20,7 +20,7 @@ Pista de dança virtual em tempo real para o esquenta do **AUVP Private Day 2026
 - Qualquer pessoa cola um link do YouTube e entra na fila.
 - **Votação para pular**: o botão "Pular" registra votos; quando a maioria dos online vota, rola uma **contagem regressiva de 5s** e a música troca.
 - **Limite de 10 minutos**: todo vídeo é pulado automaticamente ao completar 10 min de reprodução.
-- **Playlist da casa (fallback)**: se ninguém está tocando nada, o player toca em loop o [vídeo da casa](https://youtu.be/5D_Of9Zpsgs), com as músicas do esquenta emendadas e começando num trecho sorteado. Quando alguém adiciona uma música, uma contagem regressiva aparece e a música do usuário assume a mesa.
+- **Playlist da casa (fallback)**: se ninguém está tocando nada, o player toca em loop o [vídeo da casa](https://youtu.be/5D_Of9Zpsgs), com as músicas do esquenta emendadas, e todo mundo ouve o mesmo trecho. Quando alguém adiciona uma música, uma contagem regressiva aparece e a música do usuário assume a mesa.
 - **🔥 "Essa vai pra festa!"**: botão de voto por música, gravado no Firestore (`partyVotes`) para curadoria do gosto musical da galera para a festa real.
 - Avanço automático ao fim de cada vídeo (YouTube IFrame API).
 - **A pista não fica refém de quem sumiu**: quem está na mesa precisa ficar na tela — fechar o app, minimizar ou trocar de aba por mais de ~45 s passa a vez para a próxima música e tira a pessoa da fila (recarregar a página não custa o lugar). Vídeo indisponível também é pulado na hora, e um player travado se recarrega sozinho.

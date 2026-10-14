@@ -91,7 +91,8 @@ Também dá para automatizar via REST (auth anônima + Firestore REST API) — f
 
 | Constante | Padrão | Efeito |
 |---|---|---|
-| `FALLBACK_VIDEO` | `5D_Of9Zpsgs` | Vídeo da casa (músicas emendadas) que toca em loop quando ninguém está na mesa; cada visitante começa num trecho sorteado |
+| `FALLBACK_VIDEO` + `duracaoFallback` | `5D_Of9Zpsgs`, `5751` | Vídeo da casa (músicas emendadas) em loop quando ninguém está na mesa, com todo mundo no mesmo trecho. Trocou o vídeo? Atualize a duração (em segundos) junto |
+| `SINCRONIA_TOLERANCIA_S` | `2` | Diferença máxima (s) entre o player de cada visitante e a referência antes de realinhar |
 | `MAX_PLAY_MS` | `600000` (10 min) | Tempo máximo de reprodução por vídeo |
 | `COUNTDOWN_MS` | `5000` | Duração da contagem regressiva de troca |
 | `TICKETS_URL` | `https://privateday.auvp.com.br/#ingressos` | Link do aviso de boas-vindas de quem entra sem ingresso e do toast da Área VIP |
