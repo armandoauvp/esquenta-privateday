@@ -96,7 +96,8 @@ Botão ao lado do "Pular". Um clique = um voto por pessoa por música (fica lara
 - **DJ que sai da tela**: o crachá "🎧 Sua vez na mesa!" avisa para **ficar na tela**. Se quem está na mesa fecha o app, minimiza ou troca de aba por mais de ~45 s, a pista não fica refém: o líder passa a vez com a contagem de 5 s ("🎧 Fulano saiu da pista — próxima música!"). Ao voltar, a pessoa recebe um toast explicando que perdeu a vez.
 - **Vídeo que não toca** (removido, privado, embed bloqueado, indisponível na região): o erro do player dispara a troca ("⚠️ Vídeo indisponível — próxima música!") em vez de deixar a pista na tela preta até os 10 min.
 - **Player travado**: se o *seu* player para de dar sinal por 45 s (buffer infinito, iframe morto), o app recarrega **só o seu iframe** e volta no ponto certo da música — sem pular a música para os outros.
-- **Fila vazia**: sem próxima música, o player volta para a **playlist da casa**: um vídeo com as músicas do esquenta emendadas, em loop e começando num trecho sorteado. Ele toca mutado, com botão "Ativar som" (regra de autoplay dos navegadores).
+- **Fila vazia**: sem próxima música, o player volta para a **playlist da casa**: um vídeo com as músicas do esquenta emendadas, em loop. Ele toca mutado, com botão "Ativar som" (regra de autoplay dos navegadores).
+- **Todo mundo ouve o mesmo momento**, seja a música do DJ, seja a playlist da casa. Quem entra já começa no trecho certo, e quem sair mais de 2 s do compasso (carregamento lento, travada) é realinhado sozinho. Na música do DJ a referência é o player do DJ; na playlist da casa, um relógio comum a todos.
 
 ## Chat
 

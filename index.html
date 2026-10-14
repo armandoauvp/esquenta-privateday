@@ -6,7 +6,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-14a">
+    <meta name="app-build" content="2026-10-14b">
     <title>Esquenta AUVP Private Day</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -883,6 +883,17 @@
         // playlist da casa: um vídeo só, com as músicas emendadas ("playlist parcial - private day",
         // canal AUVP Capital), tocando em loop quando ninguém está na mesa
         const FALLBACK_VIDEO = '5D_Of9Zpsgs';
+        // Todo mundo ouve o MESMO trecho: a posição sai de um relógio comum (segundos desde
+        // uma data fixa, módulo a duração), sem escrita no Firestore.
+        // A duração é FIXA e igual para todos. Nunca use a que o player informa: o YouTube
+        // manda primeiro o valor arredondado e depois o fracionado, e com ~200 voltas desde a
+        // época uma diferença de 0,5 s vira ~100 s de diferença entre os clientes.
+        // Trocou o vídeo? Atualize os dois valores (a duração do YouTube, em segundos).
+        const FALLBACK_EPOCA = Date.UTC(2026, 9, 1);
+        const duracaoFallback = 5751; // 1:35:51
+        const posicaoFallback = () => ((Date.now() - FALLBACK_EPOCA) / 1000) % duracaoFallback;
+        // tolerância de sincronia: acima disso, o player salta pro ponto de todo mundo
+        const SINCRONIA_TOLERANCIA_S = 2;
         const MAX_PLAY_MS  = 10 * 60 * 1000; // todo vídeo é pulado ao completar 10 min
         const COUNTDOWN_MS = 5000;           // contagem regressiva antes de trocar de música
         const TICKETS_URL  = 'https://privateday.auvp.com.br/#ingressos';
@@ -904,7 +915,6 @@
         let dmOpenWith = null;      // uid da conversa privada aberta
         let dmReadAt = {};          // uid -> timestamp da última leitura
         const dmSessionStart = Date.now();
-        let fallbackSorteado = false; // já pulou pra um trecho aleatório do vídeo da casa?
         let fallbackUnmuted = false;
         let lastPlayerKey = null;
         let perdiAVezAusente = false; // perdeu a mesa enquanto estava fora da tela (avisa ao voltar)
@@ -2067,6 +2077,7 @@
         function renderPlayer() {
             const c = document.getElementById('playerContainer');
             ytInfo = null; // iframe novo, estado local zera
+            lastSyncSeekAt = 0;
             iframeCriadoEm = Date.now();
             precisaTocar = false;
             if (currentVideo?.videoId) {
@@ -2080,13 +2091,11 @@
   frameBorder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen></iframe>
 <div id="playerOverlay" class="absolute inset-0 pointer-events-none"></div>`;
             } else {
-                // Ninguém na mesa: vídeo da casa em loop (loop=1 exige playlist=<o próprio id>).
-                // Começa num trecho sorteado assim que o player informa a duração, pra pista não
-                // abrir sempre na mesma música.
-                fallbackSorteado = false;
+                // Ninguém na mesa: vídeo da casa em loop (loop=1 exige playlist=<o próprio id>),
+                // já entrando no trecho que todo mundo está ouvindo; a sincronia acerta o resto
                 fallbackUnmuted = false;
                 c.innerHTML = `
-<iframe id="ytFrame" class="w-full h-full" src="https://www.youtube.com/embed/${FALLBACK_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${FALLBACK_VIDEO}&controls=1&enablejsapi=1&playsinline=1&rel=0"
+<iframe id="ytFrame" class="w-full h-full" src="https://www.youtube.com/embed/${FALLBACK_VIDEO}?autoplay=1&mute=1&loop=1&playlist=${FALLBACK_VIDEO}&start=${Math.floor(posicaoFallback())}&controls=1&enablejsapi=1&playsinline=1&rel=0"
   frameBorder="0" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen></iframe>
 <div id="playerOverlay" class="absolute inset-0 pointer-events-none"></div>`;
             }
@@ -2397,12 +2406,8 @@ ${cd}`;
             // guarda o estado do MEU player (posição/tocando/pausado)
             let newState;
             if (d.event === 'infoDelivery' && d.info) {
-                if (typeof d.info.currentTime === 'number') ytInfo = {...(ytInfo || {}), time: d.info.currentTime, at: Date.now()};
-                // vídeo da casa: um salto só, pra um ponto sorteado (deixa os 10% finais de folga)
-                if (!currentVideo?.videoId && !fallbackSorteado && d.info.duration > 120) {
-                    fallbackSorteado = true;
-                    ytCmd('seekTo', [Math.floor(Math.random() * d.info.duration * 0.9), true]);
-                }
+                if (typeof d.info.currentTime === 'number')
+                    ytInfo = {...(ytInfo || {}), time: d.info.currentTime, at: Date.now(), tempoEm: Date.now()};
                 if (typeof d.info.playerState === 'number') newState = d.info.playerState;
             } else if (d.event === 'onStateChange' && typeof d.info === 'number') {
                 newState = d.info;
@@ -2435,30 +2440,53 @@ ${cd}`;
         }
         setInterval(publishPlayback, 5000); // posição do DJ publicada a cada 5 s (cobre seeks também)
 
-        // não-DJs alinham o próprio player ao do DJ (pausa, retomada e drift > 6 s)
-        // cooldown de 12 s entre seeks: sem ele, info local defasada após um seek
-        // disparava novo seek em sequência (loop "chega em X, volta pra X")
+        // ── TODO MUNDO NO MESMO SEGUNDO ──
+        // Vídeo da casa: relógio comum (posicaoFallback). Música do DJ: a posição que o DJ
+        // publica em player/playback; sem publicação recente, o startedAt da música.
+        // Acima de SINCRONIA_TOLERANCIA_S, o player salta pro ponto certo. Intervalo de 8 s
+        // entre saltos: logo depois de um seek a posição local vem defasada e dispararia
+        // outro (loop "chega em X, volta pra X"). Iframe novo zera o intervalo, então o
+        // atraso do carregamento é corrigido assim que o vídeo começa a tocar.
         let lastSyncSeekAt = 0;
         const syncSeek = t => {
-            if (Date.now() - lastSyncSeekAt < 12000) return;
+            if (Date.now() - lastSyncSeekAt < 8000) return;
             lastSyncSeekAt = Date.now();
-            ytCmd('seekTo', [Math.max(0, t), true]);
+            ytCmd('seekTo', [Math.max(0, t + 0.4), true]); // +0,4 s: o que o próprio salto demora
         };
+        // posição do MEU player agora (a última informada + o que andou desde então)
+        const minhaPosicao = () => ytInfo?.tempoEm
+            ? ytInfo.time + (ytInfo.state === 1 ? (Date.now() - ytInfo.tempoEm) / 1000 : 0)
+            : null;
         setInterval(() => {
-            if (!currentVideo?.videoId || isCurrentDJ() || countdownActive()) return;
+            if (countdownActive() || isCurrentDJ()) return;
             if (ytInfo?.state === 0) return; // meu player terminou: aguarda o avanço da fila
-            if (!playbackState || playbackState.videoId !== currentVideo.videoId) return;
-            if (Date.now() - (playbackState.at || 0) > 15000) return; // DJ ausente: não força nada
-            if (playbackState.state === 'paused') {
+            const atual = minhaPosicao();
+
+            // vídeo da casa: compara com o relógio comum, considerando a volta do loop
+            if (!currentVideo?.videoId) {
+                if (ytInfo?.state !== 1 || atual == null) return;
+                let dif = ((atual - posicaoFallback()) % duracaoFallback + duracaoFallback) % duracaoFallback;
+                if (dif > duracaoFallback / 2) dif -= duracaoFallback;
+                if (Math.abs(dif) > SINCRONIA_TOLERANCIA_S) syncSeek(posicaoFallback());
+                return;
+            }
+
+            const djAoVivo = playbackState?.videoId === currentVideo.videoId &&
+                Date.now() - (playbackState.at || 0) < 15000;
+            if (djAoVivo && playbackState.state === 'paused') {
                 if (ytInfo?.state === 1) ytCmd('pauseVideo');
-                if (ytInfo && Math.abs((ytInfo.time || 0) - (playbackState.time || 0)) > 6)
+                if (atual != null && Math.abs(atual - (playbackState.time || 0)) > SINCRONIA_TOLERANCIA_S)
                     syncSeek(playbackState.time || 0);
                 return;
             }
-            const expected = (playbackState.time || 0) + (Date.now() - playbackState.at) / 1000;
+            // referência: o DJ ao vivo; sem ele, o tempo desde o início da música
+            const esperado = djAoVivo
+                ? (playbackState.time || 0) + (Date.now() - playbackState.at) / 1000
+                : (currentVideo.startedAt ? (Date.now() - currentVideo.startedAt) / 1000 : null);
+            if (esperado == null) return;
             if (ytInfo?.state === 2) ytCmd('playVideo');
-            if (ytInfo && Math.abs((ytInfo.time || 0) - expected) > 6)
-                syncSeek(expected);
+            if (atual != null && ytInfo?.state === 1 && Math.abs(atual - esperado) > SINCRONIA_TOLERANCIA_S)
+                syncSeek(esperado);
         }, 3000);
 
         // ── MEU PLAYER TRAVOU? RECARREGA SÓ O MEU IFRAME ──
