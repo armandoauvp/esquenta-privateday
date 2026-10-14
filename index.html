@@ -6,7 +6,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-14c">
+    <meta name="app-build" content="2026-10-14d">
     <title>Esquenta AUVP Private Day</title>
     <!-- abre as conexões cedo: fontes, avatares, Firebase e YouTube entram sem esperar o DNS/TLS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,11 +81,6 @@
         .spin-vinyl { transform-origin: center; animation: spin-vinyl 2s linear infinite; }
 
         /* ── EQUALIZER ── */
-        @keyframes eq1 { 0%,100%{height:3px} 50%{height:10px} }
-        @keyframes eq2 { 0%,100%{height:6px} 50%{height:3px}  }
-        @keyframes eq3 { 0%,100%{height:8px} 50%{height:4px}  }
-        @keyframes eq4 { 0%,100%{height:2px} 50%{height:12px} }
-        @keyframes eq5 { 0%,100%{height:10px} 50%{height:2px} }
 
         /* ── DJ AVATAR ── */
         @keyframes dj-bounce { 0%,100%{transform:translateY(0) scale(1.12)} 50%{transform:translateY(-7px) scale(1.18)} }
@@ -220,19 +215,12 @@
         .cfg-dot-lg { width: 38px; height: 38px; border-color: transparent; }
         .cfg-dot-lg.cfg-dot-on { border-color: #fff; }
 
-        /* ── GLOW DA CABINE ── */
-        @keyframes booth-glow {
-            0%,100% { box-shadow: 0 0 16px rgba(255,0,200,.5), 0 0 32px rgba(255,0,200,.2); }
-            33%      { box-shadow: 0 0 16px rgba(0,255,255,.5), 0 0 32px rgba(0,255,255,.2); }
-            66%      { box-shadow: 0 0 16px rgba(255,220,0,.5),  0 0 32px rgba(255,220,0,.2);  }
-        }
-        .booth-glow { animation: booth-glow 3s ease-in-out infinite; }
-
         @keyframes my-turn-pulse {
             0%,100% { opacity:1; transform:scale(1); }
             50%      { opacity:.8; transform:scale(1.04); }
         }
-        .my-turn-badge { animation: my-turn-pulse .9s ease-in-out infinite; }
+        /* pulsa 3 vezes e para: piscando a música inteira cansava */
+        .my-turn-badge { animation: my-turn-pulse .9s ease-in-out 3; }
 
         /* ── GLOBO REFLETOR NA PISTA ── */
         @keyframes ball-sway { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg)} }
@@ -287,12 +275,113 @@
         }
         .chat-mudo:hover, .chat-mudo:focus-visible { opacity: 1 !important; }
 
+        /* ── MESA DE DJ: palco com cabine ──
+           Medidas por variável (--mesa-w): 232 px no desktop, 200 no tablet, 128 no celular.
+           Animações só de transform/opacity; tudo para no movimento reduzido. */
+        #danceFloor { --mesa-w: 232px; }
+        @media (max-width: 1023px) { #danceFloor { --mesa-w: 200px; } }
+        @media (max-width: 767px)  { #danceFloor { --mesa-w: 128px; } }
+        .mesa {
+            right: 12px; bottom: 6px; width: var(--mesa-w);
+            display: flex; flex-direction: column; align-items: center;
+            --cor-dj: #DB7944;
+        }
+        .mesa-holofote {
+            position: absolute; left: 50%; bottom: 30%; width: 150%; height: 190%;
+            transform-origin: 50% 0; transform: translateX(-50%);
+            clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
+            background: linear-gradient(rgba(255,247,235,0), rgba(255,247,235,.16));
+            opacity: .25; pointer-events: none;
+        }
+        .mesa:not([data-estado="casa"]) .mesa-holofote { opacity: .7; animation: holofote 5s ease-in-out infinite; }
+        .mesa[data-estado="eu"] .mesa-holofote { background: linear-gradient(rgba(255,0,204,0), rgba(255,0,204,.2)); }
+        @keyframes holofote {
+            0%,100% { transform: translateX(-50%) rotate(-5deg); opacity: .55; }
+            50%     { transform: translateX(-50%) rotate(5deg);  opacity: .85; }
+        }
+        .mesa-letreiro {
+            position: relative; z-index: 2; max-width: 96%; padding: 2px 12px 3px;
+            overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+            font-size: 18px; line-height: 1.25; color: #FFF7EB;
+            background: #0B2A47; border: 1px solid #DB7944; border-radius: 6px;
+            box-shadow: 0 2px 0 var(--cor-dj); text-shadow: 0 0 8px rgba(255,0,204,.45);
+        }
+        .mesa[data-estado="eu"] .mesa-letreiro { border-color: #ff00cc; box-shadow: 0 0 12px rgba(255,0,204,.55); }
+        .mesa-cabine { position: relative; width: 100%; aspect-ratio: 232 / 132; margin-top: 4px; }
+        .mesa-fundo {
+            position: absolute; inset: 14% 7% 30% 7%; border-radius: 12px 12px 0 0;
+            background: linear-gradient(#0B2A47, #050505); border-top: 2px solid #DB7944;
+            display: flex; justify-content: space-around; align-items: flex-start; padding-top: 6px;
+        }
+        .mesa-fundo i { width: 4px; height: 4px; border-radius: 50%; background: #00ffff; opacity: .35; }
+        .mesa-fundo i:nth-child(even) { background: #ff00cc; }
+        .mesa:not([data-estado="casa"]) .mesa-fundo i { animation: led 1.017s ease-in-out infinite; }
+        .mesa-fundo i:nth-child(even) { animation-delay: .5s; }
+        @keyframes led { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
+        .mesa-dj {
+            position: absolute; left: 50%; bottom: 26%; width: 44%; aspect-ratio: 1;
+            transform: translateX(-50%); padding: 0; border: 0; background: none; z-index: 1;
+            pointer-events: auto; cursor: pointer; transition: opacity .35s ease, transform .35s ease;
+        }
+        .mesa-dj img { display: block; width: 100%; height: 100%; animation: cabeceio 1.017s ease-in-out infinite; }
+        @keyframes cabeceio { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-3%) rotate(2deg); } }
+        .mesa-fones { position: absolute; left: 4%; bottom: 30%; font-size: clamp(12px, 18%, 20px); color: #ff00cc; filter: drop-shadow(0 0 4px rgba(255,0,204,.8)); }
+        .mesa-dj .vip-crown { width: 22%; height: 22%; top: 2%; right: 8%; }
+        .mesa[data-estado="casa"] .mesa-dj { opacity: 0; transform: translateX(-50%) translateY(40%); pointer-events: none; }
+        .mesa[data-estado="eu"] .mesa-dj { cursor: default; }
+        .mesa[data-ausente] .mesa-dj { opacity: .45; }
+        .mesa[data-pausado] .mesa-dj img, .mesa[data-estado="casa"] .mesa-dj img { animation-play-state: paused; }
+        .mesa-vazia {
+            position: absolute; left: 50%; bottom: 44%; transform: translateX(-50%);
+            font-size: clamp(18px, 14%, 34px); color: rgba(255,247,235,.35); opacity: 0; transition: opacity .35s ease;
+        }
+        .mesa[data-estado="casa"] .mesa-vazia { opacity: 1; }
+        .mesa-tampo { position: absolute; left: 0; bottom: 0; width: 100%; height: auto; z-index: 2; overflow: visible; }
+        .mesa-prato { transform-box: fill-box; transform-origin: center; animation: spin-vinyl 1.8s linear infinite; }
+        .mesa[data-estado="casa"] .mesa-prato, .mesa[data-pausado] .mesa-prato { animation-play-state: paused; }
+        .mesa-led-faixa { opacity: .85; }
+        .mesa[data-estado="casa"] .mesa-led-faixa { opacity: .25; }
+        .mesa-visor {
+            position: relative; z-index: 2; width: 100%; margin-top: 4px; padding: 5px 8px 6px;
+            background: rgba(5,5,5,.88); border: 1px solid rgba(255,247,235,.14); border-radius: 8px;
+        }
+        .mesa-titulo { font-size: 11px; font-weight: 600; color: rgba(255,247,235,.92); }
+        .mesa-barra { height: 3px; margin: 4px 0 3px; border-radius: 2px; background: rgba(255,247,235,.12); overflow: hidden; }
+        .mesa-barra i { display: block; height: 100%; background: #DB7944; transform-origin: left; transform: scaleX(var(--p, 0)); transition: transform 1s linear; }
+        .mesa[data-corte] .mesa-barra i { background: #932621; }
+        .mesa-info { display: flex; justify-content: space-between; gap: 6px; font-size: 10px; color: rgba(255,247,235,.7); font-variant-numeric: tabular-nums; }
+        .mesa[data-corte] #mesaTempo { color: #ff8a80; font-weight: 600; }
+        .mesa-proximo { width: 100%; margin-top: 3px; font-size: 10px; color: rgba(255,247,235,.65); text-align: center; }
+        .mesa-assumir {
+            display: none; margin-top: 5px; pointer-events: auto; font-size: 11px; font-weight: 600;
+            color: #fff; background: #DB7944; border-radius: 9999px; padding: 6px 12px; min-height: 32px;
+        }
+        .mesa-assumir:hover { background: #c45d1b; }
+        .mesa[data-estado="casa"] .mesa-assumir { display: inline-flex; align-items: center; }
+        /* celular: sem letreiro grande nem texto no visor; só a barra de progresso no tampo */
+        @media (max-width: 767px) {
+            .mesa { right: 8px; bottom: 4px; }
+            .mesa-letreiro { font-size: 13px; padding: 1px 8px 2px; }
+            .mesa-visor { padding: 3px 5px 4px; }
+            .mesa-titulo, .mesa-info, .mesa-proximo { display: none; }
+            .mesa-barra { margin: 0; }
+            .mesa-assumir { font-size: 10px; padding: 4px 9px; min-height: 28px; }
+        }
+        /* pista baixinha (360×640): só cabine e barra */
+        #danceFloor[data-pista="curta"] .mesa-letreiro, #danceFloor[data-pista="curta"] .mesa-assumir { display: none; }
+        /* a barra de reações nunca entra embaixo da mesa */
+        #actionBar { max-width: calc(100% - var(--mesa-w) - 32px); flex-wrap: wrap; }
+        /* avatar do DJ sai da pista (está na mesa); a casca fica no lugar e volta quando ele sai */
+        .na-mesa { opacity: 0 !important; }
+        .na-mesa, .na-mesa * { pointer-events: none !important; }
+
         /* ── MOVIMENTO REDUZIDO ──
            Quem pede menos movimento no sistema (e celular fraco agradece) fica sem
            ladrilhos piscando, bounce, brilhos e giros; o WebGL desenha um quadro só. */
         @media (prefers-reduced-motion: reduce) {
             .dance-tiles *, .spin-vinyl, .dj-bounce, .disco-ball-wrap, .disco-ball-img,
-            .booth-glow, .my-turn-badge, .count-glow, .dance-spin, .dance-jump,
+            .mesa-holofote, .mesa-fundo i, .mesa-dj img, .mesa-prato,
+            .my-turn-badge, .count-glow, .dance-spin, .dance-jump,
             .dance-shake, .dance-moonwalk, .animate-bounce, .animate-pulse,
             .fade-in-up, .toast-in, .rx-btn { animation: none !important; transition: none !important; }
         }
@@ -308,10 +397,6 @@
         /* ── AJUSTES MOBILE: nada se sobrepõe na pista curta ── */
         #floorHint .hint-short { display: none; }
         @media (max-width: 767px) {
-            /* mesa de DJ menor para sobrar espaço à esquerda */
-            #djBooth { transform: scale(.72); transform-origin: bottom right; }
-            /* barra de reações quebra linha antes de alcançar a mesa */
-            #actionBar { max-width: calc(100% - 128px); flex-wrap: wrap; }
             #actionBar .rx-btn, #danceMenuBtn { font-size: 13px; }
             /* dica curta no lugar da longa */
             #floorHint .hint-full { display: none; }
@@ -458,8 +543,52 @@
                 </div>
 
                 <!-- Cabine de DJ (canto inferior direito) -->
-                <!-- mesma camada dos avatares (z 7) e antes deles no HTML: o avatar do DJ fica por cima da mesa -->
-                <div id="djBooth" class="absolute z-[7]" style="right:10px;bottom:10px;pointer-events:none;"></div>
+                <!-- MESA DE DJ: palco com cabine. O DJ aparece ATRÁS do tampo (só cabeça e ombros),
+                     com letreiro, holofote e um visor com a música, o tempo e quem vem depois.
+                     Montada uma vez; renderDJBooth() só troca textos, atributos e classes.
+                     Mesma camada dos avatares (z 7) e abaixo do globo (z 8). -->
+                <div id="djBooth" class="mesa absolute z-[7] pointer-events-none" data-estado="casa">
+                    <div class="mesa-holofote" aria-hidden="true"></div>
+                    <p id="mesaNome" class="mesa-letreiro font-discodiva">Playlist da casa</p>
+                    <div class="mesa-cabine">
+                        <div class="mesa-fundo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+                        <button type="button" id="mesaDJ" class="mesa-dj" tabindex="-1" aria-label="DJ na mesa">
+                            <img id="mesaAvatar" src="" alt="">
+                            <span class="mesa-fones" data-icone="headphones"></span>
+                            <span id="mesaCoroa" class="vip-crown hidden" data-icone="crown"></span>
+                        </button>
+                        <span class="mesa-vazia" data-icone="headphones" aria-hidden="true"></span>
+                        <svg class="mesa-tampo" viewBox="0 0 232 64" aria-hidden="true">
+                            <rect x="2" y="6" width="228" height="56" rx="7" fill="#0d0d0d" stroke="#DB7944" stroke-width="1.5"/>
+                            <rect class="mesa-led-faixa" x="10" y="6" width="212" height="2" rx="1" fill="#00ffff"/>
+                            <g transform="translate(46 36)"><g class="mesa-prato">
+                                <circle r="21" fill="#141414" stroke="#2a2a2a"/>
+                                <circle r="14" fill="none" stroke="#202020"/>
+                                <circle r="7" fill="#DB7944"/>
+                                <circle cx="9" cy="-9" r="2.2" fill="#FFF7EB" opacity=".75"/>
+                            </g></g>
+                            <g transform="translate(186 36)"><g class="mesa-prato">
+                                <circle r="21" fill="#141414" stroke="#2a2a2a"/>
+                                <circle r="14" fill="none" stroke="#202020"/>
+                                <circle r="7" fill="#DB7944"/>
+                                <circle cx="-9" cy="9" r="2.2" fill="#FFF7EB" opacity=".75"/>
+                            </g></g>
+                            <rect x="92" y="16" width="48" height="38" rx="4" fill="#0B2A47" stroke="#1d3a57"/>
+                            <circle cx="104" cy="26" r="3.2" fill="#FFF7EB"/>
+                            <circle cx="116" cy="26" r="3.2" fill="#DB7944"/>
+                            <circle cx="128" cy="26" r="3.2" fill="#FFF7EB"/>
+                            <rect x="102" y="42" width="28" height="2" rx="1" fill="#2a3f55"/>
+                            <rect class="mesa-fader" x="112" y="38" width="8" height="10" rx="2" fill="#ff00cc"/>
+                        </svg>
+                    </div>
+                    <div class="mesa-visor">
+                        <p id="mesaTitulo" class="mesa-titulo truncate">Mesa livre</p>
+                        <div class="mesa-barra"><i></i></div>
+                        <p class="mesa-info"><span id="mesaTempo"></span><span id="mesaVotos"></span></p>
+                    </div>
+                    <p id="mesaProximo" class="mesa-proximo truncate"></p>
+                    <button type="button" id="mesaAssumir" class="mesa-assumir" onclick="window.assumirMesa()">Assumir a mesa</button>
+                </div>
 
                 <!-- Avatares -->
                 <!-- z 7: abaixo do globo (8), acima da Área VIP (6) e dos ladrilhos -->
@@ -1302,113 +1431,107 @@
         }
 
         // ── MESA DE DJ ──
-        // Position the DJ avatar here in % of dance floor
-        const DJ_X = 89; // right area
-        const DJ_Y = 78; // lower area (near the booth element at bottom-right)
-
+        // A mesa é montada uma vez no HTML (#djBooth) e aqui só muda texto, atributo e
+        // classe — refazer o innerHTML reiniciava pratos, LEDs e o cabeceio a cada snapshot.
+        // O avatar do DJ sai da pista (casca .na-mesa) e aparece atrás do tampo.
         let assinaturaMesa = '';
+        let duracaoVideoAtual = 0; // duração informada pelo player (s) — barra de progresso
         function renderDJBooth() {
-            const el = document.getElementById('djBooth');
-            const playing = currentVideo && currentVideo.videoId;
-            const djUid  = currentVideo?.addedByUid || '';
-            const djName = currentVideo?.addedByName || '';
-            const isMe   = currentUser && djUid === currentUser.uid;
-            const djUser = activeUsers.find(u => u.id === djUid);
-            const djColor = safeColor(djUser?.color);
-            const djAvatar = djUser ? getAvatarUrl(djUser.avatarConfig) : '';
-
-            const assinatura = JSON.stringify([!!playing, djUid, djName, isMe, djColor, djAvatar]);
+            const r = document.getElementById('djBooth');
+            const tocando = !!currentVideo?.videoId;
+            const djUid = tocando ? currentVideo.addedByUid : null;
+            const eu = !!(currentUser && djUid && djUid === currentUser.uid);
+            const djUser = djUid ? activeUsers.find(u => u.id === djUid) : null;
+            const estado = !tocando ? 'casa' : eu ? 'eu' : 'dj';
+            const urlAvatar = tocando ? getAvatarUrl(djUser?.avatarConfig || CARD_BASE) : '';
+            const cor = safeColor(djUser?.color);
+            const pausado = tocando && playbackState?.videoId === currentVideo.videoId && playbackState.state === 'paused';
+            const ausente = tocando && !!djUser && !isPresent(djUser);
+            const titulo = tocando ? (currentVideo.title || titleCache[currentVideo.videoId] || '') : '';
+            const prox = queue.find(q => !activeUsers.length || presentUser(q.addedByUid));
+            const votos = tocando ? validSkipVotes() : 0;
+            const festa = tocando ? partyVoteCount() : 0;
+            const assinatura = JSON.stringify([estado, djUid, currentVideo?.addedByName, urlAvatar, cor, !!djUser?.isVIP,
+                pausado, ausente, titulo, prox?.id, prox?.addedByName, votos, skipThreshold(), festa, podeSerDJ()]);
             if (assinatura === assinaturaMesa) return;
             assinaturaMesa = assinatura;
-            const glowClass = playing ? 'booth-glow' : '';
-            const borderColor = playing ? (isMe ? '#ff00cc' : '#DB7944') : 'rgba(255,255,255,.12)';
 
-            el.innerHTML = `
-<div class="${glowClass} rounded-2xl p-2.5 transition-all" style="background:#0a0a0a;border:1px solid ${borderColor};min-width:148px;">
-  <p class="text-center text-[9px] uppercase tracking-[.2em] text-[#DB7944] font-bold mb-1.5">${Icons.fila} Mesa de DJ</p>
-
-  <!-- SVG DA MESA -->
-  <svg width="140" height="72" viewBox="0 0 140 72" xmlns="http://www.w3.org/2000/svg">
-    <!-- base da mesa -->
-    <rect x="2" y="40" width="136" height="28" rx="5" fill="#111" stroke="#2a2a2a" stroke-width="1"/>
-    <!-- reflexo da mesa -->
-    <rect x="2" y="40" width="136" height="6" rx="5" fill="#222"/>
-
-    <!-- Toca-disco esquerdo -->
-    <g transform="translate(28,24)">
-      ${playing ? `<circle r="22" fill="#0d0d0d" stroke="#1a1a1a" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center"/>
-      <circle r="16" fill="none" stroke="#1a1a1a" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center"/>
-      <circle r="10" fill="none" stroke="#222" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center"/>` : `<circle r="22" fill="#0d0d0d" stroke="#1a1a1a" stroke-width="1"/>
-      <circle r="16" fill="none" stroke="#1a1a1a" stroke-width="1"/>
-      <circle r="10" fill="none" stroke="#222" stroke-width="1"/>`}
-      <circle r="3.5" fill="#DB7944"/>
-      <circle r="1" fill="#060606"/>
-    </g>
-    <!-- braço do toca-disco esq -->
-    <line x1="50" y1="8" x2="40" y2="22" stroke="#DB7944" stroke-width="1.5" stroke-linecap="round" opacity=".8"/>
-
-    <!-- Toca-disco direito -->
-    <g transform="translate(112,24)">
-      ${playing ? `<circle r="22" fill="#0d0d0d" stroke="#1a1a1a" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center;animation-delay:.4s"/>
-      <circle r="16" fill="none" stroke="#1a1a1a" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center;animation-delay:.4s"/>
-      <circle r="10" fill="none" stroke="#222" stroke-width="1" class="spin-vinyl" style="transform-box:fill-box;transform-origin:center;animation-delay:.4s"/>` : `<circle r="22" fill="#0d0d0d" stroke="#1a1a1a" stroke-width="1"/>
-      <circle r="16" fill="none" stroke="#1a1a1a" stroke-width="1"/>
-      <circle r="10" fill="none" stroke="#222" stroke-width="1"/>`}
-      <circle r="3.5" fill="#DB7944"/>
-      <circle r="1" fill="#060606"/>
-    </g>
-    <!-- braço do toca-disco dir -->
-    <line x1="134" y1="8" x2="124" y2="22" stroke="#DB7944" stroke-width="1.5" stroke-linecap="round" opacity=".8"/>
-
-    <!-- Mixer central -->
-    <rect x="57" y="14" width="26" height="32" rx="3" fill="#0d0d0d" stroke="#2a2a2a" stroke-width="1"/>
-    <!-- knobs -->
-    <circle cx="65" cy="22" r="3" fill="#DB7944" stroke="#a6460f" stroke-width=".5"/>
-    <circle cx="75" cy="22" r="3" fill="#00ffff" stroke="#00cccc" stroke-width=".5"/>
-    <circle cx="70" cy="32" r="4" fill="#ff00cc" stroke="#cc0099" stroke-width=".5"/>
-    <!-- fader -->
-    <rect x="64" y="40" width="12" height="1.5" rx="1" fill="#333"/>
-    <rect x="68" y="38" width="4" height="5" rx="1" fill="#555"/>
-
-    <!-- Equalizer bars EQ -->
-    ${playing ? `
-    <rect x="6"  y="58" width="3" height="8" rx="1" fill="#00ff88" style="animation:eq1 .28s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box"/>
-    <rect x="11" y="55" width="3" height="11" rx="1" fill="#00ff88" style="animation:eq3 .35s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.1s"/>
-    <rect x="16" y="60" width="3" height="6" rx="1" fill="#00ff88" style="animation:eq2 .42s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.07s"/>
-    <rect x="21" y="56" width="3" height="10" rx="1" fill="#00ccff" style="animation:eq4 .31s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.18s"/>
-    <rect x="26" y="59" width="3" height="7" rx="1" fill="#00ccff" style="animation:eq5 .38s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.05s"/>
-
-    <rect x="108" y="57" width="3" height="9"  rx="1" fill="#ff00cc" style="animation:eq2 .33s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box"/>
-    <rect x="113" y="54" width="3" height="12" rx="1" fill="#ff00cc" style="animation:eq4 .29s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.12s"/>
-    <rect x="118" y="60" width="3" height="6"  rx="1" fill="#ff6600" style="animation:eq1 .4s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.08s"/>
-    <rect x="123" y="56" width="3" height="10" rx="1" fill="#ff6600" style="animation:eq3 .35s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.2s"/>
-    <rect x="128" y="58" width="3" height="8"  rx="1" fill="#ffff00" style="animation:eq5 .44s ease-in-out infinite;transform-origin:bottom;transform-box:fill-box;animation-delay:.06s"/>
-    ` : `
-    <rect x="6" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="11" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="16" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="21" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="26" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="108" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="113" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="118" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="123" y="63" width="3" height="3" rx="1" fill="#333"/>
-    <rect x="128" y="63" width="3" height="3" rx="1" fill="#333"/>
-    `}
-  </svg>
-
-  <!-- DJ atual -->
-  ${playing && djName ? `
-  <div class="flex items-center gap-2 justify-center mt-1.5">
-    ${djAvatar ? imgAvatar(djAvatar, `alt="" class="w-7 h-7 rounded-full bg-[#111] ${isMe ? 'dj-bounce' : ''}" style="box-shadow:0 0 8px ${djColor}80"`) : ''}
-    <div>
-      <p class="text-[9px] text-[#FFF7EB]/65">${Icons.headphones} Na mesa agora:</p>
-      <p class="text-[10px] font-bold truncate max-w-[85px]" style="color:${djColor}">${esc(djName)}${isMe ? ' (Você!)' : ''}</p>
-    </div>
-  </div>` : `<p class="text-center text-[9px] text-[#FFF7EB]/60 mt-1">${Icons.playlist} Tocando a playlist da casa</p>`}
-</div>`;
-            hidratarAvatares(el);
+            r.dataset.estado = estado;
+            r.toggleAttribute('data-pausado', pausado);
+            r.toggleAttribute('data-ausente', ausente);
+            r.style.setProperty('--cor-dj', cor);
+            const nomeDJ = currentVideo?.addedByName || 'DJ';
+            document.getElementById('mesaNome').textContent =
+                estado === 'casa' ? 'Playlist da casa' : estado === 'eu' ? 'Você na mesa' : nomeDJ;
+            if (tocando) trocarAvatar(document.getElementById('mesaAvatar'), urlAvatar);
+            const dj = document.getElementById('mesaDJ');
+            const conversavel = estado === 'dj' && !!currentUser;
+            dj.tabIndex = conversavel ? 0 : -1;
+            dj.setAttribute('aria-label', estado === 'dj' ? `Conversar com ${nomeDJ}, DJ agora` : estado === 'eu' ? 'Você na mesa de DJ' : 'Mesa livre');
+            dj.title = estado === 'dj' ? `${nomeDJ} na mesa${ausente ? ' (fora da tela)' : ''}` : '';
+            document.getElementById('mesaCoroa').classList.toggle('hidden', !(tocando && djUser?.isVIP));
+            document.getElementById('mesaTitulo').textContent = tocando ? (titulo || 'Tocando agora') : 'Mesa livre';
+            document.getElementById('mesaVotos').innerHTML = [
+                festa ? `<span title="Votos pra essa tocar na festa">${Icons.fire} ${festa}</span>` : '',
+                votos ? `<span title="Votos pra pular">pular ${votos}/${skipThreshold()}</span>` : ''
+            ].filter(Boolean).join(' · ');
+            document.getElementById('mesaProximo').textContent = prox
+                ? `A seguir: ${prox.addedByName || 'Investidor'}`
+                : (tocando ? 'Ninguém na fila ainda' : 'Fila vazia');
+            const assumir = document.getElementById('mesaAssumir');
+            assumir.textContent = podeSerDJ() ? 'Assumir a mesa' : 'Mesa só com ingresso';
+            atualizarProgressoMesa();
         }
+
+        // barra e tempo: 1×/s, só mexe em uma variável CSS e um texto
+        const mmss = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+        function atualizarProgressoMesa() {
+            const r = document.getElementById('djBooth');
+            const tempo = document.getElementById('mesaTempo');
+            if (!currentVideo?.videoId) {
+                r.style.setProperty('--p', 0);
+                r.removeAttribute('data-corte');
+                tempo.textContent = '';
+                return;
+            }
+            const decorrido = minhaPosicao() ?? Math.max(0, (agora() - (currentVideo.startedAt || agora())) / 1000);
+            const limite = MAX_PLAY_MS / 1000;
+            const fim = duracaoVideoAtual ? Math.min(duracaoVideoAtual, limite) : limite;
+            const resta = Math.max(0, fim - decorrido);
+            // o corte de 10 min é o que vai encerrar a música? avisa no último minuto
+            const corte = (!duracaoVideoAtual || duracaoVideoAtual > limite) && resta < 60;
+            r.style.setProperty('--p', Math.min(1, decorrido / fim).toFixed(3));
+            r.toggleAttribute('data-corte', corte);
+            tempo.textContent = corte ? `corte em ${mmss(resta)}` : `faltam ${mmss(resta)}`;
+        }
+        setInterval(() => { if (!document.hidden) atualizarProgressoMesa(); }, 1000);
+
+        // estado "casa": quem tem ingresso vai direto pro campo da fila; quem não tem, pra confirmação
+        window.assumirMesa = () => {
+            if (!podeSerDJ()) { window.abrirConfirmacaoIngresso(); return; }
+            if (innerWidth < 768) window.setAbaLateral('fila');
+            document.getElementById('videoUrlInput').focus();
+        };
+        document.getElementById('mesaDJ').addEventListener('click', () => {
+            const djUid = currentVideo?.videoId ? currentVideo.addedByUid : null;
+            if (djUid && currentUser && djUid !== currentUser.uid) window.openDM(djUid);
+        });
+
+        // área da mesa: ninguém para na frente do tampo (calculada do retângulo real da mesa)
+        function zonaMesa() {
+            const f = document.getElementById('danceFloor').getBoundingClientRect();
+            const m = document.getElementById('djBooth').getBoundingClientRect();
+            if (!f.width || !f.height || !m.width) return null;
+            return {x1: (m.left - f.left) / f.width * 100 - 4, y1: (m.top - f.top) / f.height * 100 - 8};
+        }
+        const naMesa = (x, y) => { const z = zonaMesa(); return !!z && x >= z.x1 && y >= z.y1; };
+        const foraDaMesa = (x, y) => { const z = zonaMesa(); return z && x >= z.x1 && y >= z.y1 ? {x: z.x1 - 1, y} : {x, y}; };
+
+        // pista baixinha (celular pequeno): esconde letreiro e botão da mesa
+        new ResizeObserver(([e]) => {
+            document.getElementById('danceFloor').toggleAttribute('data-pista', false);
+            if (e.contentRect.height < 180) document.getElementById('danceFloor').dataset.pista = 'curta';
+        }).observe(document.getElementById('danceFloor'));
 
         // ── INICIALIZAÇÃO DA UI (chamada após auth OK ou em modo offline) ──
         // iniciarUI não toca em currentUser — o caller define currentUser antes de chamar
@@ -1829,7 +1952,7 @@
                 x = 8 + Math.random() * 84;
                 y = 18 + Math.random() * 70;
                 t++;
-            } while (t < 30 && (inVipZone(x, y) || (x > 78 && y > 62)));
+            } while (t < 30 && (inVipZone(x, y) || naMesa(x, y)));
             spawnPoint = {x, y};
             return spawnPoint;
         }
@@ -1947,8 +2070,8 @@
         document.getElementById('danceFloor').addEventListener('click', e => {
             if (!currentUser) return;
             const r = e.currentTarget.getBoundingClientRect();
-            const x = ((e.clientX - r.left) / r.width) * 100;
-            const y = ((e.clientY - r.top) / r.height) * 100;
+            // clique em cima da mesa: para logo ao lado dela
+            const {x, y} = foraDaMesa(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
             if (inVipZone(x, y) && !localProfile.isVIP) {
                 showToast(`${Icons.crown} Área VIP — só pra quem já garantiu o ingresso!`, TICKETS_URL);
                 return;
@@ -1978,8 +2101,7 @@
             if (!me) return;
             const passo = e.shiftKey ? 10 : 4;
             const limita = v => Math.min(96, Math.max(4, v));
-            const x = limita((me.x ?? 50) + dir[0] * passo);
-            const y = limita((me.y ?? 50) + dir[1] * passo);
+            const {x, y} = foraDaMesa(limita((me.x ?? 50) + dir[0] * passo), limita((me.y ?? 50) + dir[1] * passo));
             if (inVipZone(x, y) && !localProfile.isVIP) {
                 showToast(`${Icons.crown} Área VIP — só pra quem já garantiu o ingresso!`, TICKETS_URL);
                 return;
@@ -2015,8 +2137,8 @@
                 vistos.add(uid);
                 const isDJ   = !!(currentVideo?.videoId) && currentVideo?.addedByUid === uid;
                 const isMe   = uid === currentUser?.uid;
-                const posX   = isDJ ? DJ_X : (u.x ?? 50);
-                const posY   = isDJ ? DJ_Y : (u.y ?? 50);
+                const posX   = u.x ?? 50;
+                const posY   = u.y ?? 50;
                 const color  = safeColor(u.color);
                 // a aura VIP usa a COR ESCOLHIDA pelo usuário (mais intensa); a coroa marca o VIP
                 const vipGlow = `0 0 24px ${color}a0, 0 0 0 3px ${color}`;
@@ -2057,7 +2179,8 @@
                 // posição sempre: é ela que desliza com a transição
                 reg.el.style.left = `${posX}%`;
                 reg.el.style.top = `${posY}%`;
-                reg.el.style.zIndex = bubble ? 55 : isMe ? 50 : isDJ ? 40 : 10;
+                reg.el.style.zIndex = bubble ? 55 : isMe ? 50 : 10;
+                reg.el.classList.toggle('na-mesa', isDJ); // o DJ aparece na mesa, não na pista
 
                 // conteúdo só quando algo visível mudou (refazer reinicia os passinhos)
                 const assinatura = JSON.stringify([urlAvatar, etiqueta, isDJ, !!u.isVIP, color, danceCls,
@@ -2278,6 +2401,7 @@
             lastSyncSeekAt = 0;
             assinaturaOverlay = ''; // overlay recriado vazio: desenha de novo
             iframeCriadoEm = Date.now();
+            duracaoVideoAtual = 0;
             precisaTocar = false;
             if (currentVideo?.videoId) {
                 const isMe = currentUser && currentVideo.addedByUid === currentUser.uid;
@@ -2685,6 +2809,7 @@ ${cd}`;
                     if (saltou) publishPlayback();
                 }
                 if (typeof d.info.playerState === 'number') newState = d.info.playerState;
+                if (currentVideo?.videoId && d.info.duration > 0) duracaoVideoAtual = d.info.duration;
             } else if (d.event === 'onStateChange' && typeof d.info === 'number') {
                 newState = d.info;
             }

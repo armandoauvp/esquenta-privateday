@@ -50,6 +50,21 @@ Enquanto o modal está aberto, o áudio do player fica abafado (volume ~10% + de
 ## Fila do DJ e player
 
 ### Adicionar música
+### Mesa de DJ (palco com cabine)
+No canto inferior direito da pista, a mesa é um pequeno palco:
+- **holofote** descendo sobre a cabine e **letreiro** com o nome do DJ (sublinhado na cor da aura dele);
+- o **DJ aparece atrás do tampo**, só cabeça e ombros, balançando no ritmo, com fones e a coroa se for VIP. O avatar dele sai da pista enquanto toca e volta para o mesmo lugar quando sai da mesa;
+- **pratos girando** (param quando o DJ pausa) e mixer;
+- **visor** com o título da música, a barra de progresso, "faltam m:ss" (ou "corte em m:ss" em vermelho no último minuto, quando o limite de 10 min é que vai encerrar a música), votos de festa e de pular, e "A seguir: Fulano".
+
+Estados:
+- **Playlist da casa:** cabine vazia, letreiro "Playlist da casa" e botão **"Assumir a mesa"**. Para quem tem ingresso, o botão leva ao campo da fila; para quem não tem, à confirmação do e-mail.
+- **Público:** tocar no DJ abre o pedido de papo.
+- **O próprio DJ:** letreiro "Você na mesa" em rosa.
+- **DJ fora da tela:** o avatar fica translúcido.
+
+No celular a mesa encolhe para 128 px e mostra só a cabine e a barra. Numa pista bem baixa (menos de 180 px), o letreiro também some. Ninguém consegue parar na frente do tampo: clique, teclado e ponto de entrada respeitam a área da mesa.
+
 **A mesa de DJ é exclusiva de quem tem ingresso confirmado.** Para quem entrou sem ingresso, o campo da fila fica travado com um aviso, um atalho "Já tenho: confirmar e-mail" e o link para a página de ingressos; forçar o envio mostra o mesmo convite. As regras do Firestore recusam a fila de quem não tem o vínculo `vip/{uid}`.
 
 Cole um link do YouTube no campo da fila. A música entra no fim da fila com seu nome e o **título resolvido automaticamente** (oEmbed via noembed.com, sem chave de API); o título também aparece numa pílula sobre o player enquanto toca.
