@@ -1,6 +1,6 @@
 # 🪩 Esquenta AUVP Private Day
 
-Pista de dança virtual em tempo real para o esquenta do **AUVP Private Day 2026**. Os usuários criam um avatar, dançam numa pista 80s, conversam no chat ao vivo (e no privado), colocam músicas do YouTube na fila do DJ e votam no que toca — tudo sincronizado entre todos os participantes via Firebase.
+Pista de dança virtual em tempo real para o esquenta do **AUVP Private Day 2026**. Os usuários criam um avatar, dançam numa pista 80s, conversam no chat ao vivo (e no privado), colocam músicas do YouTube na fila do DJ e votam no que toca — tudo sincronizado entre todos os participantes por um servidor próprio na Cloudflare (pasta `servidor/`).
 
 **App de arquivo único:** todo o HTML, CSS e JavaScript vivem em [`index.html`](index.html). Não há build, bundler nem dependências locais — basta servir o arquivo (publicado na Vercel).
 
@@ -21,7 +21,7 @@ Pista de dança virtual em tempo real para o esquenta do **AUVP Private Day 2026
 - **Votação para pular**: o botão "Pular" registra votos; quando a maioria dos online vota, rola uma **contagem regressiva de 5s** e a música troca.
 - **Limite de 10 minutos**: todo vídeo é pulado automaticamente ao completar 10 min de reprodução.
 - **Playlist da casa (fallback)**: se ninguém está tocando nada, o player toca em loop o [vídeo da casa](https://youtu.be/5D_Of9Zpsgs), com as músicas do esquenta emendadas, e todo mundo ouve o mesmo trecho. Quando alguém adiciona uma música, uma contagem regressiva aparece e a música do usuário assume a mesa.
-- **🔥 "Essa vai pra festa!"**: botão de voto por música, gravado no Firestore (`partyVotes`) para curadoria do gosto musical da galera para a festa real.
+- **🔥 "Essa vai pra festa!"**: botão de voto por música, gravado no servidor (tabela `festa`) para curadoria do gosto musical da galera para a festa real.
 - Avanço automático ao fim de cada vídeo (YouTube IFrame API).
 - **A pista não fica refém de quem sumiu**: quem está na mesa precisa ficar na tela — fechar o app, minimizar ou trocar de aba por mais de ~45 s passa a vez para a próxima música e tira a pessoa da fila (recarregar a página não custa o lugar). Vídeo indisponível também é pulado na hora, e um player travado se recarrega sozinho.
 - **Títulos das músicas** resolvidos automaticamente via oEmbed (sem chave de API) — aparecem na fila, sobre o player e no ranking.
@@ -48,23 +48,24 @@ Pista de dança virtual em tempo real para o esquenta do **AUVP Private Day 2026
 ## 🚀 Como rodar
 
 1. Sirva o `index.html` em qualquer host estático — em produção, a Vercel (ver [docs/deploy.md](docs/deploy.md)) — ou abra localmente.
-2. O app precisa de internet para: Tailwind CDN, Google Fonts, Firebase, DiceBear e YouTube.
-3. As credenciais do Firebase já estão em `FIREBASE_CONFIG_FALLBACK` dentro do `index.html` (projeto `auvp-privateday`). Para usar outro projeto, veja [docs/deploy.md](docs/deploy.md).
+2. O app precisa de internet para: Tailwind CDN, Google Fonts, o servidor da pista (`*.workers.dev`), DiceBear e YouTube.
+3. O endereço do servidor está em `SALA_SERVIDOR` dentro do `index.html`. Para rodar o servidor na sua máquina e publicar, veja [servidor/README.md](servidor/README.md) e [docs/deploy.md](docs/deploy.md). `?sala=teste` no endereço usa a sala de testes.
 
 ## 📚 Documentação
 
 | Arquivo | Conteúdo |
 |---|---|
-| [docs/arquitetura.md](docs/arquitetura.md) | Estrutura do código, modelo de dados no Firestore, sincronização (líder, contagem, votos) |
+| [docs/arquitetura.md](docs/arquitetura.md) | Estrutura do código, a sala no servidor, protocolo, sincronização (contagem, votos, relógio) |
 | [docs/funcionalidades.md](docs/funcionalidades.md) | Guia detalhado de cada funcionalidade e como ela funciona por dentro |
-| [docs/deploy.md](docs/deploy.md) | Publicação, configuração do Firebase e solução de problemas |
+| [docs/deploy.md](docs/deploy.md) | Publicação (Vercel e Cloudflare), organização com Google, ingressos e solução de problemas |
+| [servidor/README.md](servidor/README.md) | Servidor da pista: protocolo, testes e resultado da carga com 500 robôs |
 | [CLAUDE.md](CLAUDE.md) | Guia para desenvolvimento com Claude Code neste repositório |
 
 ## 🛠 Stack
 
 - **UI**: HTML + [Tailwind CSS (CDN)](https://tailwindcss.com) + CSS custom (animações da pista)
 - **3D**: [Three.js](https://threejs.org) via jsDelivr (import dinâmico com fallback 2D)
-- **Tempo real**: [Firebase](https://firebase.google.com) — Auth anônimo + Firestore (`onSnapshot`)
+- **Tempo real**: [Cloudflare Workers + Durable Objects](https://developers.cloudflare.com/durable-objects/) — WebSocket com hibernação, SQLite na própria sala (plano gratuito)
 - **Avatares**: [DiceBear v8 – Avataaars](https://www.dicebear.com)
 - **Player**: YouTube IFrame Embed + postMessage API
 - **Títulos**: oEmbed via [noembed.com](https://noembed.com) (CORS liberado, sem chave)

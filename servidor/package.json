@@ -1,0 +1,18 @@
+{
+  "name": "esquenta-pista-servidor",
+  "private": true,
+  "type": "module",
+  "description": "Sala da pista do Esquenta AUVP Private Day: Cloudflare Worker + Durable Object (WebSocket com hibernação)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tipos": "tsc --noEmit",
+    "carga": "node teste/carga.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261015.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.151.0",
+    "ws": "^8.22.0"
+  }
+}

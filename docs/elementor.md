@@ -64,6 +64,6 @@ e suba o arquivo novo por cima do antigo. Para confirmar em produção que a ver
 
 ## O que continua vindo de CDN
 
-Não dá para embutir, e o app depende de rede de qualquer forma (é um app em tempo real): Tailwind, Google Fonts, SDK do Firebase, DiceBear (os avatares), Three.js (opcional, com fallback 2D) e o player do YouTube. A lista completa de domínios que precisam estar liberados está em [deploy.md](deploy.md).
+Não dá para embutir, e o app depende de rede de qualquer forma (é um app em tempo real): Tailwind, Google Fonts, o servidor da pista (Cloudflare, por WebSocket), DiceBear (os avatares), Three.js (opcional, com fallback 2D) e o player do YouTube. A lista completa de domínios que precisam estar liberados está em [deploy.md](deploy.md).
 
 Se a página do WordPress tiver uma política de segurança de conteúdo (CSP) restritiva, esses domínios precisam entrar nela — o iframe herda a CSP do documento que o serve, não a da página hospedeira.

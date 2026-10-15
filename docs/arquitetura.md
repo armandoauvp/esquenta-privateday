@@ -2,14 +2,14 @@
 
 ## Visão geral
 
-O app é um **cliente Firebase puro**: não existe backend próprio. Cada navegador aberto é um "peer" que lê e escreve no Firestore; a UI de todos converge pelos listeners `onSnapshot`. A autenticação é **anônima** (cada visitante ganha um `uid` efêmero).
+O app (`index.html`) conversa por **WebSocket** com uma sala no servidor (`servidor/`, Cloudflare Workers + Durable Objects). A sala é **uma só instância**, com estado em memória e no SQLite do próprio Durable Object: presença, chat, fila, player, votos, papos privados, ingressos e organização. Ela recebe as ações de cada navegador, decide e espalha o resultado.
 
 ```
-┌───────────┐   onSnapshot    ┌────────────────────┐
-│ Navegador │◄───────────────►│ Firestore          │
-│ (index.html)│  setDoc/addDoc │ artifacts/{appId}/ │
-└───────────┘                 │   public/data/…    │
-      ▲                       └────────────────────┘
+┌─────────────┐   WebSocket (JSON)   ┌──────────────┐   ┌───────────────────────────┐
+│  Navegador  │◄────────────────────►│ Worker       │──►│ Durable Object "Pista"    │
+│ (index.html)│   ping/pong grátis   │ (roteia sala)│   │ sala principal · SQLite   │
+└─────────────┘                      └──────────────┘   │ alarmes · hibernação      │
+      ▲                                                 └───────────────────────────┘
       │ postMessage (IFrame API)
       ▼
 ┌───────────┐
@@ -17,191 +17,135 @@ O app é um **cliente Firebase puro**: não existe backend próprio. Cada navega
 └───────────┘
 ```
 
-## Modelo de dados (Firestore)
+**Por que não mais Firebase:** no Firestore cada escrita é lida por todos, então o custo cresce com o quadrado do público. No plano gratuito, a cota de leituras aguentava ~14 pessoas por 1 h. Na sala, o servidor junta as mudanças e manda um pacote por vez; mensagens enviadas pelo servidor não contam na cota. O teste com 500 robôs passou sem quedas (ver [`servidor/README.md`](../servidor/README.md)).
 
-Caminho base: `artifacts/{appId}/public/data/…` — `appId = auvp-privateday`.
+**O servidor é o dono da música.** Contagem regressiva, limite de 10 min, fim de vídeo, DJ ausente, faxina da fila e votação acontecem na sala. Não existe mais "líder" entre navegadores, nem transações, nem medo de um aparelho com o relógio errado apagar a fila de todo mundo.
 
-### `users/{uid}` — presença e perfil
+## Identidade
+
+No primeiro `ola`, o servidor cria um `id` (16 hex) e devolve um `token` (HMAC-SHA256 do id com o secret `SEGREDO`). O app guarda os dois (`store`: localStorage + cookie) e se reapresenta com eles a cada conexão. Token inválido gera um id novo. Recarregar a página, cair a rede ou trocar de aba não muda a identidade.
+
+## Protocolo
+
+Mensagens JSON; as que levam `req` recebem `{t:'ok', req, ...}` ou `{t:'erro', req, motivo, texto}`. No app, `pedir(msg)` devolve uma Promise que rejeita com o texto do servidor (ex.: "Calma! Espere um instante") ou, sem resposta, em 8 s; `enviar(msg)` é fire-and-forget (posição, reação, playback).
+
+Navegador → sala: `ola`, `hora` (relógio), `mover`, `perfil`, `ausente`, `chat`, `fila`, `sairFila`, `pular`, `passarVez`, `cancelar`, `festa`, `playback`, `fim`, `erroVideo`, `reacao`, `papo`, `aceitar`, `recusar`, `dm`, `ingresso`, `ranking`, `org`, `orgSair`, `admPular`, `admRemoverFila`, `admApagarChat`, `admExpulsar`.
+
+Sala → navegador:
+- `bemvindo`: o estado inteiro na entrada (pessoas, chat, fila, player, festa, papos e mensagens privadas da pessoa, `eu: {isVIP, isOrg}`);
+- `tick`: o que mudou, agrupado no máximo 4×/s (`pos`, `tudo`, `saiu`, `reset`, `chat`, `chatApagado`, `fila`, `player`, `festa`, `rx`);
+- direto, só para quem interessa: `ok`/`erro`, `hora`, `eu`, `dm`, `papo`, `outraAba`, `removido`.
+
+O texto `ping` é respondido `pong` pelo próprio runtime da Cloudflare, sem acordar a sala nem gastar cota. O app pinga a cada 25 s; sem pong até o ping seguinte, derruba a conexão e reconecta.
+
+## Estado da sala
+
+### Pessoas (`tick.pos/tudo/saiu`)
+```js
+{ id, name, color, avatarConfig, dance, isVIP, isOrg, x, y, away, awaySince }
+```
+Vivem no anexo de cada WebSocket (`serializeAttachment`), que sobrevive à hibernação. Quem fecha a aba fica **20 s** na pista (`GRACE_SAIDA_MS`): recarregar não tira ninguém da mesa nem da fila. `isVIP` e `isOrg` vêm do servidor, nunca do navegador.
+
+**Online ≠ presente.** Estar na lista mantém o avatar na pista; para DJ e fila vale `presente`: conectado (ou recarregando) **e** sem `away` há mais de `AWAY_GRACE_MS` (45 s). `away` sai na hora pelo `visibilitychange`. A mesma regra existe no app (`isPresent`), só para desenhar ("fora da tela", limiar de pular).
+
+### Chat
+```js
+{ id, uid, name, isVIP, isOrg, color, text, timestamp }
+```
+Últimas 50 em memória, 300 no SQLite. A censura de palavrões acontece no servidor (`censurar`).
+
+### Fila
+```js
+{ id, videoId, title, addedByName, addedByUid, addedByVIP: true, timestamp }
+```
+Só quem tem ingresso entra, no máximo 3 músicas por pessoa, sem repetir a que toca ou já está na fila. O dono tira a própria; a organização tira qualquer uma.
+
+### Player
 ```js
 {
-  name, color, isVIP,
-  avatarConfig: { top, accessories, facialHair, clothing, eyes,
-                  eyebrows, mouth, skinColor, hairColor, clothesColor },
-  x, y,          // posição na pista (0–100 %)
-  lastUpdate,    // heartbeat; considerado online se < 120 s
-  away,          // true = aba escondida/minimizada (visibilitychange)
-  awaySince      // Date.now() de quando saiu da tela (0 se está na tela)
+  state:     { videoId, startedAt, addedByUid, addedByName, title },  // videoId null = playlist da casa
+  skipVotes: { videoId, votes: { id: true } },
+  countdown: { endsAt, reason, por, cancelavel } | null,
+  playback:  { videoId, state: 'playing'|'paused', time, at } | null
 }
 ```
-Heartbeat a cada 30 s (`startHeartbeat`). Usuários sem update há 2 min somem da pista.
+Todos os horários são do relógio do servidor; o app compara com `agora()`.
 
-**Online ≠ presente.** Continuar na lista da pista (`activeUsers`, < 120 s) mantém o avatar visível; para as regras de DJ e fila vale o conceito mais estrito de `isPresent(u)`: heartbeat com menos de `PRESENCE_STALE_MS` (75 s) **e** não estar `away` há mais de `AWAY_GRACE_MS` (45 s). `away` é publicado na hora pelo `visibilitychange` (e por `pagehide`, em melhor esforço) — quem fecha a aba sem conseguir escrever cai pelo heartbeat velho.
+### SQLite da sala
+`estado` (fila e player), `chat`, `dm`, `papos`, `historico` (ranking), `festa` (curadoria "Essa vai pra festa!", **não apagar**), `ingressos` (hashes, com marca `manual`), `vip` (id → hash do ingresso), `org` (id → e-mail), `banidos`.
 
-### `chat/{autoId}` — chat público
-```js
-{ uid, name, isVIP, color, text, timestamp }
-```
-O cliente exibe as últimas 50, ordenadas por `timestamp`. Mensagens de dias anteriores mostram `dd/mm · hh:mm`.
+## Música
 
-### `dm/{autoId}` — chat privado
-```js
-{ convId, from, fromName, fromColor, to, participants: [from, to], text, timestamp }
-```
-`convId` = os dois uids ordenados e unidos por `_` (ex.: `abc_xyz`). O cliente assina só as próprias conversas (`where('participants', 'array-contains', meuUid)`) e as regras do Firestore recusam a leitura de conversa alheia. Mensagens antigas, sem `participants`, ficam ilegíveis para todos. Não-lidas: badge no avatar, contadas a partir do início da sessão (`dmSessionStart`) ou da última leitura (`dmReadAt`).
-
-### `dmThreads/{convId}` — solicitações de chat privado
-```js
-{ a, b, participants: [a, b], requestedBy, requestedByName, status, timestamp } // status: 'pending' | 'accepted' | 'declined'
-```
-Mesma regra do `dm`: só os dois participantes leem; aceitar/recusar altera apenas `status`.
-O papo só é liberado (envio de mensagens e abertura do painel) com `status === 'accepted'`. O destinatário vê um card Aceitar/Recusar; quem pediu recebe aviso na transição `pending → accepted`. Recusar permite novo pedido depois (o doc é sobrescrito).
-
-### `queue/{autoId}` — fila do DJ
-```js
-{ videoId, title, addedByName, addedByUid, addedByVIP, timestamp }
-```
-`addedByVIP` viaja no próprio doc para que a checagem na hora de subir para a mesa não dependa de a pessoa estar online. Docs antigos sem o campo continuam valendo; `addedByVIP === false` é descartado pela faxina da fila e na promoção.
-
-### `player/state` — vídeo atual (documento único)
-```js
-{ videoId, startedAt, addedByName, addedByUid }   // videoId null = playlist da casa
-```
-
-### `player/skipVotes` — votação de pular (documento único)
-```js
-{ videoId, votes: { uid: true, ... } }
-```
-Só vale se `videoId` bater com o vídeo atual. Resetado (`votes:{}`) a cada troca de música.
-
-### `player/countdown` — contagem regressiva (documento único)
-```js
-{ endsAt, reason }   // endsAt null = sem contagem
-```
-
-### `player/playback` — sincronia de reprodução (documento único)
-```js
-{ videoId, state, time, at }   // state: 'playing' | 'paused'; time em segundos; at = Date.now() do DJ
-```
-Publicado **pelo cliente do DJ** a cada 5 s e imediatamente ao pausar/retomar — mas **só com info fresca** (< 8 s): aba em segundo plano congela o player do DJ, e publicar posição congelada com carimbo novo prendia os seguidores num loop de seek. Os demais clientes comparam a posição esperada (`time + (agora - at)`) com o próprio player a cada 3 s e corrigem com `seekTo` quando o drift passa de 6 s, com **cooldown de 12 s entre seeks** (a posição local fica defasada logo após um seek e dispararia outro em sequência). Pausa/retomada são replicadas. Quem entra no meio da música já monta o iframe com `start=<segundos decorridos>`. **Só o DJ tem os controles do YouTube** (`controls=1` no aparelho dele): pausa, retoma e arrasta a barra. Um salto na posição do DJ (diferença acima da tolerância em relação ao previsto) publica `player/playback` na hora, sem esperar o ciclo de 5 s. Os demais têm `controls=0&disablekb=1&fs=0` e a camada de bloqueio no overlay. O vídeo da casa é travado do mesmo jeito para todos. Se o doc fica >15 s sem atualização (DJ saiu), ninguém força nada.
-
-### `ingressos/{hash}` — lista de compradores
-```js
-{ importadoEm } // id = SHA-256("auvp-privateday:" + email.trim().toLowerCase())
-```
-Importada do CSV da plataforma de vendas por `tools/importar-ingressos.py` (conta de serviço; o e-mail em texto nunca sai do computador de quem importa). As regras só permitem `get`, ou seja, conferir um hash por vez, nunca listar a coleção.
-
-### `vip/{uid}` — ingresso confirmado
-```js
-{ ingresso, em } // ingresso = o hash conferido
-```
-Criado pelo app quando o e-mail digitado confere com a lista; as regras só aceitam a criação se `ingressos/{ingresso}` existir. Só o dono lê. É o que as regras exigem para `isVIP` em `users` e `chat` e para criar item na `queue`. O hash não vai para o perfil público: se fosse, bastaria copiá-lo para virar VIP sem saber o e-mail.
-
-### `partyVotes/{videoId_uid}` — curadoria "Essa vai pra festa!"
-```js
-{ videoId, uid, name, addedByName, timestamp }
-```
-ID composto garante 1 voto por usuário por vídeo. **Esta coleção é o produto da curadoria — não apagar.** Para exportar: leia a coleção e agrupe por `videoId` (título recuperável via oEmbed).
-
-### `history/{autoId}` — músicas que já tocaram
-```js
-{ videoId, byUid, byName, title, timestamp }
-```
-Gravado por `setNowPlaying()` toda vez que um vídeo assume a mesa. Base do placar "DJs da noite" no ranking.
-
-### `reactions/{autoId}` — reações flutuantes
-```js
-{ uid, emoji, x, y, timestamp }
-```
-Cada cliente anima apenas reações recentes (< 6 s) ainda não vistas (`docChanges` + `Set` local). O cliente líder apaga docs com mais de 2 min para a coleção não crescer.
-
-## Mecanismos de sincronização
-
-### Iframe estável + overlay
-`renderPlayer()` recria o `<iframe id="ytFrame">` **apenas** quando `videoId`/`startedAt` mudam (chave `lastPlayerKey`). Tudo que muda com frequência (votos, contagem, avisos) é HTML dentro de `#playerOverlay`, atualizado por `updatePlayerOverlay()` — assim o vídeo nunca reinicia por causa de um voto.
-
-### Eleição de líder
-Ações automáticas que só podem acontecer **uma vez** (pular aos 10 min, avançar ao fim do vídeo, faxina da fila) são executadas apenas pelo cliente cujo `uid` é o **menor** entre os **presentes** (`isLeader()`). Os demais ignoram o gatilho. Se o líder cair, o próximo menor uid assume naturalmente no snapshot seguinte de `users`. A eleição prioriza quem está com a aba na frente porque o navegador estrangula os timers de abas escondidas — um líder minimizado não rodaria as verificações a tempo; se ninguém estiver presente, cai de volta na lista completa de online.
-
-### Presença ativa (o DJ precisa ficar na pista)
-A pista depende de quem está de fato olhando: o evento de fim de vídeo só chega a quem tem o player vivo, então um DJ que fecha o app deixaria a música presa até o limite de 10 min. Três mecanismos, todos apoiados em `isPresent()`:
-
-1. **DJ ausente** — timer de 5 s no líder: se o dono de `player/state` não está presente (respeitando 30 s de respiro após o início da música, para o doc de presença chegar), dispara a contagem "🎧 Fulano saiu da pista — próxima música!". Quem perdeu a vez com a aba escondida recebe um toast ao voltar (`perdiAVezAusente`).
-2. **Faxina da fila** — timer de 10 s no líder: apaga itens de `queue` cujo dono não está presente, com respiro de 45 s a partir do `timestamp` do item (protege quem acabou de entrar na fila e ainda não bateu heartbeat). `playNextVideo()` repete a checagem antes de promover a próxima música, caso a faxina ainda não tenha rodado.
-3. **Vídeo que não toca** — `onError` da IFrame API (removido, privado, embed bloqueado, região) dispara a troca: o DJ resolve na hora, o líder assume em 6 s. Sem isso o vídeo nunca "termina" e a pista fica na tela preta.
-
-Complementarmente, um watchdog **local** (10 s) recria só o próprio iframe quando o player para de reportar `infoDelivery` por 45 s sem estar pausado nem terminado — travamento costuma atingir um cliente só, e `renderPlayer()` recalcula o `start` pelo `startedAt`, devolvendo a pessoa ao ponto certo. Cooldown de 90 s entre resgates.
+### Troca (`avancar`)
+Só avança se a sala ainda estiver na música que motivou a troca (chave `videoId_startedAt`); avisos atrasados viram no-op. Pega a primeira música da fila cujo dono está presente (quem acabou de enviar tem prioridade), descarta as de quem saiu, grava o histórico e zera votos e contagem.
 
 ### Contagem regressiva
-`startCountdown(reason, action)`:
-1. Grava `player/countdown = {endsAt: agora+5s, reason}` → todos os clientes exibem o overlay (ticker local de 200 ms atualiza o número).
-2. O cliente **que iniciou** agenda `setTimeout(5s)` → executa `action()` (trocar música) e limpa o doc.
+`contagem(reason)` grava `countdown` com `endsAt = agora + 5 s` e marca um **alarme** do Durable Object para esse instante; ao disparar, a sala executa a troca. Só uma contagem por vez. Disparos: música entrando com a pista no vídeo da casa, votação, DJ passando a vez (cancelável por ele), DJ ausente, vídeo indisponível e organização.
 
-Disparada em dois casos: música adicionada enquanto a playlist da casa toca, e votação de pular atingindo o limiar.
+### Ronda (`verificar`)
+Roda em cada alarme (a cada 15 s enquanto há gente ou música, e nos instantes exatos de contagem, corte e saída) e depois de eventos relevantes:
+- contagem vencida → troca;
+- 10 min de música → troca direta (a mesa mostra "corte em m:ss" no último minuto);
+- DJ fora da pista depois de 30 s de música → contagem "Fulano saiu da pista";
+- fim de vídeo informado → o do DJ troca na hora; o de outros, se em 8 s o DJ não confirmar e houver 2 avisos ou o DJ estiver fora;
+- vídeo com erro (`onError` da IFrame API) → contagem "Vídeo indisponível" (DJ na hora; outros com 2 avisos ou DJ fora, em 6 s);
+- votos de pular no limiar → contagem;
+- pista no vídeo da casa e alguém presente na fila → contagem "Música de Fulano entrando";
+- faxina: música de quem está fora há mais de 45 s sai da fila;
+- pessoas que fecharam a aba há mais de 20 s saem da pista.
+
+Alarmes sobrevivem à hibernação; os `setTimeout` (só o agrupamento de 250 ms) não precisam.
 
 ### Votação de pular
-- Limiar: `max(1, min(10, floor(onlines/2)+1))` — 50%+1 dos presentes, com teto de 10 votos.
-- Voto: merge no mapa `votes` de `player/skipVotes`; 1 voto por uid, sem retirar voto.
-- Quem registra o voto que cruza o limiar inicia a contagem.
-
-### Limite de 10 minutos
-Timer local de 5 s em cada cliente compara `Date.now() - startedAt` com `MAX_PLAY_MS`. Ao estourar, o líder chama `playNextVideo()`.
-
-### Fim de vídeo
-No `load` do iframe o app envia `{event:'listening'}` (handshake da IFrame API) — repetido algumas vezes, pois uma tentativa única pode se perder. O fim chega como `onStateChange` (`info === 0`) **ou** `infoDelivery` (`info.playerState === 0`), dependendo do player; ambos são tratados, com guarda de disparo único por `(videoId, startedAt)`. O avanço tem três camadas: o **DJ** avança na hora (é quem certamente recebeu o próprio evento); se em 4 s nada mudou, o **líder** assume; após 9 s, **qualquer cliente** resolve. A sincronia de reprodução ignora o estado "terminou" (o DJ não publica e os seguidores não corrigem drift) para não brigar com o avanço. `playNextVideo` também descarta docs "fantasma" (a música que acabou de tocar ainda presente na fila por um delete atrasado) e apaga o doc da fila **antes** de escrever o novo estado — assim a música nunca recomeça ao terminar. O vídeo da casa repete sozinho (`loop=1&playlist=<id>`).
-
-### Playlist da casa (fallback)
-Sem `videoId` no `player/state`, cada cliente monta o embed do `FALLBACK_VIDEO` (um vídeo só, com as músicas emendadas) em loop (`loop=1&playlist=<id>`), **mutado** (autoplay com som é bloqueado pelos navegadores sem interação) com botão "Ativar som". **Todo mundo ouve o mesmo trecho**, sem nenhuma escrita no Firestore: a posição sai de um relógio comum, `posicaoFallback() = ((Date.now() − FALLBACK_EPOCA) / 1000) % duracaoFallback`. O iframe já nasce com `start=` nesse ponto, e a sincronia (abaixo) corrige o atraso do carregamento. A duração é **fixa** no código: o YouTube informa primeiro o valor arredondado e depois o fracionado, e com ~200 voltas desde a época uma diferença de 0,5 s vira ~100 s entre clientes. Trocou o vídeo? Atualize `FALLBACK_VIDEO` e `duracaoFallback` juntos.
-
-### Robustez: relógio, transações e saúde da conexão
-Não há backend, então três proteções evitam que **um** aparelho bagunce a pista de todos:
-
-- **Relógio corrigido (`agora()`)**: cada cliente mede o desvio do próprio relógio contra o servidor (grava `serverTimestamp()` no próprio doc de `users` e lê de volta com `getDocFromServer`; desvio ≈ `srv − (t0+t1)/2`, erro menor que metade da ida e volta). Tudo que é compartilhado usa a hora corrigida.
-- **Transações**: `avancar(chave)` troca de música só se `player/state` ainda estiver na chave que o cliente viu, e faz tudo junto (estado, votos zerados, posição, histórico, item da fila). `startCountdown` reivindica `player/countdown` numa transação (`por: uid`), e só quem iniciou zera ao final. Votos de pular também entram por transação.
-- **Saúde da conexão**: `users` e `player` assinam com `includeMetadataChanges`; `fromCache` indica que o servidor sumiu. Sem servidor, com listener caído ou com o relógio não medido, o cliente não é líder e a faixa "sem conexão" aparece. Listener que cai é reassinado com espera crescente.
-
-Também: a pausa do DJ vale até ele retomar (o YouTube não manda posição com vídeo pausado). O DJ só publica estados reais (tocando ou pausado), com a posição projetada. O handshake com o player insiste por até 30 s, e o player que não responde em 20 s é recriado uma vez. Fim de música durante uma contagem é reavaliado quando ela acaba. O líder confere a cada 5 s se há votos de pular acima do limiar ou player parado no fim. O limiar conta só quem está na tela, sem o DJ.
-
-### Desempenho: snapshots agendam, não desenham
-Com 300 pessoas chegam ~10 snapshots de presença por segundo. Os listeners só atualizam o estado e chamam `agendar(...)`; um único quadro (`requestAnimationFrame`, no máximo a cada 250 ms) desenha pista, mesa, fila, overlay e chat. Cada render compara uma assinatura do que mostra e não mexe no DOM se nada mudou: assim o botão "Pular" não é recriado no meio do toque e os vinis da mesa não reiniciam.
-
-Leituras: presença incremental (`docChanges` num `Map`, reassinada a cada 5 min com corte novo), votos "Essa vai pra festa!" só do vídeo atual, reações com `limit(30)` (faxina do líder por `getDocs` a cada minuto), histórico e votos completos só quando o ranking abre (cache de 60 s).
+Limiar `max(1, min(10, floor(ouvintes/2)+1))`, onde ouvintes são os presentes menos o DJ. Um voto por pessoa por música.
 
 ### Sincronia: todo mundo no mesmo segundo
-A cada 3 s, cada cliente (menos o DJ) compara a posição do próprio player com a referência e salta (`seekTo`) quando a diferença passa de `SINCRONIA_TOLERANCIA_S` (2 s). A referência é:
-- **vídeo da casa**: o relógio comum (considerando a volta do loop);
-- **música do DJ**: a posição que o DJ publica em `player/playback`; se a publicação tiver mais de 15 s, o tempo desde `startedAt`.
+- **Relógio**: o app mede o desvio contra a sala (troca `hora`, estilo NTP: desvio ≈ `s − (c + chegada)/2`, fica a amostra de menor ida e volta; 3 amostras ao conectar e 1 a cada 5 min). Tudo que é compartilhado usa `agora()`.
+- **Vídeo da casa**: relógio comum, `posicaoFallback() = ((agora() − FALLBACK_EPOCA)/1000) % duracaoFallback`, sem mensagem nenhuma. A duração é **fixa** no código: o YouTube informa primeiro o valor arredondado e depois o fracionado, e com ~200 voltas desde a época 0,5 s vira ~100 s de diferença.
+- **Música do DJ**: o DJ publica `playback` a cada 5 s e na hora em que pausa, retoma ou arrasta a barra (só estados reais, com posição fresca). Os demais comparam a cada 3 s e saltam (`seekTo`) acima de `SINCRONIA_TOLERANCIA_S` (2 s), com 8 s entre saltos e mira 0,4 s à frente. Sem publicação recente, a referência é o `startedAt`. A pausa do DJ vale até ele retomar.
+- **Só o DJ mexe no player**: `controls=1` só no iframe dele; os demais e o vídeo da casa têm `controls=0&disablekb=1&fs=0` e a camada de bloqueio do overlay.
 
-Entre dois saltos há um intervalo de 8 s, porque logo depois de um `seekTo` a posição local vem defasada e dispararia outro. Um iframe novo zera esse intervalo, então o atraso do carregamento é corrigido assim que o vídeo começa a tocar. O salto mira 0,4 s à frente, que é o tempo que o próprio salto leva. A pausa do DJ continua replicada.
+### Iframe estável + overlay
+`renderPlayer()` recria o `<iframe id="ytFrame">` **apenas** quando a chave da música muda (`lastPlayerKey`). Votos, contagem e avisos ficam em `#playerOverlay` (`updatePlayerOverlay()`), então o vídeo nunca reinicia por causa de um voto. Um watchdog local recria só o próprio iframe se o player ficar 45 s sem dar sinal (ou 20 s sem responder ao handshake).
 
-### "Filtro" de áudio com o modal aberto
-O YouTube não expõe o áudio do embed ao Web Audio (cross-origin), então o efeito de frequências cortadas é **simulado**: `setVolume(10)` via postMessage + `blur/saturate` no iframe. Reaplicado a cada 1,5 s enquanto o modal está aberto (o player pode não estar pronto na primeira tentativa).
+### Playlist da casa (fallback)
+Sem música do DJ, cada app monta o `FALLBACK_VIDEO` em loop (`loop=1&playlist=<id>`), **mutado** (autoplay com som é barrado sem interação) e com botão "Ativar som", já no trecho comum. Trocou o vídeo? Atualize `FALLBACK_VIDEO` e `duracaoFallback` juntos.
 
-### Pista WebGL
-**Tamanho do canvas**: o canvas recebe o tamanho por CSS (`width/height: 100%`) e a resolução por `setSize(w, h, false)`. Deixar o Three escrever o estilo com o `pixelRatio` embutido fazia o canvas ficar com o **dobro** do container em tela retina/celular — a cena era desenhada fora da área visível, o globo aparecia encostado na borda direita e os feixes ficavam cortados. Bug invisível em telas com `devicePixelRatio: 1`, presente em praticamente todo celular.
+## Papos privados
+`papo` cria o pedido (`{id: idA_idB ordenados, a, b, participants, requestedBy, status: 'pending'}`); `aceitar`/`recusar` mudam o status. `dm` só passa com o papo aceito. A sala manda pedidos e mensagens **só** aos dois participantes, e o `bemvindo` traz os da própria pessoa. Ninguém mais lê, nem a organização.
 
-**Enquadramento**: a cada resize a câmera recua o suficiente para a cena caber na proporção atual (`max` entre a distância que satisfaz a altura e a que satisfaz a largura) e mira mais alto quanto mais baixa e larga for a pista, para o globo não encostar no topo.
+## Reações
+Uma por pessoa a cada 1,5 s, saindo da posição do avatar (a sala usa a posição dela, não a enviada). No máximo 12 por pacote; no auge, o excesso aparece só para quem tocou. Reações VIP exigem ingresso **e** estar na Área VIP.
 
-**Feixes**: o ápice de cada cone nasce no centro do globo (`cone.position.y = -comprimento/2`), então o feixe fica preso à esfera em qualquer ângulo; a cor vai apagando ao longo do comprimento por gradiente de vértice, e com blending aditivo o preto não soma nada — a ponta se dissolve em vez de terminar num corte reto. Os cones ficam em grupos aninhados (azimute → inclinação) para evitar ambiguidade de ordem de Euler.
+## Ingresso
+O app manda o SHA-256 do e-mail (`INGRESSO_SAL` + e-mail normalizado). Se o hash estiver na lista, a sala grava o vínculo `vip(id, hash)`. O vínculo só vale enquanto o hash continuar na lista: reembolso importado com `--substituir` tira o VIP na próxima conexão. O hash também fica no navegador (`localProfile.ingresso`) e vai no `ola`, refazendo o vínculo noutra identidade. Nunca vai para o perfil público.
 
-O Three.js entra por **import dinâmico** dentro de `try/catch` — se o CDN estiver bloqueado ou não houver WebGL, o globo 2D em CSS (`#cssDiscoBall`) permanece e nada mais é afetado. A cena (globo facetado espelhado, 4 point lights neon orbitando, 4 feixes cônicos aditivos e ~220 partículas) roda em `setAnimationLoop` e pulsa numa batida estimada de 118 BPM quando `glPlaying` é verdadeiro (vídeo tocando ou fallback com som ativado). O canvas fica em `#webglLayer`, atrás dos ladrilhos e dos avatares, com `ResizeObserver` para redimensionar.
+## Organização
+"Entrar com Google" (Google Identity Services, carregado só ao abrir o diálogo) devolve um ID token. A sala confere assinatura (chaves públicas do Google), emissor, `aud = GOOGLE_CLIENT_ID`, validade e `email_verified`, e só aceita e-mails do secret `ADMINS`. O selo fica gravado na identidade (`org`). Poderes: `admPular`, `admRemoverFila`, `admApagarChat`, `admExpulsar` (fecha a conexão, bloqueia a identidade por 30 min, apaga as mensagens e tira as músicas da pessoa).
 
-### Pré-carregamento dos bonecos
-A cortina (`#loadingScreen`) só sobe quando a promessa `assetsProntos` resolve: imagens da marca, o avatar de quem chegou, **todas** as miniaturas das opções e `document.fonts.ready`. Cada imagem resolve tanto no `onload` quanto no `onerror` (uma falha não pode prender ninguém) e há um teto de `ASSETS_TIMEOUT_MS` (20 s) via `Promise.race`. O progresso alimenta a barra da tela de carregamento. `iniciarUI()` monta a UI e é guardada por `uiIniciada` — auth e timeout de segurança podem chamá-la, mas ela roda uma vez só.
+## Desempenho
+- **Na sala**: as mudanças são agrupadas num `tick` a cada 250 ms, serializado uma vez e mandado a todos. Movimento vai só como `[id, x, y]`; o perfil inteiro só quando muda. Ranking em cache por 1 min.
+- **No app**: o `tick` só atualiza o estado e chama `agendar(...)`; um único quadro (`requestAnimationFrame`, no máximo a cada 250 ms) desenha. Cada render compara uma assinatura e não mexe no DOM se nada visível mudou. Pista e chat por diferença (`avataresNaPista`, `nosDoChat`).
+- **Cota**: cada mensagem recebida conta 1/20 de requisição. Posição sai agrupada (clique e teclado), perfil e ausência só quando mudam, reação no máximo a cada 1,5 s.
 
-Isso só é possível porque as miniaturas usam **`CARD_BASE`**, uma config fixa: cada card mostra a opção desenhada sobre esse boneco neutro, então o conjunto de URLs é finito (uma por opção do catálogo) e constante. Antes, o card era desenhado sobre a config **atual** do usuário — qualquer clique mudava a URL de todos os ~78 cards e recarregava tudo. O custo é que o card não reflete as cores da pessoa; o preview grande (esse sim, com a config real) continua ao lado.
+## Pista WebGL
+**Tamanho do canvas**: o canvas recebe o tamanho por CSS (`width/height: 100%`) e a resolução por `setSize(w, h, false)`. Deixar o Three escrever o estilo com o `pixelRatio` embutido fazia o canvas ficar com o **dobro** do container em tela retina/celular — a cena era desenhada fora da área visível.
 
-Complementarmente, as opções são montadas **uma vez** (`montarOpcoes`) e a escolha só alterna classes (`marcarSelecao`). Reconstruir o `innerHTML` a cada clique repedia as imagens e zerava o `scrollLeft` das faixas. Por isso o estado de seleção das bolinhas de cor virou a classe `.cfg-dot-on` (antes eram utilitários do Tailwind alternados no template).
+**Enquadramento**: a cada resize a câmera recua o suficiente para a cena caber na proporção atual e mira mais alto quanto mais baixa e larga for a pista.
 
-### Títulos via oEmbed
-`fetchTitle(videoId)` consulta `noembed.com` (proxy oEmbed com CORS liberado) e guarda em `titleCache` (memória). O título é persistido no doc da fila no momento do add e propagado para `player/state` e `history`; consumidores fazem fetch preguiçoso quando falta.
+**Feixes**: o ápice de cada cone nasce no centro do globo, então o feixe fica preso à esfera em qualquer ângulo; a cor apaga ao longo do comprimento e, com blending aditivo, a ponta se dissolve.
+
+O Three.js entra por **import dinâmico** dentro de `try/catch` — sem CDN ou sem WebGL, o globo 2D (`#cssDiscoBall`) permanece. A cena roda a 30 fps, só depois da cortina, pausa fora da tela e com modal aberto, e pulsa numa batida de 118 BPM quando há música audível.
+
+## Pré-carregamento dos bonecos
+A cortina (`#loadingScreen`) só sobe quando `assetsProntos` resolve: imagens da marca, o avatar de quem chegou, **todas** as miniaturas das opções e as fontes. Cada imagem resolve no `onload` e no `onerror`, com teto de 20 s. Isso só funciona porque as miniaturas usam **`CARD_BASE`**, uma config fixa: o conjunto de URLs é finito e constante. As opções são montadas **uma vez** (`montarOpcoes`) e a escolha só alterna classes (`marcarSelecao`). Toda imagem do DiceBear passa pela fila `carregarImagem` (6 downloads simultâneos, até 3 tentativas), porque a API devolve 429 com ~80 pedidos de uma vez.
+
+## Títulos via oEmbed
+`fetchTitle(videoId)` consulta `noembed.com` e guarda em `titleCache`. O título vai junto no pedido da fila e é propagado para o player e o histórico.
 
 ## Segurança
-
-- **Escape de HTML**: `esc()` é aplicado a nomes e mensagens antes de qualquer `innerHTML`.
-- **Whitelists**: `dance` e `emoji` vindos de outros usuários são validados contra listas fixas antes de virarem classe CSS ou conteúdo DOM.
-- **Moderação**: censura de palavrões no envio (`censor()`); silenciamento por usuário é local (localStorage), sem papel de admin.
-- **Formatos validados**: `uid`, cor e `videoId` vindos do Firestore entram em `onclick`, `style` e `src`, onde o `esc()` não protege. Passam por `safeId()`, `safeColor()` e `safeVideoId()`; o `player/state` com `videoId` inválido vira "sem música".
-- **Ingresso**: o modelo prova "conhece o e-mail de um comprador", não "é dono do e-mail" (decisão de produto: sem link de confirmação). Quem souber o e-mail de alguém consegue virar VIP. A lista em si não vaza: só hashes, sem listagem.
-- **Regras do Firestore** ([`firestore.rules`](../firestore.rules)): auth anônima, cada um escreve só em nome próprio e o chat privado só é legível pelos participantes. Os demais dados continuam públicos para quem está logado, então não guarde nada sensível neles.
-- **Consultas enxutas**: chat limitado às 50 últimas (`orderBy + limit`), usuários só os ativos nos últimos 2 min.
-- A chave de API do Firebase no HTML **não é segredo** (é um identificador de projeto); a proteção real são as regras do Firestore.
+- **Validação no servidor** (`servidor/src/regras.ts`): nome até 24 caracteres sem `<>`, cor `#rrggbb`, avatar só com chaves e valores curtos, passinho e emoji de listas fixas, posição limitada a 0–100, textos com teto, Área VIP só com ingresso. Limite de ritmo por pessoa e por tipo de ação; mais de 90 mensagens em 5 s derruba a conexão.
+- **Escape no app**: `esc()` antes de qualquer `innerHTML`; `safeId()`, `safeColor()` e `safeVideoId()` para o que vai em `onclick`, `style` e `src`.
+- **Ingresso**: prova "conhece o e-mail de um comprador", não "é dono do e-mail" (decisão de produto: sem link de confirmação). A lista não vaza: só hashes, conferidos um por vez.
+- **Admin**: `/admin/*` exige `Authorization: Bearer <ADMIN_CHAVE>`. O selo de Organização exige um ID token do Google válido para um e-mail de `ADMINS`.
+- **Silenciar** é local (localStorage `esquentaMuted`).
