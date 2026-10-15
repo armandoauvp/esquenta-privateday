@@ -80,12 +80,12 @@ Mensagens enviadas pelo servidor e o ping/pong (respondido pelo runtime) não co
 
 ## Organização (Entrar com Google)
 
-Os e-mails do secret `ADMINS` ganham o selo de **Organização** ao entrar com Google. Para ligar o botão:
+Os e-mails do secret `ADMINS` ganham o selo de **Organização** ao entrar com Google. Para ligar o botão (roteiro para o agente executar no navegador em [plano.md → Roteiro 1.3](plano.md#roteiro-13-id-do-cliente-oauth-do-google)):
 
 1. Em [console.cloud.google.com](https://console.cloud.google.com), escolha o projeto `auvp-privateday` (é o mesmo do Firebase) ou crie um.
 2. **APIs e serviços → Tela de consentimento OAuth**: tipo **Interno** (só contas `@auvp.com.br`) ou Externo; preencha nome do app e e-mail de suporte.
 3. **APIs e serviços → Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web**.
-4. Em **Origens JavaScript autorizadas**, adicione cada endereço onde o app abre: o domínio da Vercel, o domínio próprio, o site do Elementor (se embutir) e `http://localhost:5173` (testes). Não precisa de URI de redirecionamento.
+4. Em **Origens JavaScript autorizadas**, adicione cada endereço onde o app abre: `https://esquenta-privateday.vercel.app` (produção), o domínio próprio, o site do Elementor (`https://privateday.auvp.com.br`, se embutir) e `http://localhost:5173` (testes). Não precisa de URI de redirecionamento. Os previews de PR da Vercel ficam atrás do login da Vercel e não precisam entrar.
 5. Copie o **ID do cliente** (termina em `.apps.googleusercontent.com`) e coloque em dois lugares:
    - `GOOGLE_CLIENT_ID` no `index.html`;
    - `vars.GOOGLE_CLIENT_ID` no `servidor/wrangler.jsonc`, e depois `npx wrangler deploy`.
