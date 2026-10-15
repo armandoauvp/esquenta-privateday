@@ -9,3 +9,8 @@ músicas/
 service-account*.json
 *.xlsx
 *.xls
+
+# servidor da pista (Cloudflare): dependências, cache local e segredo de desenvolvimento
+servidor/node_modules/
+servidor/.wrangler/
+servidor/.dev.vars
