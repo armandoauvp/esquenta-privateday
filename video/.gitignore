@@ -1,0 +1,11 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Ignore the output video from Git but not videos you import into src/.
+out
+
+# capas extraídas dos MP3 (geradas por npm run musicas)
+public/capas
+public/audio

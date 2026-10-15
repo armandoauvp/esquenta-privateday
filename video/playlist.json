@@ -1,0 +1,349 @@
+{
+  "tag": "Esquenta 2026",
+  "data": "7 E 8 DE NOVEMBRO",
+  "crossfade": 90,
+  "musicas": [
+    {
+      "titulo": "Acenda o farol",
+      "artista": "Tim Maia",
+      "capa": "capas/acenda-o-farol.jpg",
+      "audio": "audio/acenda-o-farol.mp3",
+      "duracao": 192.078367,
+      "inicio": 0,
+      "arquivo": "Acenda o farol.mp3"
+    },
+    {
+      "titulo": "All Night Long (All Night)",
+      "artista": "Lionel Richie",
+      "capa": "capas/all-night-long-all-night.jpg",
+      "audio": "audio/all-night-long-all-night.mp3",
+      "duracao": 382.902857,
+      "inicio": 5672,
+      "arquivo": "All Night Long (All Night).mp3"
+    },
+    {
+      "titulo": "Can't Let Go",
+      "artista": "Earth, Wind & Fire",
+      "capa": "capas/can-t-let-go.jpg",
+      "audio": "audio/can-t-let-go.mp3",
+      "duracao": 208.74449,
+      "inicio": 17069,
+      "arquivo": "Can't Let Go.mp3"
+    },
+    {
+      "titulo": "Celebration",
+      "artista": "Kool & The Gang",
+      "capa": "capas/celebration.jpg",
+      "audio": "audio/celebration.mp3",
+      "duracao": 298.919184,
+      "inicio": 23242,
+      "arquivo": "Celebration.mp3"
+    },
+    {
+      "titulo": "Central Do Brasil",
+      "artista": "Cassiano",
+      "capa": "capas/central-do-brasil.jpg",
+      "audio": "audio/central-do-brasil.mp3",
+      "duracao": 221.361633,
+      "inicio": 32119,
+      "arquivo": "Central Do Brasil.mp3"
+    },
+    {
+      "titulo": "Chega Mais (Imaginei Você Dançando)",
+      "artista": "Banda Black Rio",
+      "capa": "capas/chega-mais-imaginei-voce-dancando.jpg",
+      "audio": "audio/chega-mais-imaginei-voce-dancando.mp3",
+      "duracao": 171.755102,
+      "inicio": 38670,
+      "arquivo": "Chega Mais (Imaginei Você Dançando).mp3"
+    },
+    {
+      "titulo": "Disco Inferno",
+      "artista": "The Trammps",
+      "capa": "capas/disco-inferno.jpg",
+      "audio": "audio/disco-inferno.mp3",
+      "duracao": 659.043265,
+      "inicio": 43733,
+      "arquivo": "Disco Inferno.mp3"
+    },
+    {
+      "titulo": "Don't Go Breaking My Heart",
+      "artista": "Elton John, Kiki Dee",
+      "capa": "capas/don-t-go-breaking-my-heart.jpg",
+      "audio": "audio/don-t-go-breaking-my-heart.mp3",
+      "duracao": 275.487347,
+      "inicio": 63414,
+      "arquivo": "Don't Go Breaking My Heart.mp3"
+    },
+    {
+      "titulo": "Estrelar",
+      "artista": "Marcos Valle",
+      "capa": "capas/estrelar.jpg",
+      "audio": "audio/estrelar.mp3",
+      "duracao": 313.547755,
+      "inicio": 71589,
+      "arquivo": "Estrelar.mp3"
+    },
+    {
+      "titulo": "Forget Me Nots",
+      "artista": "Patrice Rushen",
+      "capa": "capas/forget-me-nots.jpg",
+      "audio": "audio/forget-me-nots.mp3",
+      "duracao": 284.551837,
+      "inicio": 80905,
+      "arquivo": "Forget Me Nots.mp3"
+    },
+    {
+      "titulo": "Funk-se quem puder",
+      "artista": "Gilberto Gil",
+      "capa": "capas/funk-se-quem-puder.jpg",
+      "audio": "audio/funk-se-quem-puder.mp3",
+      "duracao": 191.477551,
+      "inicio": 89352,
+      "arquivo": "Funk-se quem puder.mp3"
+    },
+    {
+      "titulo": "Georgy Porgy",
+      "artista": "TOTO",
+      "capa": "capas/georgy-porgy.jpg",
+      "audio": "audio/georgy-porgy.mp3",
+      "duracao": 247.640816,
+      "inicio": 95006,
+      "arquivo": "Georgy Porgy.mp3"
+    },
+    {
+      "titulo": "Get Down On It",
+      "artista": "Kool & The Gang",
+      "capa": "capas/get-down-on-it.jpg",
+      "audio": "audio/get-down-on-it.mp3",
+      "duracao": 293.720816,
+      "inicio": 102345,
+      "arquivo": "Get Down On It.mp3"
+    },
+    {
+      "titulo": "Gimme! Gimme! Gimme! (A Man After Midnight)",
+      "artista": "ABBA",
+      "capa": "capas/gimme-gimme-gimme-a-man-after-midnight.jpg",
+      "audio": "audio/gimme-gimme-gimme-a-man-after-midnight.mp3",
+      "duracao": 292.675918,
+      "inicio": 111067,
+      "arquivo": "Gimme! Gimme! Gimme! (A Man After Midnight).mp3"
+    },
+    {
+      "titulo": "Give It To Me Baby",
+      "artista": "Rick James",
+      "capa": "capas/give-it-to-me-baby.jpg",
+      "audio": "audio/give-it-to-me-baby.mp3",
+      "duracao": 248.163265,
+      "inicio": 119757,
+      "arquivo": "Give It To Me Baby.mp3"
+    },
+    {
+      "titulo": "Give Me the Night",
+      "artista": "George Benson",
+      "capa": "capas/give-me-the-night.jpg",
+      "audio": "audio/give-me-the-night.mp3",
+      "duracao": 301.061224,
+      "inicio": 127112,
+      "arquivo": "Give Me the Night.mp3"
+    },
+    {
+      "titulo": "Good Times",
+      "artista": "CHIC",
+      "capa": "capas/good-times.jpg",
+      "audio": "audio/good-times.mp3",
+      "duracao": 495.438367,
+      "inicio": 136054,
+      "arquivo": "Good Times.mp3"
+    },
+    {
+      "titulo": "Got to Be Real",
+      "artista": "Cheryl Lynn",
+      "capa": "capas/got-to-be-real.jpg",
+      "audio": "audio/got-to-be-real.mp3",
+      "duracao": 307.983673,
+      "inicio": 150827,
+      "arquivo": "Got to Be Real.mp3"
+    },
+    {
+      "titulo": "Guarde Minha Voz",
+      "artista": "Sandra De Sá",
+      "capa": "capas/guarde-minha-voz.jpg",
+      "audio": "audio/guarde-minha-voz.mp3",
+      "duracao": 191.242449,
+      "inicio": 159977,
+      "arquivo": "Guarde Minha Voz.mp3"
+    },
+    {
+      "titulo": "Heart Of Glass",
+      "artista": "Blondie",
+      "capa": "capas/heart-of-glass.jpg",
+      "audio": "audio/heart-of-glass.mp3",
+      "duracao": 229.459592,
+      "inicio": 165624,
+      "arquivo": "Heart Of Glass.mp3"
+    },
+    {
+      "titulo": "I Will Survive",
+      "artista": "Gloria Gaynor",
+      "capa": "capas/i-will-survive-single-version.jpg",
+      "audio": "audio/i-will-survive-single-version.mp3",
+      "duracao": 197.616327,
+      "inicio": 172418,
+      "arquivo": "I Will Survive - Single Version.mp3"
+    },
+    {
+      "titulo": "I Wish",
+      "artista": "Stevie Wonder",
+      "capa": "capas/i-wish.jpg",
+      "audio": "audio/i-wish.mp3",
+      "duracao": 252.577959,
+      "inicio": 178256,
+      "arquivo": "I Wish.mp3"
+    },
+    {
+      "titulo": "I'm Coming Out",
+      "artista": "Diana Ross",
+      "capa": "capas/i-m-coming-out.jpg",
+      "audio": "audio/i-m-coming-out.mp3",
+      "duracao": 322.638367,
+      "inicio": 185743,
+      "arquivo": "I'm Coming Out.mp3"
+    },
+    {
+      "titulo": "I'm Every Woman",
+      "artista": "Chaka Khan",
+      "capa": "capas/i-m-every-woman.jpg",
+      "audio": "audio/i-m-every-woman.mp3",
+      "duracao": 249.652245,
+      "inicio": 195333,
+      "arquivo": "I'm Every Woman.mp3"
+    },
+    {
+      "titulo": "Ma quale idea",
+      "artista": "Pino D'Angiò",
+      "capa": "capas/ma-quale-idea.jpg",
+      "audio": "audio/ma-quale-idea.mp3",
+      "duracao": 262.50449,
+      "inicio": 202732,
+      "arquivo": "Ma quale idea.mp3"
+    },
+    {
+      "titulo": "More Than A Woman",
+      "artista": "Bee Gees",
+      "capa": "capas/more-than-a-woman-from-saturday-night-fever-soundtrack.jpg",
+      "audio": "audio/more-than-a-woman-from-saturday-night-fever-soundtrack.mp3",
+      "duracao": 196.493061,
+      "inicio": 210517,
+      "arquivo": "More Than A Woman - From _Saturday Night Fever_ Soundtrack.mp3"
+    },
+    {
+      "titulo": "Off the Wall",
+      "artista": "Michael Jackson",
+      "capa": "capas/off-the-wall.jpg",
+      "audio": "audio/off-the-wall.mp3",
+      "duracao": 246.047347,
+      "inicio": 216322,
+      "arquivo": "Off the Wall.mp3"
+    },
+    {
+      "titulo": "P.Y.T. (Pretty Young Thing)",
+      "artista": "Michael Jackson",
+      "capa": "capas/p-y-t-pretty-young-thing.jpg",
+      "audio": "audio/p-y-t-pretty-young-thing.mp3",
+      "duracao": 239.072653,
+      "inicio": 223614,
+      "arquivo": "P.Y.T. (Pretty Young Thing).mp3"
+    },
+    {
+      "titulo": "Ripa Na Xulipa - Extended Charles Maurice Version",
+      "artista": "Rabo De Saia, Charles Maurice",
+      "capa": "capas/ripa-na-xulipa-extended-charles-maurice-version.jpg",
+      "audio": "audio/ripa-na-xulipa-extended-charles-maurice-version.mp3",
+      "duracao": 328.608,
+      "inicio": 230696,
+      "arquivo": "Ripa Na Xulipa - Extended Charles Maurice Version.mp3"
+    },
+    {
+      "titulo": "Se você for a salvador",
+      "artista": "Brylho",
+      "capa": "capas/se-voce-for-a-salvador.jpg",
+      "audio": "audio/se-voce-for-a-salvador.mp3",
+      "duracao": 225.358367,
+      "inicio": 240464,
+      "arquivo": "Se você for a salvador.mp3"
+    },
+    {
+      "titulo": "Sensual Seduction",
+      "artista": "Snoop Dogg",
+      "capa": "capas/sensual-seduction.jpg",
+      "audio": "audio/sensual-seduction.mp3",
+      "duracao": 245.577143,
+      "inicio": 247135,
+      "arquivo": "Sensual Seduction.mp3"
+    },
+    {
+      "titulo": "Smokin Out The Window",
+      "artista": "Bruno Mars, Anderson .Paak, Silk Sonic",
+      "capa": "capas/smokin-out-the-window.jpg",
+      "audio": "audio/smokin-out-the-window.mp3",
+      "duracao": 197.485714,
+      "inicio": 254412,
+      "arquivo": "Smokin Out The Window.mp3"
+    },
+    {
+      "titulo": "Superstition",
+      "artista": "Stevie Wonder",
+      "capa": "capas/superstition.jpg",
+      "audio": "audio/superstition.mp3",
+      "duracao": 266.161633,
+      "inicio": 260247,
+      "arquivo": "Superstition.mp3"
+    },
+    {
+      "titulo": "Sweet Dreams (Are Made of This)",
+      "artista": "Eurythmics, Annie Lennox, Dave Stewart",
+      "capa": "capas/sweet-dreams-are-made-of-this-2005-remaster.jpg",
+      "audio": "audio/sweet-dreams-are-made-of-this-2005-remaster.mp3",
+      "duracao": 216.999184,
+      "inicio": 268141,
+      "arquivo": "Sweet Dreams (Are Made of This) - 2005 Remaster.mp3"
+    },
+    {
+      "titulo": "Turn This Mutha Out",
+      "artista": "Idris Muhammad",
+      "capa": "capas/turn-this-mutha-out.jpg",
+      "audio": "audio/turn-this-mutha-out.mp3",
+      "duracao": 409.626122,
+      "inicio": 274561,
+      "arquivo": "Turn This Mutha Out.mp3"
+    },
+    {
+      "titulo": "Upside Down",
+      "artista": "Diana Ross",
+      "capa": "capas/upside-down.jpg",
+      "audio": "audio/upside-down.mp3",
+      "duracao": 246.857143,
+      "inicio": 286760,
+      "arquivo": "Upside Down.mp3"
+    },
+    {
+      "titulo": "YMCA (Original Version 1978)",
+      "artista": "Village People",
+      "capa": "capas/ymca-original-version-1978.jpg",
+      "audio": "audio/ymca-original-version-1978.mp3",
+      "duracao": 284.421224,
+      "inicio": 294076,
+      "arquivo": "YMCA - Original Version 1978.mp3"
+    },
+    {
+      "titulo": "You Should Be Dancing",
+      "artista": "Bee Gees",
+      "capa": "capas/you-should-be-dancing.jpg",
+      "audio": "audio/you-should-be-dancing.mp3",
+      "duracao": 256.548571,
+      "inicio": 302519,
+      "arquivo": "You Should Be Dancing.mp3"
+    }
+  ]
+}
