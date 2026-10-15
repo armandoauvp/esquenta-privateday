@@ -56,7 +56,7 @@ Vivem no anexo de cada WebSocket (`serializeAttachment`), que sobrevive à hiber
 
 ### Fila
 ```js
-{ id, videoId, title, addedByName, addedByUid, addedByVIP: true, timestamp }
+{ id, videoId, title, addedByName, addedByUid, addedByVIP: true, timestamp, duracao }
 ```
 Só quem tem ingresso entra, no máximo 3 músicas por pessoa, sem repetir a que toca ou já está na fila. O dono tira a própria; a organização tira qualquer uma.
 
@@ -85,7 +85,8 @@ Só avança se a sala ainda estiver na música que motivou a troca (chave `video
 ### Ronda (`verificar`)
 Roda em cada alarme (a cada 15 s enquanto há gente ou música, e nos instantes exatos de contagem, corte e saída) e depois de eventos relevantes:
 - contagem vencida → troca;
-- 10 min de música → troca direta (a mesa mostra "corte em m:ss" no último minuto);
+- 10 min de música → troca direta (a mesa mostra "corte em m:ss" no último minuto). A duração que o app mede ao entrar na fila (`duracao`) só serve para avisar quem colocou um vídeo mais longo; o corte vale para todos;
+- música do DJ pausada: aos 5 s de pausa abre a contagem (`tipo: 'pausa'`), aos 10 s troca (`PAUSA_MAX_MS`). Republicar "pausado" não reinicia o prazo (`pausadoDesde`); voltar a tocar cancela a contagem;
 - DJ fora da pista depois de 30 s de música → contagem "Fulano saiu da pista";
 - fim de vídeo informado → o do DJ troca na hora; o de outros, se em 8 s o DJ não confirmar e houver 2 avisos ou o DJ estiver fora;
 - vídeo com erro (`onError` da IFrame API) → contagem "Vídeo indisponível" (DJ na hora; outros com 2 avisos ou DJ fora, em 6 s);

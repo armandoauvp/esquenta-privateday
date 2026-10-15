@@ -12,7 +12,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-15a">
+    <meta name="app-build" content="2026-10-15b">
     <title>Esquenta AUVP Private Day</title>
     <!-- abre as conexões cedo: fontes, avatares, servidor da pista e YouTube entram sem esperar o DNS/TLS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -448,8 +448,9 @@
     <header class="bg-[#0a0a0a] border-b border-[#FFF7EB]/8 px-2 py-2 md:p-3 flex justify-between items-center z-10 relative shadow-lg gap-1.5">
         <div class="flex items-center gap-2 md:gap-3 min-w-0">
             <img data-img="globo" src="" alt="AUVP Private Day" class="h-10 md:h-16 w-auto object-contain drop-shadow-lg shrink-0">
-            <div class="text-center min-w-0">
-                <img data-img="lettering" src="" alt="PRIVATE DAY" class="h-4 md:h-7 w-auto object-contain mx-auto">
+            <!-- lettering e "Esquenta 2026" alinhados pela esquerda -->
+            <div class="text-left min-w-0">
+                <img data-img="lettering" src="" alt="PRIVATE DAY" class="h-4 md:h-7 w-auto object-contain object-left">
                 <p class="text-[9px] md:text-xs text-[#DB7944] uppercase tracking-[.12em] md:tracking-[.2em] font-semibold leading-none mt-1 whitespace-nowrap">Esquenta 2026</p>
             </div>
         </div>
@@ -659,6 +660,15 @@
                         </button>
                     </form>
                     <p id="queueErro" role="alert" class="hidden mt-2 text-[11px] text-[#ff8a80] leading-snug"></p>
+                    <!-- vídeo com mais de 10 min: avisa antes de entrar na fila (o servidor corta aos 10 min) -->
+                    <div id="queueAviso" role="alert" class="hidden mt-2 text-[11px] text-[#ffd27a] leading-snug rounded-lg border border-[#ffd27a]/35 bg-[#ffd27a]/8 px-3 py-2">
+                        <p id="queueAvisoTexto"></p>
+                        <div class="flex gap-3 mt-1.5">
+                            <button type="button" onclick="window.confirmarVideoLongo()" class="font-semibold text-[#ffd27a] hover:underline">Colocar mesmo assim</button>
+                            <button type="button" onclick="window.desistirVideoLongo()" class="text-[#FFF7EB]/65 hover:text-[#FFF7EB] hover:underline">Escolher outro</button>
+                        </div>
+                    </div>
+                    <p class="mt-1.5 text-[10px] text-[#FFF7EB]/55 font-light">Cada música toca no máximo 10 minutos.</p>
                     <!-- mesa de DJ é exclusividade de quem tem ingresso -->
                     <p id="queueLocked" class="hidden mt-2 text-[11px] text-[#FFF7EB]/70 font-light flex items-center gap-1.5 flex-wrap">
                         <span data-icone="crown" class="text-[#DB7944]"></span> A mesa de DJ é de quem tem ingresso.
@@ -2308,7 +2318,7 @@
 </div>
 <div class="flex-1 overflow-hidden">
   ${title ? `<p class="text-[10px] text-[#FFF7EB]/90 truncate font-medium">${esc(title)}</p>` : `<p class="text-[10px] text-[#FFF7EB]/60 truncate italic">Carregando título...</p>`}
-  <p class="text-[10px] text-[#FFF7EB]/65 truncate">por <span class="${mine?'text-[#DB7944]':'text-[#FFF7EB]/80'} font-medium">${esc(item.addedByName)}</span>${mine?' <span class="text-[#DB7944]/60">· sua música</span>':''}${fora?' <span class="text-[#ff8a80]" title="Quem some da tela perde a vez">· fora da pista</span>':''}</p>
+  <p class="text-[10px] text-[#FFF7EB]/65 truncate">por <span class="${mine?'text-[#DB7944]':'text-[#FFF7EB]/80'} font-medium">${esc(item.addedByName)}</span>${mine?' <span class="text-[#DB7944]/60">· sua música</span>':''}${item.duracao > LIMITE_VIDEO_S ? ` <span class="text-[#ffd27a]" title="Tem ${duracaoTexto(item.duracao)}; toca só os 10 primeiros minutos">· toca 10 min</span>` : ''}${fora?' <span class="text-[#ff8a80]" title="Quem some da tela perde a vez">· fora da pista</span>':''}</p>
 </div>
 ${mine || souOrg ? `<button type="button" onclick="window.tirarDaFila('${safeId(item.id)}')" title="${mine ? 'Tirar minha música da fila' : 'Organização: tirar da fila'}" aria-label="${mine ? 'Tirar minha música da fila' : 'Tirar da fila a música de ' + esc(item.addedByName)}"
   class="shrink-0 w-8 h-8 inline-flex items-center justify-center rounded-full text-[14px] text-[#FFF7EB]/55 hover:text-[#ff8a80] hover:bg-[#FFF7EB]/8 transition">${Icons.close}</button>` : ''}`;
@@ -2370,7 +2380,12 @@ ${mine || souOrg ? `<button type="button" onclick="window.tirarDaFila('${safeId(
   <span id="countdownNum" class="font-discodiva text-7xl md:text-8xl text-[#FFF7EB] count-glow">${Math.max(0, Math.ceil((countdownState.endsAt - agora()) / 1000))}</span>
   ${minhaContagemCancelavel() ? `
   <button type="button" onclick="window.cancelarContagem()" class="mt-1 bg-[#FFF7EB] text-[#0a0a0a] text-xs font-semibold px-4 py-2 rounded-full hover:bg-white transition">${Icons.undo} Cancelar, quero continuar</button>` : ''}
+  ${countdownState?.tipo === 'pausa' && isCurrentDJ() ? `
+  <button type="button" onclick="window.voltarATocar()" class="mt-1 bg-[#FFF7EB] text-[#0a0a0a] text-xs font-semibold px-4 py-2 rounded-full hover:bg-white transition">${Icons.play} Voltar a tocar</button>` : ''}
 </div>`;
+
+        // pausa do DJ por mais de 10 s passa a vez (regra do servidor); retomar cancela a contagem
+        window.voltarATocar = () => ytCmd('playVideo');
 
         let assinaturaOverlay = '';
         function updatePlayerOverlay() {
@@ -2575,6 +2590,8 @@ ${cd}`;
 
         window.addEventListener('message', e => {
             if (e.origin !== 'https://www.youtube.com') return;
+            // o medidor de duração (iframe invisível) também fala com a página: só o player da pista conta
+            if (e.source !== document.getElementById('ytFrame')?.contentWindow) return;
             let d; try { d = JSON.parse(e.data); } catch { return; }
             // o fim do vídeo chega como onStateChange OU como infoDelivery, dependendo do player
             const ended = (d.event === 'onStateChange' && d.info === 0) ||
@@ -2617,8 +2634,11 @@ ${cd}`;
             if (!isCurrentDJ() || !salaOnline() || !ytInfo?.tempoEm) return;
             if (ytInfo.state !== 1 && ytInfo.state !== 2) return;
             const tocando = ytInfo.state === 1;
-            if (tocando && Date.now() - ytInfo.tempoEm > 8000) return;
-            const time = minhaPosicao();
+            // retomada depois de pausa: a posição da pausa é exata, mesmo que a última
+            // informação do player seja antiga (pausado, o YouTube não manda posição)
+            const retomou = tocando && ultimaPublicada?.estado === 'paused';
+            if (tocando && !retomou && Date.now() - ytInfo.tempoEm > 8000) return;
+            const time = retomou ? ytInfo.time : minhaPosicao();
             if (tocando && ultimaPublicada?.estado === 'playing' && Math.abs(time - ultimaPublicada.time) < 0.5 &&
                 Date.now() - ultimaPublicada.em > 3000) return; // não andou: anúncio ou travado
             ultimaPublicada = {estado: tocando ? 'playing' : 'paused', time, em: Date.now()};
@@ -2784,6 +2804,62 @@ ${cd}`;
         };
         document.getElementById('videoUrlInput').addEventListener('input', () => erroFila(''));
 
+        // Duração sem chave de API: um player invisível carrega só os dados do vídeo, informa
+        // a duração pela IFrame API e é removido. Sem resposta em 7 s, segue sem saber (null).
+        const LIMITE_VIDEO_S = MAX_PLAY_MS / 1000;
+        const duracaoTexto = s => s >= 3600 ? `:` : mmss(s);
+        const duracoes = {}; // videoId → segundos | null
+        function medirDuracao(videoId) {
+            if (videoId in duracoes) return Promise.resolve(duracoes[videoId]);
+            return new Promise(ok => {
+                const f = document.createElement('iframe');
+                f.src = `https://www.youtube.com/embed/${videoId}?enablejsapi=1&mute=1&controls=0&playsinline=1`;
+                f.style.cssText = 'position:fixed;width:2px;height:2px;left:-20px;top:-20px;opacity:0;pointer-events:none';
+                f.setAttribute('aria-hidden', 'true');
+                f.tabIndex = -1;
+                let feito = false;
+                const fim = dur => {
+                    if (feito) return;
+                    feito = true;
+                    removeEventListener('message', ouvir);
+                    clearInterval(handshake); clearTimeout(teto);
+                    f.remove();
+                    duracoes[videoId] = dur;
+                    ok(dur);
+                };
+                const ouvir = e => {
+                    if (e.source !== f.contentWindow) return;
+                    let d; try { d = JSON.parse(e.data); } catch { return; }
+                    if (d?.info?.duration > 0) fim(d.info.duration);
+                };
+                addEventListener('message', ouvir);
+                const handshake = setInterval(() => {
+                    try { f.contentWindow?.postMessage(JSON.stringify({event: 'listening', id: 'medidor', channel: 'widget'}), '*'); } catch(e) {}
+                }, 400);
+                const teto = setTimeout(() => fim(null), 7000);
+                document.body.appendChild(f);
+            });
+        }
+
+        // aviso de vídeo longo: a primeira tentativa mostra o aviso; "Colocar mesmo assim" confirma
+        let videoLongoConfirmado = null;
+        const avisoLongo = (msg) => {
+            document.getElementById('queueAvisoTexto').innerHTML = msg || '';
+            document.getElementById('queueAviso').classList.toggle('hidden', !msg);
+        };
+        window.confirmarVideoLongo = () => {
+            videoLongoConfirmado = extractYouTubeId(document.getElementById('videoUrlInput').value);
+            avisoLongo('');
+            document.getElementById('queueForm').requestSubmit();
+        };
+        window.desistirVideoLongo = () => {
+            avisoLongo('');
+            const inp = document.getElementById('videoUrlInput');
+            inp.value = '';
+            inp.focus();
+        };
+        document.getElementById('videoUrlInput').addEventListener('input', () => { avisoLongo(''); videoLongoConfirmado = null; });
+
         let enviandoFila = false;
         document.getElementById('queueForm').addEventListener('submit', async e => {
             e.preventDefault();
@@ -2806,9 +2882,15 @@ ${cd}`;
             btn.classList.add('animate-pulse');
             let r;
             try {
-                const title = await fetchTitle(videoId);
+                const [title, duracao] = await Promise.all([fetchTitle(videoId), medirDuracao(videoId)]);
+                // mais de 10 min: avisa e espera a confirmação (o servidor corta aos 10 min de qualquer jeito)
+                if (duracao > LIMITE_VIDEO_S && videoLongoConfirmado !== videoId) {
+                    avisoLongo(`${Icons.alert} Esse vídeo tem <strong>${duracaoTexto(duracao)}</strong>. Na pista, cada música toca no máximo 10 minutos: ele será cortado em 10:00 e a vez passa pra próxima da fila.`);
+                    return;
+                }
+                videoLongoConfirmado = null;
                 // com a pista no vídeo da casa, o servidor já abre a contagem com esta música
-                r = await pedir({t: 'fila', videoId, title: title || null});
+                r = await pedir({t: 'fila', videoId, title: title || null, duracao: duracao || null});
             } catch(err) {
                 console.warn(err);
                 if (err.texto) erroFila(err.texto);
@@ -2821,6 +2903,7 @@ ${cd}`;
             }
             inp.value = '';
             erroFila('');
+            avisoLongo('');
             showToast(r.entraAgora
                 ? `${Icons.music} Boa! Sua música vai entrar na pista agora.`
                 : `${Icons.music} Você entrou na fila — posição ${r.posicao}. Fique na tela pra não perder a vez!`);

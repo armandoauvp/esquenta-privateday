@@ -9,7 +9,7 @@ Pista de dança virtual do esquenta AUVP Private Day, em duas partes:
 - **App de página única (`index.html`)**: sem build, sem `package.json`, sem framework. HTML + Tailwind via CDN + um único `<script type="module">` com todo o JavaScript.
 - **Servidor da pista (`servidor/`)**: Cloudflare Worker + Durable Object (`Pista`), em TypeScript, com `wrangler`. Uma sala por evento guarda presença, chat, fila, player, votos, papos, ingressos e organização, e conversa com o app por WebSocket.
 
-Documentação em `README.md`, `docs/` e `servidor/README.md`.
+Documentação em `README.md`, `docs/` e `servidor/README.md`. **Numa sessão nova, comece por [docs/plano.md](docs/plano.md)** (o que falta e o que automatizar); contexto e decisões em [docs/historico.md](docs/historico.md); roteiro do evento em [docs/operacao-evento.md](docs/operacao-evento.md).
 
 ## Regras do projeto
 
@@ -48,6 +48,7 @@ Documentação em `README.md`, `docs/` e `servidor/README.md`.
 - **Todo mundo no mesmo segundo**: o vídeo da casa segue um relógio comum (`posicaoFallback()`, sem mensagem) e a música do DJ segue o `player.playback` (ou o `startedAt`). Acima de `SINCRONIA_TOLERANCIA_S`, o player salta. `duracaoFallback` é **fixa**: nunca a substitua pela duração que o player informa, porque o YouTube muda o valor (arredondado → fracionado) e a diferença multiplica pelo número de voltas desde a época.
 - **Só o DJ mexe no player**: `controls=1` só no iframe do DJ; os demais e o vídeo da casa têm `controls=0&disablekb=1&fs=0` mais a camada de bloqueio do overlay. O DJ publica `playback` na hora em que pausa, retoma ou salta; a sala só aceita `playback` do DJ (ou da organização).
 - **Iframe estável**: `renderPlayer()` recria o iframe **só quando a música muda** (`lastPlayerKey` = `chaveAtual()`); votos/contagem/avisos são desenhados em `#playerOverlay` por `updatePlayerOverlay()`. Nunca redesenhe o iframe em ticks de votos/usuários, senão o vídeo reinicia para todo mundo.
+- **Limites da mesa**: música da fila toca no máximo 10 min (`MAX_PLAY_MS`, a playlist da casa não conta); vídeo mais longo ganha aviso antes de entrar (`medirDuracao` usa um iframe invisível e o handler principal de `message` ignora tudo que não vem do `#ytFrame`). Pausa do DJ por mais de 10 s passa a vez (`PAUSA_MAX_MS`, contagem `tipo: 'pausa'` aos 5 s, cancelada quando o DJ volta a tocar; o DJ vê "Voltar a tocar").
 - **Troca condicionada à chave**: `avancar(chave)` na sala só troca se a música ainda for a da chave (`videoId_startedAt`); `fim` e `erroVideo` vão com a chave. Aviso atrasado de uma música anterior vira no-op.
 - **Identidade**: id + token (HMAC com o secret `SEGREDO`) guardados no navegador (`esquentaId`, `esquentaToken`, via `store`) e reapresentados no `ola`. Quem fecha a aba fica 20 s na pista (`GRACE_SAIDA_MS`): recarregar não tira ninguém da mesa nem da fila. A mesma identidade em outra aba derruba a conexão antiga (código 4000, aviso "Usar esta").
 - **Conexão**: `abrirSala()` uma vez; caiu (`caiuSala`), reconecta com espera crescente. Ping de 25 s sem pong derruba e reconecta. `salaOnline()` vale só depois do `bemvindo`; use-o como guarda de toda ação (`if (!salaOnline()) …`). `atualizarConexao()` cuida da faixa `#semConexao` e trava chat e fila com o motivo. O app precisa abrir mesmo sem servidor: só assiste.

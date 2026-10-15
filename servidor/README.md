@@ -7,7 +7,7 @@ src/index.ts   Worker: roteia /pista (WebSocket), /onde, /saude e /admin/* para 
 src/pista.ts   Durable Object: a sala (estado, regras do evento, alarmes, difusão agrupada)
 src/regras.ts  validação de tudo que vem do navegador + censura
 src/google.ts  conferência do ID token do "Entrar com Google"
-teste/fluxo.mjs  protocolo de ponta a ponta com robôs (46 conferências; --lento testa ausência)
+teste/fluxo.mjs  protocolo de ponta a ponta com robôs (52 conferências; --lento testa ausência)
 teste/carga.mjs  N robôs andando, conversando e reagindo
 ```
 
@@ -39,6 +39,7 @@ Ver [docs/deploy.md](../docs/deploy.md): `npx wrangler login`, `npx wrangler dep
 | `GET /onde?sala=` | data center onde a sala roda |
 | `POST /admin/ingressos?sala=` | importa hashes `{hashes, manuais, remover, substituir}` (usado por `tools/importar-ingressos.py`) |
 | `GET /admin/estado?sala=` | conexões, pessoas, fila, música atual, ingressos na lista |
+| `GET /admin/exportar?sala=` | curadoria (votos por vídeo) e histórico de músicas tocadas |
 | `POST /admin/org?sala=` | dá o selo de organização a um `{id}` (reserva do login com Google) |
 
 `/admin/*` exige `Authorization: Bearer <ADMIN_CHAVE>`.
@@ -55,10 +56,10 @@ Mensagens com `req` recebem `{t:'ok', req, ...}` ou `{t:'erro', req, motivo, tex
 | `perfil` | `perfil: {name, color, avatarConfig, dance}` | validado |
 | `ausente` | `v` | aba escondida |
 | `chat` | `text` | até 300 caracteres; censurado no servidor |
-| `fila` / `sairFila` | `videoId, title` / `id` | só com ingresso; 3 por pessoa; resposta `{posicao, entraAgora}` |
+| `fila` / `sairFila` | `videoId, title, duracao?` / `id` | só com ingresso; 3 por pessoa; resposta `{posicao, entraAgora}` |
 | `pular`, `passarVez`, `cancelar` | | votação; DJ passa a vez (cancelável por ele) |
 | `festa` | | "Essa vai pra festa!" na música atual |
-| `playback` | `state, time` | só do DJ (ou organização) |
+| `playback` | `state, time` | só do DJ (ou organização); pausado por mais de 10 s passa a vez |
 | `fim`, `erroVideo` | `chave` | fim do vídeo / vídeo que não toca |
 | `reacao` | `emoji` | sai da posição do avatar |
 | `papo`, `aceitar`, `recusar` | `com` | pedido de papo privado |
@@ -90,7 +91,7 @@ Sala em Miami (MIA). Não existe Durable Object na América do Sul; `locationHin
 | ping p50 | 2 ms | 148 ms |
 | mensagens recebidas pela sala | 76/s | 77/s |
 
-Os robôs andam a cada ~10 s, reagem a cada ~20 s e escrevem a cada ~60 s — bem mais que gente de verdade. A propagação inclui a janela proposital de até 250 ms do agrupamento. O fluxo completo (`teste/fluxo.mjs`, 46 conferências + 5 de ausência) passou local e na Cloudflare.
+Os robôs andam a cada ~10 s, reagem a cada ~20 s e escrevem a cada ~60 s — bem mais que gente de verdade. A propagação inclui a janela proposital de até 250 ms do agrupamento. O fluxo completo (`teste/fluxo.mjs`, hoje 52 conferências + 5 de ausência, incluindo pausa longa e duração) passou local e na Cloudflare.
 
 ## Custo no plano gratuito
 
