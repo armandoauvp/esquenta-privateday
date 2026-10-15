@@ -28,6 +28,10 @@ const COUNTDOWN_MS = 5000;
 const DJ_RESPIRO_MS = 30_000;       // começo da música: dá tempo do DJ carregar
 const FIM_ESPERA_MS = 8000;         // fim informado por quem não é o DJ: espera o DJ confirmar
 const ERRO_ESPERA_MS = 6000;
+// música do DJ pausada por mais de PAUSA_MAX_MS passa a vez: a contagem abre na metade
+// do caminho (aviso de 5 s) e some se o DJ voltar a tocar
+const PAUSA_MAX_MS = 10_000;
+const PAUSA_AVISO_MS = PAUSA_MAX_MS - COUNTDOWN_MS;
 const CHAT_MAX = 50, CHAT_GUARDADO = 300;
 const FILA_POR_PESSOA = 3;
 const RX_POR_TICK = 12;
@@ -49,6 +53,7 @@ interface Cota { ini: number; n: number; visto: number }
 interface ItemFila {
     id: string; videoId: string; title: string | null; addedByName: string;
     addedByUid: string; addedByVIP: true; timestamp: number;
+    duracao: number | null; // segundos, medida pelo app (quem passa de 10 min ganha aviso)
 }
 interface EstadoVideo {
     videoId: string | null; startedAt: number | null; addedByUid: string | null;
@@ -57,6 +62,7 @@ interface EstadoVideo {
 interface Contagem {
     endsAt: number; reason: string; por: string | null; cancelavel: boolean;
     acao: { chave: string; preferido: string | null };
+    tipo?: 'pausa';
 }
 interface Player {
     state: EstadoVideo;
@@ -90,6 +96,7 @@ export class Pista extends DurableObject<Env> {
     private festaN = 0;
     private fimInformado = { desde: 0, quem: new Set<string>() };
     private erroInformado = { desde: 0, quem: new Set<string>() };
+    private pausadoDesde = 0; // quando a música do DJ parou (republicar "pausado" não reinicia)
     private ranking: { em: number; dados: unknown } | null = null;
 
     // o que mudou desde o último tick
@@ -166,6 +173,13 @@ export class Pista extends DurableObject<Env> {
             const c = this.conexoes.get(id);
             if (c) { c.p.isOrg = true; this.atualizarEu(c); }
             return Response.json({ ok: true });
+        }
+        // curadoria "Essa vai pra festa!" e histórico completos, para guardar depois do evento
+        if (url.pathname === '/admin/exportar') {
+            return Response.json({
+                festa: this.sql.exec('SELECT video, COUNT(*) AS votos FROM festa GROUP BY video ORDER BY votos DESC').toArray(),
+                historico: this.sql.exec('SELECT ts, video, uid, nome, titulo FROM historico ORDER BY ts').toArray(),
+            });
         }
         if (url.pathname === '/admin/estado') {
             return Response.json({
@@ -437,6 +451,7 @@ export class Pista extends DurableObject<Env> {
         const item: ItemFila = {
             id: novoId(), videoId: m.videoId, title: texto(m.title, 150) || null,
             addedByName: p.name, addedByUid: p.id, addedByVIP: true, timestamp: Date.now(),
+            duracao: Number.isFinite(m.duracao) && m.duracao > 0 && m.duracao <= 86400 ? Math.round(m.duracao) : null,
         };
         this.fila.push(item);
         this.filaMudou();
@@ -470,7 +485,7 @@ export class Pista extends DurableObject<Env> {
         return {
             ...resto,
             countdown: countdown && countdown.endsAt > Date.now()
-                ? { endsAt: countdown.endsAt, reason: countdown.reason, por: countdown.por, cancelavel: countdown.cancelavel }
+                ? { endsAt: countdown.endsAt, reason: countdown.reason, por: countdown.por, cancelavel: countdown.cancelavel, tipo: countdown.tipo }
                 : null,
         };
     }
@@ -517,6 +532,7 @@ export class Pista extends DurableObject<Env> {
         this.player.countdown = null;
         this.fimInformado = { desde: 0, quem: new Set() };
         this.erroInformado = { desde: 0, quem: new Set() };
+        this.pausadoDesde = 0;
         this.festaN = this.contarFesta();
         this.festaSuja = true;
         this.filaSuja = true;
@@ -526,13 +542,13 @@ export class Pista extends DurableObject<Env> {
     }
 
     // contagem regressiva sincronizada: só uma por vez; ao fim, o servidor executa a troca
-    private contagem(reason: string, { por = null, cancelavel = false, preferido = null }:
-        { por?: string | null; cancelavel?: boolean; preferido?: string | null } = {}) {
+    private contagem(reason: string, { por = null, cancelavel = false, preferido = null, tipo }:
+        { por?: string | null; cancelavel?: boolean; preferido?: string | null; tipo?: 'pausa' } = {}) {
         const cd = this.player.countdown;
         if (cd && cd.endsAt > Date.now()) return false;
         this.player.countdown = {
             endsAt: Date.now() + COUNTDOWN_MS, reason, por, cancelavel,
-            acao: { chave: this.chaveAtual(), preferido },
+            acao: { chave: this.chaveAtual(), preferido }, tipo,
         };
         this.playerMudou();
         return true;
@@ -598,6 +614,13 @@ export class Pista extends DurableObject<Env> {
         this.player.playback = { videoId: s.videoId, state: m.state, time, at: Date.now() };
         // posição não precisa sobreviver a um reinício: o DJ republica em 5 s
         this.playerSujo = true;
+        if (m.state === 'paused') {
+            if (!this.pausadoDesde) { this.pausadoDesde = Date.now(); this.agendarAlarme(); }
+        } else {
+            this.pausadoDesde = 0;
+            // voltou a tocar a tempo: a contagem da pausa some
+            if (this.player.countdown?.tipo === 'pausa') { this.player.countdown = null; this.playerMudou(); }
+        }
         this.agendarFlush();
     }
 
@@ -646,6 +669,8 @@ export class Pista extends DurableObject<Env> {
                 } else if (this.erroInformado.desde && agora - this.erroInformado.desde >= ERRO_ESPERA_MS &&
                     (this.erroInformado.quem.size >= 2 || djFora)) {
                     this.contagem('Vídeo indisponível — próxima música!');
+                } else if (this.pausadoDesde && agora - this.pausadoDesde >= PAUSA_AVISO_MS) {
+                    this.contagem('A música ficou pausada — próxima da fila!', { tipo: 'pausa' });
                 } else if (this.votosPular() >= this.limiarPular()) {
                     this.contagem('A pista votou: próxima música!');
                 }
@@ -673,6 +698,7 @@ export class Pista extends DurableObject<Env> {
         if (s.videoId && s.startedAt) t.push(s.startedAt + MAX_PLAY_MS);
         if (this.fimInformado.desde) t.push(this.fimInformado.desde + FIM_ESPERA_MS);
         if (this.erroInformado.desde) t.push(this.erroInformado.desde + ERRO_ESPERA_MS);
+        if (this.pausadoDesde) t.push(this.pausadoDesde + PAUSA_AVISO_MS);
         for (const c of this.conexoes.values()) if (!c.ws) t.push(c.saiuEm + GRACE_SAIDA_MS + 50);
         if (this.conexoes.size || this.ctx.getWebSockets().length || s.videoId || this.fila.length) t.push(agora + VERIFICAR_MS);
         return t.length ? Math.max(agora + 20, Math.min(...t)) : null;

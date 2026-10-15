@@ -135,8 +135,9 @@ confere(ana.fila.length === 0 && !ana.player.countdown, 'fila e contagem zeradas
 r = await dj.pedir({ t: 'fila', videoId: VIDEOS[0] });
 confere(r.motivo === 'repetida', 'música repetida é recusada');
 await espera(3100);
-r = await dj.pedir({ t: 'fila', videoId: VIDEOS[1], title: 'Música 2' });
+r = await dj.pedir({ t: 'fila', videoId: VIDEOS[1], title: 'Música 2', duracao: 1400.4 });
 confere(r.t === 'ok' && r.posicao === 1 && !r.entraAgora, 'segunda música espera na fila');
+confere(await ana.ate(() => ana.fila[0]?.duracao === 1400), 'duração do vídeo longo chega a todos (aviso de corte aos 10 min)');
 
 // playback do DJ
 dj.enviar({ t: 'playback', state: 'paused', time: 12.5 });
@@ -144,6 +145,7 @@ confere(await ana.ate(() => ana.player?.playback?.state === 'paused'), 'pausa do
 ana.enviar({ t: 'playback', state: 'playing', time: 99 });
 await espera(600);
 confere(ana.player.playback.time === 12.5, 'quem não é DJ não mexe no player');
+dj.enviar({ t: 'playback', state: 'playing', time: 12.5 }); // retoma: pausa longa passaria a vez
 
 // festa
 r = await ana.pedir({ t: 'festa' });
@@ -189,6 +191,12 @@ confere(await ana.ate(() => ana.player?.countdown?.cancelavel), 'DJ passa a vez 
 r = await dj.pedir({ t: 'cancelar' });
 confere(r.t === 'ok' && (await ana.ate(() => !ana.player?.countdown)), 'DJ cancela a contagem');
 
+// pausa do DJ: aos 5 s abre a contagem; voltar a tocar cancela
+dj.enviar({ t: 'playback', state: 'paused', time: 30 });
+confere(await ana.ate(() => ana.player?.countdown?.tipo === 'pausa', 9000), 'pausa longa do DJ abre a contagem');
+dj.enviar({ t: 'playback', state: 'playing', time: 30 });
+confere(await ana.ate(() => !ana.player?.countdown) && ana.player.state.videoId === VIDEOS[1], 'DJ volta a tocar e a contagem some');
+
 // fim do vídeo pelo DJ
 dj.enviar({ t: 'fim', chave: `${VIDEOS[1]}_${ana.player.state.startedAt}` });
 confere(await ana.ate(() => ana.player?.state?.videoId === null), 'fim informado pelo DJ volta para a playlist da casa');
@@ -226,6 +234,18 @@ confere(await dj.ate(() => !dj.users.has(beto.id)), 'removido some da pista');
 let voltou = null;
 try { const b2 = new Robo('Beto'); b2.id = beto.id; b2.token = beto.token; await Promise.race([b2.conectar(), espera(2500)]); voltou = b2; } catch {}
 confere(!voltou?.eu, 'removido não volta antes do prazo');
+
+// pausa do DJ por mais de 10 s passa a vez
+await espera(3100);
+await dj.pedir({ t: 'fila', videoId: 'hTWKbfoikeg', title: 'Pausa' });
+confere(await ana.ate(() => ana.player?.state?.videoId === 'hTWKbfoikeg', 9000), 'música nova no ar');
+const pausouEm = Date.now();
+dj.enviar({ t: 'playback', state: 'paused', time: 12 });
+await espera(5500);
+dj.enviar({ t: 'playback', state: 'paused', time: 12 }); // republicar "pausado" não reinicia o prazo
+confere(await ana.ate(() => ana.player?.state?.videoId === null, 9000), 'pausada por mais de 10 s, a música passa a vez');
+const levou = (Date.now() - pausouEm) / 1000;
+confere(levou >= 9.5 && levou <= 12.5, `passou aos ~10 s de pausa (${levou.toFixed(1)} s)`);
 
 // --lento: DJ que sai da tela perde a mesa; música de quem está fora sai da fila (~2 min)
 if (process.argv.includes('--lento')) {
