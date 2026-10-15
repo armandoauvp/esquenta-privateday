@@ -37,7 +37,7 @@ Enquanto o modal está aberto, o áudio do player fica abafado (volume ~10% + de
 - Clique em qualquer ponto da pista para mover seu avatar (posição sincronizada para todos).
 - **Pista WebGL (Three.js)**: globo de espelhos 3D facetado girando, luzes coloridas orbitando, feixes volumétricos e partículas de poeira brilhante — tudo **pulsando numa batida estimada (118 BPM)** quando há música audível. Carregado por import dinâmico; sem WebGL, o globo 2D em CSS permanece.
 - Ladrilhos 80s acendem em cores neon aleatórias; luzes de ambiente pulsam nos cantos.
-- **Reações rápidas**: barra no canto inferior esquerdo (🔥 ❤️ 👏 🕺 💃 😂). A reação sobe flutuando do seu avatar na tela de todo mundo (coleção `reactions`; o cliente líder apaga reações com mais de 2 min).
+- **Reações rápidas**: barra no canto inferior esquerdo (🔥 ❤️ 👏 🕺 💃 😂). A reação sobe flutuando do seu avatar na tela de todo mundo (uma a cada 1,5 s por pessoa; no auge, o excesso aparece só pra quem tocou).
 - **Passinhos de dança**: botão 🕺 abre o menu de presets — Giro, Pulinho, Quebradinha, Moonwalk (ou Parado). O passinho fica salvo na sua presença e todos veem seu avatar dançando.
 - **👑 Área VIP** (canto superior direito): demarcada com corda dourada tracejada. VIPs circulam livremente; não-VIPs que clicam ali recebem um toast com botão direto para a página de ingressos. Quem está **dentro do lounge** ganha regalias:
   - **Reações exclusivas douradas** (🥂 💎 👑 ✨) numa barra própria, com brilho dourado ao flutuar — só funcionam com o avatar dentro da área.
@@ -65,11 +65,11 @@ Estados:
 
 No celular a mesa encolhe para 128 px e mostra só a cabine e a barra. Numa pista bem baixa (menos de 180 px), o letreiro também some. Ninguém consegue parar na frente do tampo: clique, teclado e ponto de entrada respeitam a área da mesa.
 
-**A mesa de DJ é exclusiva de quem tem ingresso confirmado.** Para quem entrou sem ingresso, o campo da fila fica travado com um aviso, um atalho "Já tenho: confirmar e-mail" e o link para a página de ingressos; forçar o envio mostra o mesmo convite. As regras do Firestore recusam a fila de quem não tem o vínculo `vip/{uid}`.
+**A mesa de DJ é exclusiva de quem tem ingresso confirmado.** Para quem entrou sem ingresso, o campo da fila fica travado com um aviso, um atalho "Já tenho: confirmar e-mail" e o link para a página de ingressos; forçar o envio mostra o mesmo convite. O servidor recusa a fila de quem não tem o ingresso confirmado.
 
 Cole um link do YouTube no campo da fila. A música entra no fim da fila com seu nome e o **título resolvido automaticamente** (oEmbed via noembed.com, sem chave de API); o título também aparece numa pílula sobre o player enquanto toca.
 
-**Para tocar, é preciso estar na pista**: a fila vive no Firestore e recarregar a página **não** custa o lugar (a volta acontece dentro da tolerância de ausência). Mas quem fecha o app, minimiza ou troca de aba por mais de ~45 s sai da pista e **perde a vez**: a música é removida da fila pelo cliente líder. Enquanto isso, a música aparece na lista marcada com **"· fora da pista ⚠️"** — o aviso some assim que a pessoa volta.
+**Para tocar, é preciso estar na pista**: a fila vive no servidor e recarregar a página **não** custa o lugar (quem fecha a aba fica 20 s na pista, o suficiente pra voltar). Mas quem fecha o app, minimiza ou troca de aba por mais de ~45 s sai da pista e **perde a vez**: o servidor tira a música da fila. Enquanto isso, a música aparece na lista marcada com **"· fora da pista ⚠️"** — o aviso some assim que a pessoa volta.
 
 - Se a **playlist da casa** estiver tocando (ninguém na mesa), uma **contagem regressiva de 5 segundos** aparece sobre o player ("🎵 Música de Fulano entrando na pista!") e a sua música assume.
 
@@ -80,13 +80,13 @@ Quem está com a música tocando vê o botão **"Pular minha vez"** — passa a 
 
 **Envios com retorno**: chat, fila, DM e votos travam o botão durante o envio (Enter duplo não duplica nada) e avisam quando falham, sem apagar o que a pessoa digitou. Erros da fila aparecem embaixo do campo, com exemplo de link aceito (watch, youtu.be, shorts, live, embed). Música repetida é recusada. Ao entrar na fila, um aviso mostra a posição.
 
-**Sem conexão**: sem Firebase, ou com a internet caída, uma faixa vermelha no topo explica que a pessoa está só assistindo, e chat e fila ficam travados com o motivo no próprio campo. Se a autenticação demorar mais que os 10 s do timeout, o app conecta sozinho quando ela chegar (antes ficava offline até recarregar).
+**Sem conexão**: sem o servidor da pista, ou com a internet caída, uma faixa vermelha no topo explica que a pessoa está só assistindo, e chat e fila ficam travados com o motivo no próprio campo. A conexão volta sozinha, com a mesma identidade, assim que der.
 
 **Avisos em fila**: um aviso novo não apaga o anterior. Eles aparecem um por vez (até 3 esperando, sem repetir o mesmo texto; erros passam na frente), cada um com ✕ para dispensar. No celular ficam logo acima da lateral, sem cobrir o campo do chat.
 
 **Profundidade**: os avatares andam **por trás** do globo espelhado. Quem vai para o fundo da pista some atrás dele, e os feixes de luz iluminam quem passa embaixo. O avatar do DJ continua por cima da mesa.
 
-**Pista pelo teclado**: com a pista em foco (Tab ou um clique), as **setas** movem o avatar (4% por toque; com **Shift**, 10%), respeitando a Área VIP. O avatar anda na hora e a gravação no Firestore sai agrupada, então segurar a seta não gera uma escrita por tecla.
+**Pista pelo teclado**: com a pista em foco (Tab ou um clique), as **setas** movem o avatar (4% por toque; com **Shift**, 10%), respeitando a Área VIP. O avatar anda na hora e o envio pro servidor sai agrupado, então segurar a seta não gera uma mensagem por tecla.
 
 **Botões do player no celular**: alvo de toque de 40 px e versão compacta (ícone + contador, como `🔥 3` e `▶ 1/4`; "Passar" e "Anúncio" no lugar dos textos longos). O texto completo continua no `aria-label` e volta a aparecer a partir de 640 px.
 
@@ -99,7 +99,7 @@ Para os demais, o botão **"Pular (x/y)"** no canto do player:
 - Os votos zeram a cada troca de música.
 
 ### 🔥 "Essa vai pra festa!"
-Botão ao lado do "Pular". Um clique = um voto por pessoa por música (fica laranja depois de votar; mostra o total entre parênteses). Os votos ficam gravados **permanentemente** na coleção `partyVotes` do Firestore para a curadoria do setlist da festa real — cada registro guarda o vídeo, quem votou e quem tinha colocado a música.
+Botão ao lado do "Pular". Um clique = um voto por pessoa por música (fica laranja depois de votar; mostra o total entre parênteses). Os votos ficam gravados **permanentemente** no servidor (tabela `festa`) para a curadoria do setlist da festa real — um voto por pessoa por música.
 
 ### Reprodução sincronizada — o DJ no comando
 - **Todo mundo assiste ao mesmo ponto do vídeo**: quem entra no meio da música já começa nos segundos certos, e um ajuste automático corrige qualquer descompasso maior que 6 s.
@@ -111,7 +111,7 @@ Botão ao lado do "Pular". Um clique = um voto por pessoa por música (fica lara
 ### Troca automática
 - **10 minutos**: qualquer vídeo é pulado automaticamente ao completar 10 min de reprodução.
 - **Fim do vídeo**: quando o vídeo termina, a próxima música da fila entra sozinha.
-- **DJ que sai da tela**: o crachá "🎧 Sua vez na mesa!" avisa para **ficar na tela**. Se quem está na mesa fecha o app, minimiza ou troca de aba por mais de ~45 s, a pista não fica refém: o líder passa a vez com a contagem de 5 s ("🎧 Fulano saiu da pista — próxima música!"). Ao voltar, a pessoa recebe um toast explicando que perdeu a vez.
+- **DJ que sai da tela**: o crachá "🎧 Sua vez na mesa!" avisa para **ficar na tela**. Se quem está na mesa fecha o app, minimiza ou troca de aba por mais de ~45 s, a pista não fica refém: o servidor passa a vez com a contagem de 5 s ("🎧 Fulano saiu da pista — próxima música!"). Ao voltar, a pessoa recebe um toast explicando que perdeu a vez.
 - **Vídeo que não toca** (removido, privado, embed bloqueado, indisponível na região): o erro do player dispara a troca ("⚠️ Vídeo indisponível — próxima música!") em vez de deixar a pista na tela preta até os 10 min.
 - **Player travado**: se o *seu* player para de dar sinal por 45 s (buffer infinito, iframe morto), o app recarrega **só o seu iframe** e volta no ponto certo da música — sem pular a música para os outros.
 - **Fila vazia**: sem próxima música, o player volta para a **playlist da casa**: um vídeo com as músicas do esquenta emendadas, em loop. Ele toca mutado, com botão "Ativar som" (regra de autoplay dos navegadores).
@@ -132,15 +132,26 @@ Botão ao lado do "Pular". Um clique = um voto por pessoa por música (fica lara
 - Clicar em alguém que já te pediu papo equivale a aceitar; recusado, um novo clique reenvia a solicitação.
 - Painel flutuante com bolhas estilo mensageiro (suas mensagens em laranja, as do outro em cinza).
 - Mensagens novas com o painel fechado geram um **badge vermelho** com contagem sobre o avatar da pessoa na pista.
-- Só os dois participantes veem a conversa (filtro por `convId` no cliente).
+- Só os dois participantes veem a conversa: o servidor entrega pedidos e mensagens apenas a eles (nem a organização lê).
 - **Disclaimer** exibido no painel e no card de solicitação: *"A AUVP não se responsabiliza pelas conversas ocorridas em privado nesta plataforma."*
 
 ## 🏆 Ranking da noite
 
 Botão **🏆 Ranking** no header abre o painel com dois placares ao vivo:
 
-- **🎧 DJs da noite**: quem mais emplacou músicas na mesa (top 5, contado pela coleção `history` — toda música que começa a tocar gera um registro).
+- **🎧 DJs da noite**: quem mais emplacou músicas na mesa (top 5, contado pelo histórico do servidor — toda música que começa a tocar gera um registro).
 - **🔥 Rumo à festa**: as músicas mais votadas em "Essa vai pra festa!" (top 5, com thumbnail, título e link para o YouTube).
+
+## Organização
+
+Quem é da organização (e-mails cadastrados no servidor) toca em **Sou da organização**, no rodapé do modal do avatar, e entra com a conta Google. O selo fica gravado naquele navegador e aparece ao lado do nome, no chat, na pista e na lista de quem está na pista. Com ele:
+
+- **Pular agora**, no canto do player: contagem de 5 s e a próxima música entra.
+- **Tirar da fila** qualquer música (o ✕ ao lado dela). Quem colocou a música também pode tirar a própria.
+- **Apagar mensagens** do chat (lixeira ao lado da mensagem).
+- **Remover alguém** da pista por 30 min em **Na pista agora** (dois toques: o primeiro arma, o segundo confirma). As mensagens e as músicas da pessoa saem junto.
+
+A organização não lê papos privados: eles só vão para os dois participantes.
 
 ## Responsividade
 
