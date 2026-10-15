@@ -20,6 +20,7 @@ const MAX_PESSOAS = 1500;
 const MAX_MSG = 4096;
 const JANELA_MS = 5000, LIMITE_JANELA = 30, LIMITE_DERRUBA = 90;
 const SILENCIO_MAX_MS = 90_000;     // sem mensagem nem ping nesse tempo = conexão morta
+const GRACE_VISTA_MS = 3_000;       // fechou a aba: o avatar some da pista
 const GRACE_SAIDA_MS = 20_000;      // recarregar a página não tira ninguém da mesa nem da fila
 const AWAY_GRACE_MS = 45_000;       // fora da tela além disso = fora da pista
 const VERIFICAR_MS = 15_000;        // ronda enquanto há gente ou música
@@ -48,7 +49,7 @@ interface Pessoa {
     isVIP: boolean; isOrg: boolean; x: number; y: number; away: boolean; awaySince: number;
 }
 interface Anexo { id: string; p: Pessoa }
-interface Conexao { ws: WebSocket | null; p: Pessoa; saiuEm: number }
+interface Conexao { ws: WebSocket | null; p: Pessoa; saiuEm: number; sumiu: boolean }
 interface Cota { ini: number; n: number; visto: number }
 interface ItemFila {
     id: string; videoId: string; title: string | null; addedByName: string;
@@ -148,7 +149,7 @@ export class Pista extends DurableObject<Env> {
         // objeto dormia não está mais aqui, então o próximo tick manda a pista inteira
         for (const ws of ctx.getWebSockets()) {
             const a = ws.deserializeAttachment() as Anexo | null;
-            if (a?.id) this.conexoes.set(a.id, { ws, p: a.p, saiuEm: 0 });
+            if (a?.id) this.conexoes.set(a.id, { ws, p: a.p, saiuEm: 0, sumiu: false });
         }
         if (this.conexoes.size) this.reset = true;
     }
@@ -353,9 +354,9 @@ export class Pista extends DurableObject<Env> {
         if (naAreaVip(p.x, p.y) && !p.isVIP) { p.x = 50; p.y = 60; }
 
         ws.serializeAttachment({ id, p } satisfies Anexo);
-        this.conexoes.set(id, { ws, p, saiuEm: 0 });
+        this.conexoes.set(id, { ws, p, saiuEm: 0, sumiu: false });
         this.saiu.delete(id);
-        this.mudouTudo.add(id);
+        this.mudouTudo.add(id);   // voltou do F5 dentro do prazo: reaparece na pista
 
         const dms = this.sql.exec<{ dados: string }>(
             'SELECT dados FROM dm WHERE de = ?1 OR para = ?1 ORDER BY ts DESC LIMIT 200', id)
@@ -366,7 +367,7 @@ export class Pista extends DurableObject<Env> {
         this.enviar(ws, {
             t: 'bemvindo', id, token: await this.assinar(id), agora: Date.now(),
             eu: { isVIP: p.isVIP, isOrg: p.isOrg },
-            users: [...this.conexoes.values()].map(c => c.p),
+            users: [...this.conexoes.values()].filter(c => this.naVista(c)).map(c => c.p),
             chat: this.chat, fila: this.fila, player: this.playerPublico(),
             festa: {
                 videoId: vid, n: this.festaN,
@@ -384,10 +385,18 @@ export class Pista extends DurableObject<Env> {
         if (!a?.id) return;
         const c = this.conexoes.get(a.id);
         if (!c || c.ws !== ws) return;
-        // fica na pista por GRACE_SAIDA_MS: quem só recarregou não perde a mesa
+        // some da pista em GRACE_VISTA_MS; a mesa e a fila ficam até GRACE_SAIDA_MS
         c.ws = null;
         c.saiuEm = Date.now();
+        c.sumiu = false;
         this.agendarAlarme();
+    }
+
+    // Quem fechou a aba some da pista em GRACE_VISTA_MS, mas continua em `conexoes`
+    // até GRACE_SAIDA_MS: a mesa de DJ e o lugar na fila seguem guardados, então um F5
+    // não custa nada. O navegador manda o mesmo evento nos dois casos — só o prazo separa.
+    private naVista(c: Conexao, agora = Date.now()): boolean {
+        return !!c.ws || agora - c.saiuEm <= GRACE_VISTA_MS;
     }
 
     private remover(id: string) {
@@ -644,7 +653,15 @@ export class Pista extends DurableObject<Env> {
     private verificar() {
         const agora = Date.now();
         for (const [id, c] of this.conexoes) {
-            if (!c.ws && agora - c.saiuEm > GRACE_SAIDA_MS) this.remover(id);
+            if (!c.ws && agora - c.saiuEm > GRACE_SAIDA_MS) { this.remover(id); continue; }
+            // fechou a aba: sai da vista de todo mundo sem perder a mesa nem a fila
+            if (!c.ws && !c.sumiu && agora - c.saiuEm > GRACE_VISTA_MS) {
+                c.sumiu = true;
+                this.mudouPos.delete(id);
+                this.mudouTudo.delete(id);
+                this.saiu.add(id);
+                this.agendarFlush();
+            }
         }
 
         const cd = this.player.countdown;
@@ -699,7 +716,10 @@ export class Pista extends DurableObject<Env> {
         if (this.fimInformado.desde) t.push(this.fimInformado.desde + FIM_ESPERA_MS);
         if (this.erroInformado.desde) t.push(this.erroInformado.desde + ERRO_ESPERA_MS);
         if (this.pausadoDesde) t.push(this.pausadoDesde + PAUSA_AVISO_MS);
-        for (const c of this.conexoes.values()) if (!c.ws) t.push(c.saiuEm + GRACE_SAIDA_MS + 50);
+        for (const c of this.conexoes.values()) if (!c.ws) {
+            if (!c.sumiu) t.push(c.saiuEm + GRACE_VISTA_MS + 50);
+            t.push(c.saiuEm + GRACE_SAIDA_MS + 50);
+        }
         if (this.conexoes.size || this.ctx.getWebSockets().length || s.videoId || this.fila.length) t.push(agora + VERIFICAR_MS);
         return t.length ? Math.max(agora + 20, Math.min(...t)) : null;
     }
@@ -900,7 +920,7 @@ export class Pista extends DurableObject<Env> {
         const m: Record<string, unknown> = { t: 'tick', agora: Date.now() };
         if (this.reset) {
             m.reset = true;
-            m.tudo = [...this.conexoes.values()].map(c => c.p);
+            m.tudo = [...this.conexoes.values()].filter(c => this.naVista(c)).map(c => c.p);
             this.reset = false;
         } else {
             const tudo: Pessoa[] = [], pos: [string, number, number][] = [];

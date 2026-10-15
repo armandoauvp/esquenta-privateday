@@ -216,6 +216,13 @@ await dj.conectar();
 confere(dj.id === idAntes && dj.eu.isVIP, 'reconexão mantém identidade e ingresso');
 confere(ana.player.state.addedByUid === idAntes, 'recarregar não tira o DJ da mesa');
 
+// fechar a aba tira da pista em ~3 s, mas a mesa e a fila ficam guardadas até 20 s
+dj.fechar();
+confere(await ana.ate(() => !ana.users.has(idAntes), 8000, 250), 'quem fecha a aba some da pista');
+confere(ana.player.state.addedByUid === idAntes, 'quem fechou a aba não perde a mesa na hora');
+await dj.conectar();
+confere(dj.id === idAntes && await ana.ate(() => ana.users.has(idAntes)), 'voltou dentro do prazo e reaparece na pista');
+
 // organização
 r = await ana.pedir({ t: 'admPular' });
 confere(r.motivo === 'nao_org', 'quem não é da organização não pula');

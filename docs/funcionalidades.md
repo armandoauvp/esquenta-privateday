@@ -69,7 +69,7 @@ No celular a mesa encolhe para 128 px e mostra só a cabine e a barra. Numa pist
 
 Cole um link do YouTube no campo da fila. A música entra no fim da fila com seu nome e o **título resolvido automaticamente** (oEmbed via noembed.com, sem chave de API); o título também aparece numa pílula sobre o player enquanto toca.
 
-**Para tocar, é preciso estar na pista**: a fila vive no servidor e recarregar a página **não** custa o lugar (quem fecha a aba fica 20 s na pista, o suficiente pra voltar). Mas quem fecha o app, minimiza ou troca de aba por mais de ~45 s sai da pista e **perde a vez**: o servidor tira a música da fila. Enquanto isso, a música aparece na lista marcada com **"· fora da pista ⚠️"** — o aviso some assim que a pessoa volta.
+**Para tocar, é preciso estar na pista**: a fila vive no servidor e recarregar a página **não** custa o lugar (o avatar some da pista em 3 s, mas a vez fica guardada por 20 s — tempo de sobra pra voltar). Mas quem fecha o app, minimiza ou troca de aba por mais de ~45 s sai da pista e **perde a vez**: o servidor tira a música da fila. Enquanto isso, a música aparece na lista marcada com **"· fora da pista ⚠️"** — o aviso some assim que a pessoa volta.
 
 - Se a **playlist da casa** estiver tocando (ninguém na mesa), uma **contagem regressiva de 5 segundos** aparece sobre o player ("🎵 Música de Fulano entrando na pista!") e a sua música assume.
 

@@ -128,7 +128,7 @@ No `index.html`:
 | `VIP_ZONE` | `{x1:72, y1:5, x2:98, y2:32}` | Retângulo (%) da Área VIP na pista (igual em `servidor/src/regras.ts`) |
 | `BPM` (bloco WebGL) | `118` | Batida estimada do pulso visual da pista 3D |
 
-No servidor (`servidor/src/pista.ts`): `MAX_PLAY_MS` (10 min por música), `PAUSA_MAX_MS` (10 s de pausa passa a vez), `COUNTDOWN_MS` (5 s), `AWAY_GRACE_MS` (45 s fora da tela), `GRACE_SAIDA_MS` (20 s para quem recarrega), `FILA_POR_PESSOA` (3), `BAN_MS` (30 min) e a lista de palavrões em `regras.ts`.
+No servidor (`servidor/src/pista.ts`): `MAX_PLAY_MS` (10 min por música), `PAUSA_MAX_MS` (10 s de pausa passa a vez), `COUNTDOWN_MS` (5 s), `AWAY_GRACE_MS` (45 s fora da tela), `GRACE_VISTA_MS` (3 s para sumir da pista ao fechar a aba), `GRACE_SAIDA_MS` (20 s para quem recarrega), `FILA_POR_PESSOA` (3), `BAN_MS` (30 min) e a lista de palavrões em `regras.ts`.
 
 ## Solução de problemas
 
