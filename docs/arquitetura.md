@@ -44,7 +44,7 @@ O texto `ping` é respondido `pong` pelo próprio runtime da Cloudflare, sem aco
 ```js
 { id, name, color, avatarConfig, dance, isVIP, isOrg, x, y, away, awaySince }
 ```
-Vivem no anexo de cada WebSocket (`serializeAttachment`), que sobrevive à hibernação. Quem fecha a aba fica **20 s** na pista (`GRACE_SAIDA_MS`): recarregar não tira ninguém da mesa nem da fila. `isVIP` e `isOrg` vêm do servidor, nunca do navegador.
+Vivem no anexo de cada WebSocket (`serializeAttachment`), que sobrevive à hibernação. Quem fecha a aba sai da vista de todos em **3 s** (`GRACE_VISTA_MS`) e só é removido de verdade aos **20 s** (`GRACE_SAIDA_MS`) — nesse intervalo a mesa de DJ e o lugar na fila seguem guardados, então recarregar não tira ninguém de lugar nenhum. Quem volta antes dos 20 s reaparece na pista. `isVIP` e `isOrg` vêm do servidor, nunca do navegador.
 
 **Online ≠ presente.** Estar na lista mantém o avatar na pista; para DJ e fila vale `presente`: conectado (ou recarregando) **e** sem `away` há mais de `AWAY_GRACE_MS` (45 s). `away` sai na hora pelo `visibilitychange`. A mesma regra existe no app (`isPresent`), só para desenhar ("fora da tela", limiar de pular).
 
