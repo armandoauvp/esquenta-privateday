@@ -58,6 +58,9 @@ Pista de dança virtual em tempo real para o esquenta do **AUVP Private Day 2026
 | [docs/arquitetura.md](docs/arquitetura.md) | Estrutura do código, a sala no servidor, protocolo, sincronização (contagem, votos, relógio) |
 | [docs/funcionalidades.md](docs/funcionalidades.md) | Guia detalhado de cada funcionalidade e como ela funciona por dentro |
 | [docs/deploy.md](docs/deploy.md) | Publicação (Vercel e Cloudflare), organização com Google, ingressos e solução de problemas |
+| [docs/plano.md](docs/plano.md) | **O que falta e o que automatizar** — comece por aqui numa sessão nova |
+| [docs/historico.md](docs/historico.md) | Linha do tempo, decisões (Firebase → Cloudflare) e lições |
+| [docs/operacao-evento.md](docs/operacao-evento.md) | Roteiro do dia do evento: antes, durante e depois |
 | [servidor/README.md](servidor/README.md) | Servidor da pista: protocolo, testes e resultado da carga com 500 robôs |
 | [CLAUDE.md](CLAUDE.md) | Guia para desenvolvimento com Claude Code neste repositório |
 

@@ -109,7 +109,8 @@ Botão ao lado do "Pular". Um clique = um voto por pessoa por música (fica lara
 - **O que o DJ faz, todos veem**: pausar e retomar no player do DJ replica para toda a pista em segundos.
 
 ### Troca automática
-- **10 minutos**: qualquer vídeo é pulado automaticamente ao completar 10 min de reprodução.
+- **10 minutos**: qualquer vídeo da fila (a playlist da casa não conta) é pulado automaticamente ao completar 10 min. Quem cola um vídeo mais longo vê um aviso antes de entrar na fila ("Esse vídeo tem 23:14 … será cortado em 10:00") e escolhe entre **Colocar mesmo assim** e **Escolher outro**; na fila, o vídeo aparece com "· toca 10 min". A duração é medida por um player do YouTube invisível, sem chave de API.
+- **Pausa longa**: só o DJ pausa, mas a pista não fica parada: com a música pausada por 5 s abre a contagem "A música ficou pausada — próxima da fila!" e, aos 10 s, a vez passa. O DJ vê **Voltar a tocar** na contagem; retomando a tempo, a contagem some.
 - **Fim do vídeo**: quando o vídeo termina, a próxima música da fila entra sozinha.
 - **DJ que sai da tela**: o crachá "🎧 Sua vez na mesa!" avisa para **ficar na tela**. Se quem está na mesa fecha o app, minimiza ou troca de aba por mais de ~45 s, a pista não fica refém: o servidor passa a vez com a contagem de 5 s ("🎧 Fulano saiu da pista — próxima música!"). Ao voltar, a pessoa recebe um toast explicando que perdeu a vez.
 - **Vídeo que não toca** (removido, privado, embed bloqueado, indisponível na região): o erro do player dispara a troca ("⚠️ Vídeo indisponível — próxima música!") em vez de deixar a pista na tela preta até os 10 min.

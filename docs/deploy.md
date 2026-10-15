@@ -112,6 +112,7 @@ O script lê a primeira aba do `.xlsx` (ou o CSV, detectando separador e codific
 ## Manutenção durante o evento
 
 - **Estado da sala**: `GET /admin/estado?sala=principal` com `Authorization: Bearer <ADMIN_CHAVE>` mostra conexões, pessoas, fila, música atual e quantos ingressos há na lista.
+- **Curadoria e histórico**: `GET /admin/exportar?sala=principal` (mesma autorização) devolve os votos "Essa vai pra festa!" por vídeo e todas as músicas tocadas.
 - **Moderação**: pela própria pista, com o selo de Organização.
 - **Limpar tudo** (chat, histórico, votos): só apagando a sala, um passo destrutivo que exige uma migração no `wrangler.jsonc` (`deleted_classes`). Prefira a sala `teste` para ensaios.
 
@@ -127,7 +128,7 @@ No `index.html`:
 | `VIP_ZONE` | `{x1:72, y1:5, x2:98, y2:32}` | Retângulo (%) da Área VIP na pista (igual em `servidor/src/regras.ts`) |
 | `BPM` (bloco WebGL) | `118` | Batida estimada do pulso visual da pista 3D |
 
-No servidor (`servidor/src/pista.ts`): `MAX_PLAY_MS` (10 min por música), `COUNTDOWN_MS` (5 s), `AWAY_GRACE_MS` (45 s fora da tela), `GRACE_SAIDA_MS` (20 s para quem recarrega), `FILA_POR_PESSOA` (3), `BAN_MS` (30 min) e a lista de palavrões em `regras.ts`.
+No servidor (`servidor/src/pista.ts`): `MAX_PLAY_MS` (10 min por música), `PAUSA_MAX_MS` (10 s de pausa passa a vez), `COUNTDOWN_MS` (5 s), `AWAY_GRACE_MS` (45 s fora da tela), `GRACE_SAIDA_MS` (20 s para quem recarrega), `FILA_POR_PESSOA` (3), `BAN_MS` (30 min) e a lista de palavrões em `regras.ts`.
 
 ## Solução de problemas
 
