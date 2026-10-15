@@ -7,21 +7,21 @@ Documento vivo. Ao concluir um item, marque `[x]` com data e PR, e passe o que f
 ## Estado em 15/10/2026
 
 - **No ar**: app na Vercel (PR #30 mergeado) falando com o servidor da Cloudflare `https://esquenta-pista.esquenta-pista-servidor.workers.dev`, sala `principal` em Miami. O Firebase não é mais usado pelo app.
-- **Servidor publicado** com as regras de pausa longa (10 s passa a vez) e duração na fila. O app com o aviso de vídeo longo, o botão "Voltar a tocar" e o cabeçalho alinhado à esquerda está no PR da branch `feat/pausa-e-contexto`.
+- **Servidor publicado** com as regras de pausa longa (10 s passa a vez) e duração na fila. O app com o aviso de vídeo longo, o botão "Voltar a tocar" e o cabeçalho alinhado à esquerda está na `main` (PR #31, mergeado em 15/10/2026).
 - 378 ingressos na sala `principal` (planilha do Guru de 14/10 + 1 cortesia).
-- Secrets do servidor: `SEGREDO`, `ADMIN_CHAVE`, `ADMINS` (os três e-mails da organização). `GOOGLE_CLIENT_ID` ainda vazio.
+- Secrets do servidor: `SEGREDO`, `ADMIN_CHAVE`, `ADMINS` (os três e-mails da organização). `GOOGLE_CLIENT_ID` criado em 15/10 e preenchido no `index.html` e no `wrangler.jsonc`; falta publicar o servidor.
 - Chave de admin de produção só no arquivo local `servidor/.chave-admin-producao` (fora do git).
 
 ## 1. Colocar no ar o que falta
 
 - [x] **1.1 Migração para a Cloudflare** — PR #30, mergeado em 15/10/2026.
-- [ ] **1.2 Mergear o PR de `feat/pausa-e-contexto`** — Você. Aviso de vídeo longo, "Voltar a tocar", cabeçalho alinhado, documentação de contexto. O servidor já está publicado.
-- [ ] **1.3 Login da organização com Google (ID do cliente OAuth)** — Agente, no navegador; **Você** só faz login na conta Google (o agente nunca digita senha) e aprova o que o console pedir. Roteiro completo na seção [Roteiro 1.3](#roteiro-13-id-do-cliente-oauth-do-google) abaixo. Aceite: em `https://esquenta-privateday.vercel.app`, "Sou da organização" mostra o botão do Google e os três e-mails ganham o selo.
+- [x] **1.2 Mergear o PR de `feat/pausa-e-contexto`** — PR #31, mergeado em 15/10/2026. Aviso de vídeo longo, "Voltar a tocar", cabeçalho alinhado, documentação de contexto.
+- [ ] **1.3 Login da organização com Google (ID do cliente OAuth)** — **quase lá.** Feito em 15/10: Plataforma de autenticação criada (app `Esquenta AUVP Private Day`, Público **Interno**) e cliente `Pista do esquenta` com as três origens; ID preenchido no `index.html` e no `servidor/wrangler.jsonc`, Elementor regerado, `app-build` em `2026-10-15c`. Falta — Você: merge do PR e `npx wrangler deploy` no `servidor/`. Aceite: em `https://esquenta-privateday.vercel.app`, "Sou da organização" mostra o botão do Google e os três e-mails ganham o selo. Roteiro na seção [Roteiro 1.3](#roteiro-13-id-do-cliente-oauth-do-google) abaixo.
 - [ ] **1.4 Ensaio com gente de verdade** — Você + Agente. 10–30 pessoas na sala `teste` (`?sala=teste`) por 15 min; o agente acompanha `/admin/estado` e as métricas da Cloudflare e anota o consumo real de cota no [historico.md](historico.md).
 
 ## 2. Decisões pendentes
 
-- [ ] **2.1 Compradores de "apenas palestra"** — Você decide. O importador aceita qualquer venda aprovada; havia 4 compradores só da palestra. Ficam com VIP (coroa + mesa de DJ)? Se não: Agente cria `--produto` no `tools/importar-ingressos.py` e reimporta com `--substituir`.
+- [x] **2.1 Compradores de "apenas palestra"** — decidido em 15/10/2026: **ficam com VIP** (coroa + mesa de DJ). O importador segue aceitando qualquer venda aprovada; não há `--produto` a criar.
 - [ ] **2.2 Desligar o Firebase** — Você decide, depois de alguns dias estável. A coleção `partyVotes` tem votos de antes da migração: exportar se quiser a curadoria antiga. Depois: Agente remove o `firestore.rules` e as menções restantes; Você desativa o projeto (ou só a chave de serviço).
 - [ ] **2.3 Restringir origens** — Você informa os domínios finais; Agente preenche `ORIGENS` no `wrangler.jsonc` (vazio = qualquer site pode abrir a sala).
 - [ ] **2.4 Data e horário do evento** — Você informa; entram no [operacao-evento.md](operacao-evento.md). A cota da Cloudflare zera às 21:00 de Brasília.

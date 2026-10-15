@@ -13,5 +13,5 @@
   // GOOGLE_CLIENT_ID: "Entrar com Google" da organização (docs/deploy.md); vazio = sem login.
   // ORIGENS: domínios aceitos, separados por vírgula; vazio = qualquer um.
   // Secrets (wrangler secret put): SEGREDO, ADMIN_CHAVE, ADMINS.
-  "vars": { "GOOGLE_CLIENT_ID": "", "ORIGENS": "" }
+  "vars": { "GOOGLE_CLIENT_ID": "593681368158-pg7ihv8nna3v6qb9hasso1rp3vnlf7nv.apps.googleusercontent.com", "ORIGENS": "" }
 }
