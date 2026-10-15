@@ -12,13 +12,13 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-14d">
+    <meta name="app-build" content="2026-10-15a">
     <title>Esquenta AUVP Private Day</title>
-    <!-- abre as conexões cedo: fontes, avatares, Firebase e YouTube entram sem esperar o DNS/TLS -->
+    <!-- abre as conexões cedo: fontes, avatares, servidor da pista e YouTube entram sem esperar o DNS/TLS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://api.dicebear.com" crossorigin>
-    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="preconnect" href="https://esquenta-pista.esquenta-pista-servidor.workers.dev">
     <link rel="preconnect" href="https://www.youtube.com">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -438,7 +438,7 @@
         <p id="loadLabel" class="text-[11px] text-[#FFF7EB]/65 mt-2.5 font-light tracking-wide">preparando os bonecos…</p>
     </div>
 
-    <!-- SEM CONEXÃO: sem Firebase o app abre só pra assistir; a faixa explica por que nada responde -->
+    <!-- SEM CONEXÃO: sem o servidor da pista o app abre só pra assistir; a faixa explica por que nada responde -->
     <div id="semConexao" role="alert" class="hidden fixed top-0 inset-x-0 z-[70] bg-[#932621] text-[#FFF7EB] text-xs px-3 py-2 items-center justify-center gap-3 shadow-lg">
         <span data-icone="offline" class="text-base"></span><span id="semConexaoTexto">Sem conexão com a pista — por enquanto você só assiste.</span>
         <button type="button" onclick="location.reload()" class="shrink-0 bg-[#FFF7EB] text-[#932621] font-semibold px-3 py-1 rounded-full hover:bg-white transition">Tentar de novo</button>
@@ -458,6 +458,11 @@
             <button id="dmBadgeBtn" type="button" title="Mensagens privadas não lidas" onclick="window.abrirDMNaoLida()"
                 class="hidden items-center gap-1 text-xs font-semibold text-white bg-[#ff2d55] px-2.5 py-1.5 rounded-full shadow-lg hover:brightness-110 transition">
                 <span data-icone="message" class="text-[15px]"></span> <span id="dmBadgeCount">1</span>
+            </button>
+            <!-- só aparece pra quem tem o selo de Organização -->
+            <button id="orgHeaderBtn" type="button" title="Painel da organização" aria-label="Painel da organização" aria-haspopup="dialog" onclick="window.abrirOrg()"
+                class="hidden items-center gap-1.5 text-xs font-semibold text-[#DB7944] bg-[#0B2A47]/80 hover:bg-[#0B2A47] px-2.5 md:px-3 py-1.5 rounded-full border border-[#DB7944]/50 transition">
+                <span data-icone="org" class="text-[15px]"></span><span class="hidden sm:inline">Organização</span>
             </button>
             <button id="openRankingBtn" title="Ranking da noite" aria-label="Ranking da noite" aria-haspopup="dialog"
                 class="flex items-center gap-1.5 text-xs text-[#FFF7EB]/70 bg-black/50 hover:bg-[#FFF7EB]/8 px-2.5 md:px-3 py-1.5 rounded-full border border-[#FFF7EB]/8 transition">
@@ -693,6 +698,34 @@
         </div>
     </div>
 
+    <!-- ORGANIZAÇÃO: entrar com Google (e-mails autorizados no servidor) -->
+    <div id="orgModal" role="dialog" aria-modal="true" aria-labelledby="orgTitulo" class="hidden fixed inset-0 bg-black/90 backdrop-blur-md z-50 items-center justify-center p-3 md:p-4">
+        <div class="modal-wrap rounded-2xl w-full max-w-sm shadow-2xl max-h-[85dvh] overflow-y-auto p-5">
+            <div class="flex items-center justify-between mb-3">
+                <h2 id="orgTitulo" class="font-discodiva text-3xl text-[#DB7944]"><span data-icone="org" class="text-[26px]"></span> Organização</h2>
+                <button type="button" data-fechar aria-label="Fechar" class="text-[#FFF7EB]/60 hover:text-white text-xl w-10 h-10 rounded-full hover:bg-[#FFF7EB]/10 transition"><span data-icone="close" class="text-[20px]"></span></button>
+            </div>
+            <div id="orgFora">
+                <p class="text-xs text-[#FFF7EB]/75 leading-relaxed mb-4">Entre com a conta Google da AUVP cadastrada na organização para ganhar o selo e as ferramentas de moderação.</p>
+                <div id="orgGoogleBtn" class="flex justify-center min-h-[44px]"></div>
+                <p id="orgSemConfig" class="hidden text-[11px] text-[#FFF7EB]/60 text-center leading-snug">O login da organização ainda não foi configurado neste site.</p>
+            </div>
+            <div id="orgDentro" class="hidden">
+                <p class="text-xs text-[#FFF7EB]/75 leading-relaxed mb-3">Você está com o selo de <strong class="text-[#DB7944]">Organização</strong>. Na pista, você pode:</p>
+                <ul class="text-xs text-[#FFF7EB]/70 space-y-1.5 mb-4 list-disc pl-5 font-light">
+                    <li><strong class="font-medium text-[#FFF7EB]/85">Pular agora</strong>, no canto do player, troca a música.</li>
+                    <li>Tirar qualquer música da fila pelo <span data-icone="close"></span> ao lado dela.</li>
+                    <li>Apagar mensagens do chat pela <span data-icone="lixo"></span>.</li>
+                    <li>Remover alguém da pista por 30 min em "Na pista agora".</li>
+                </ul>
+                <button type="button" onclick="window.sairOrg()" class="w-full inline-flex items-center justify-center gap-2 text-xs font-semibold py-2.5 rounded-lg border border-[#FFF7EB]/20 text-[#FFF7EB]/75 hover:border-[#932621] hover:text-[#ff8a80] transition">
+                    <span data-icone="sair" class="text-[15px]"></span> Sair da organização neste aparelho
+                </button>
+            </div>
+            <p id="orgErro" role="alert" class="hidden mt-3 text-[11px] text-[#ff8a80] text-center leading-snug"></p>
+        </div>
+    </div>
+
     <!-- SOLICITAÇÕES DE CHAT PRIVADO -->
     <!-- no celular fica logo acima da lateral (no topo cobriria "Pular" e "Essa vai pra festa") -->
     <div id="dmRequests" class="fixed z-40 flex flex-col gap-2 w-[min(92vw,290px)] left-1/2 -translate-x-1/2 bottom-[calc(38dvh+10px)] md:translate-x-0 md:left-auto md:bottom-auto md:top-20 md:right-3"></div>
@@ -870,7 +903,8 @@
                     <p class="text-[11px] text-[#FFF7EB]/55 text-center mt-2 font-light leading-snug">Com ingresso (confirmado pelo e-mail da compra) você entra com coroa e brilho VIP e pode assumir a mesa de DJ. Sem ingresso, curte a pista e o chat do mesmo jeito.</p>
                 </div>
                 <!-- carimbo da versão publicada: ajuda a saber, na hora, se o navegador está com o HTML antigo em cache -->
-                <p class="text-[9px] text-[#FFF7EB]/25 text-center mt-1 font-light">build <span id="buildTag">—</span></p>
+                <p class="text-[9px] text-[#FFF7EB]/25 text-center mt-1 font-light">build <span id="buildTag">—</span>
+                    · <button type="button" onclick="window.abrirOrg()" class="underline underline-offset-2 hover:text-[#DB7944] transition">Sou da organização</button></p>
             </div>
         </div>
     </div>
@@ -887,10 +921,6 @@
     </script>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, getDoc, getDocs, getDocFromServer, onSnapshot, addDoc, deleteDoc, query, where, orderBy, limit, runTransaction, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
         // ── ÍCONES ──
         // Hugeicons (pacote gratuito @hugeicons/core-free-icons 4.3.5, licença MIT), embutidos
         // como SVG pra não pendurar mais um CDN na abertura. Tamanho = font-size (1em) e cor
@@ -919,6 +949,10 @@
             mute:      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M14 14.8135V9.18646C14 6.04126 14 4.46866 13.0747 4.0773C12.1494 3.68593 11.0603 4.79793 8.88232 7.02192C7.75439 8.17365 7.11085 8.42869 5.50604 8.42869C4.10257 8.42869 3.40084 8.42869 2.89675 8.77262C1.85035 9.48655 2.00852 10.882 2.00852 12C2.00852 13.118 1.85035 14.5134 2.89675 15.2274C3.40084 15.5713 4.10257 15.5713 5.50604 15.5713C7.11085 15.5713 7.75439 15.8264 8.88232 16.9781C11.0603 19.2021 12.1494 20.3141 13.0747 19.9227C14 19.5313 14 17.9587 14 14.8135Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><path d="M18 10L22 14M18 14L22 10" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/></svg>`,
             lock:      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12Z" stroke="currentColor" stroke-width="1.5"/><path d="M12 13C13.1046 13 14 12.1046 14 11C14 9.89543 13.1046 9 12 9C10.8954 9 10 9.89543 10 11C10 12.1046 10.8954 13 12 13ZM12 13L12 16" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/></svg>`,
             alert:     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M13.9248 21H10.0752C5.44476 21 3.12955 21 2.27636 19.4939C1.42317 17.9879 2.60736 15.9914 4.97574 11.9985L6.90057 8.75333C9.17559 4.91778 10.3131 3 12 3C13.6869 3 14.8244 4.91777 17.0994 8.75332L19.0243 11.9985C21.3926 15.9914 22.5768 17.9879 21.7236 19.4939C20.8704 21 18.5552 21 13.9248 21Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><path d="M12 9V13" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><path d="M12.125 16.75H12M12.25 16.75C12.25 16.8881 12.1381 17 12 17C11.8619 17 11.75 16.8881 11.75 16.75C11.75 16.6119 11.8619 16.5 12 16.5C12.1381 16.5 12.25 16.6119 12.25 16.75Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>`,
+            org:       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M18.7088 3.49534C16.8165 2.55382 14.5009 2 12 2C9.4991 2 7.1835 2.55382 5.29116 3.49534C4.36318 3.95706 3.89919 4.18792 3.4496 4.91378C3 5.63965 3 6.34248 3 7.74814V11.2371C3 16.9205 7.54236 20.0804 10.173 21.4338C10.9067 21.8113 11.2735 22 12 22C12.7265 22 13.0933 21.8113 13.8269 21.4338C16.4576 20.0804 21 16.9205 21 11.2371L21 7.74814C21 6.34249 21 5.63966 20.5504 4.91378C20.1008 4.18791 19.6368 3.95706 18.7088 3.49534Z" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><path d="M9 11.5C9 11.5 10.4079 11.7519 11 13.5C11 13.5 12.5 10.5 15 9.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>`,
+            lixo:      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M19.5 5.5L18.8803 15.5251C18.7219 18.0864 18.6428 19.3671 18.0008 20.2879C17.6833 20.7431 17.2747 21.1273 16.8007 21.416C15.8421 22 14.559 22 11.9927 22C9.42312 22 8.1383 22 7.17905 21.4149C6.7048 21.1257 6.296 20.7408 5.97868 20.2848C5.33688 19.3626 5.25945 18.0801 5.10461 15.5152L4.5 5.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/><path d="M3 5.5H21M16.0557 5.5L15.3731 4.09173C14.9196 3.15626 14.6928 2.68852 14.3017 2.39681C14.215 2.3321 14.1231 2.27454 14.027 2.2247C13.5939 2 13.0741 2 12.0345 2C10.9688 2 10.436 2 9.99568 2.23412C9.8981 2.28601 9.80498 2.3459 9.71729 2.41317C9.32164 2.7167 9.10063 3.20155 8.65861 4.17126L8.05292 5.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/><path d="M9.5 16.5L9.5 10.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/><path d="M14.5 16.5L14.5 10.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/></svg>`,
+            remover:   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M12.495 14.0662L11.5 13.9999C11.1446 14.0096 10.8134 14.0225 10.5008 14.0378C6.8 14.2192 3.78417 17.3057 3.5 21.0001" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><path d="M20.5 15.9999L18 18.4999M18 18.4999L15.5 20.9999M18 18.4999L20.5 20.9999M18 18.4999L15.5 15.9999" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><circle cx="11.5" cy="6.99988" r="4" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>`,
+            sair:      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M15.5 8.04045C15.4588 6.87972 15.3216 6.15451 14.8645 5.58671C14.2114 4.77536 13.0944 4.52064 10.8605 4.01121L9.85915 3.78286C6.4649 3.00882 4.76777 2.6218 3.63388 3.51317C2.5 4.40454 2.5 6.1257 2.5 9.56803V14.432C2.5 17.8743 2.5 19.5955 3.63388 20.4868C4.76777 21.3782 6.4649 20.9912 9.85915 20.2171L10.8605 19.9888C13.0944 19.4794 14.2114 19.2246 14.8645 18.4133C15.3216 17.8455 15.4588 17.1203 15.5 15.9595" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><path d="M18.5 9.01172C18.5 9.01172 21.5 11.2212 21.5 12.0117C21.5 12.8023 18.5 15.0117 18.5 15.0117M21 12.0117H8.49998" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>`,
             offline:   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M8.5 15.9996C9.36651 15.1331 10.4207 14.642 11.5 14.5264" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><path d="M5.5 12.5C8.67327 9.32673 12.6221 8.67087 16 10.5324" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><path d="M2 8.5C8.31579 3.16669 15.6842 3.16668 22 8.49989" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/><path d="M21.0002 13.5L15.0002 19.5M21.0002 19.5L15.0002 13.5" stroke="currentColor" stroke-linecap="round" stroke-width="1.5"/></svg>`,
             check:     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M5 14L8.5 17.5L19 6.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>`,
             close:     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="1em" height="1em" fill="none" class="hgi" aria-hidden="true"><path d="M18 6L6.00081 17.9992M17.9992 18L6 6.00085" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"/></svg>`,
@@ -944,37 +978,26 @@
             if (el) el.innerHTML = Icons[key];
         });
 
-        // ── FIREBASE ──
-        // Ao hospedar fora do ambiente Claude (ex: Vercel), preencha os campos abaixo
-        // com os dados do seu projeto Firebase (console.firebase.google.com → Configurações do Projeto).
-        const FIREBASE_CONFIG_FALLBACK = {
-            apiKey:            "AIzaSyDcHrrVvKKnR3Sw2hVhrBHj_7lhvDVFn4E",
-            authDomain:        "auvp-privateday.firebaseapp.com",
-            projectId:         "auvp-privateday",
-            storageBucket:     "auvp-privateday.firebasestorage.app",
-            messagingSenderId: "593681368158",
-            appId:             "1:593681368158:web:7c3c3940eaf43a960760cf"
-        };
-        const APP_ID_FALLBACK = 'auvp-privateday'; // deve bater com o projectId
-
-        const firebaseConfig = typeof __firebase_config !== 'undefined'
-            ? JSON.parse(__firebase_config)
-            : FIREBASE_CONFIG_FALLBACK;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : APP_ID_FALLBACK;
+        // ── SERVIDOR DA PISTA (Cloudflare) ──
+        // Presença, chat, fila, player, votos, contagem e papos vivem numa sala do servidor
+        // (pasta servidor/: Worker + Durable Object, WebSocket). O servidor é o dono da
+        // música: troca, contagem, limite de 10 min e faxina acontecem lá.
+        // ?sala=teste na URL usa a sala de testes; ?servidor=local, o `wrangler dev`.
+        const SALA_SERVIDOR = new URLSearchParams(location.search).get('servidor') === 'local'
+            ? 'ws://127.0.0.1:8787'
+            : 'wss://esquenta-pista.esquenta-pista-servidor.workers.dev';
+        const SALA = new URLSearchParams(location.search).get('sala') === 'teste' ? 'teste' : 'principal';
+        // "Entrar com Google" da organização: ID do cliente OAuth (docs/deploy.md). Vazio = sem login.
+        const GOOGLE_CLIENT_ID = '';
 
         // ── RELÓGIO CORRIGIDO ──
-        // Tudo que é COMPARTILHADO entre aparelhos (início da música, presença, contagem,
-        // relógio da playlist da casa) usa agora(): a hora do aparelho mais o desvio medido
-        // contra o servidor do Firebase (medirRelogio). Um PC com o relógio 80 s adiantado
-        // achava que ninguém estava presente, virava "líder" e apagava a fila de todo mundo.
-        // Durações locais (intervalos, throttles, posição do próprio player) seguem Date.now().
+        // Tudo que é COMPARTILHADO entre aparelhos (início da música, contagem, relógio da
+        // playlist da casa) usa agora(): a hora do aparelho mais o desvio medido contra o
+        // servidor (troca 'hora', estilo NTP). Um PC com o relógio errado tocava outro
+        // trecho da música. Durações locais (intervalos, throttles, posição do próprio
+        // player) seguem Date.now().
         let desvioRelogio = 0;
         function agora() { return Date.now() + desvioRelogio; }
-
-        const configValida = !!(firebaseConfig.apiKey);
-        const app   = configValida ? initializeApp(firebaseConfig) : null;
-        const auth  = configValida ? getAuth(app) : null;
-        const db    = configValida ? getFirestore(app) : null;
 
         // ── DADOS DO AVATAR (COMPLETO) ──
         // Valores validados contra o schema oficial do DiceBear 8.x avataaars
@@ -1058,7 +1081,7 @@
         // canal AUVP Capital), tocando em loop quando ninguém está na mesa
         const FALLBACK_VIDEO = '5D_Of9Zpsgs';
         // Todo mundo ouve o MESMO trecho: a posição sai de um relógio comum (segundos desde
-        // uma data fixa, módulo a duração), sem escrita no Firestore.
+        // uma data fixa, módulo a duração), sem mensagem nenhuma pro servidor.
         // A duração é FIXA e igual para todos. Nunca use a que o player informa: o YouTube
         // manda primeiro o valor arredondado e depois o fracionado, e com ~200 voltas desde a
         // época uma diferença de 0,5 s vira ~100 s de diferença entre os clientes.
@@ -1078,13 +1101,14 @@
         let chatMessages = [];
         let queue = [];
         let currentVideo = null;
-        let skipVotes = null;       // doc player/skipVotes: {videoId, votes:{uid:true}}
-        let countdownState = null;  // doc player/countdown: {endsAt, reason}
-        let playbackState = null;   // doc player/playback: {videoId, state, time, at} publicado pelo DJ
+        let skipVotes = null;       // votos de pular: {videoId, votes:{uid:true}}
+        let countdownState = null;  // contagem do servidor: {endsAt, reason, por, cancelavel}
+        let playbackState = null;   // {videoId, state, time, at} publicado pelo DJ
         let ytInfo = null;          // último estado do MEU player (via infoDelivery)
-        let partyVotes = [];        // coleção partyVotes ("Essa vai pra festa!")
+        let festa = {videoId: null, n: 0, votei: false}; // "Essa vai pra festa!" da música atual
+        let souOrg = false;         // selo de Organização (Entrar com Google), confirmado pelo servidor
         let dmMessages = [];        // mensagens privadas envolvendo o usuário atual
-        let dmThreads = [];         // solicitações/conversas (dmThreads/{convId}: {a,b,requestedBy,status})
+        let dmThreads = [];         // pedidos/conversas ({id, a, b, requestedBy, status})
         const prevThreadStatus = {}; // detecta transições pending → accepted
         let dmOpenWith = null;      // uid da conversa privada aberta
         let dmReadAt = {};          // uid -> timestamp da última leitura
@@ -1094,9 +1118,7 @@
         let perdiAVezAusente = false; // perdeu a mesa enquanto estava fora da tela (avisa ao voltar)
         let modalOpen = true;    // modal de personalização (fechado no fim do script para quem já tem boneco)
         let entrouDireto = false; // pulou o modal por já ter personalizado antes
-        let playHistory = [];       // coleção history: músicas que já tocaram (ranking)
         let glPlaying = false;      // pista WebGL pulsa quando há música audível
-        const seenReactions = new Map(); // id → quando chegou (podado: não cresce a noite toda)
         const titleCache = {};      // videoId -> título (via oEmbed) | '' se falhou
         // ── CARIMBO DA VERSÃO ──
         // Aparece no rodapé do modal e no console: se o navegador estiver com o HTML
@@ -1128,7 +1150,7 @@
         const chatBubbles = {};     // uid -> {text, until}: balão de fala sobre o avatar
 
         const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-        // ids, cores e videoIds vindos do Firestore entram em onclick/style/src, onde o esc()
+        // ids, cores e videoIds vindos do servidor entram em onclick/style/src, onde o esc()
         // não basta: só passam se tiverem exatamente o formato esperado
         const safeId = s => /^[A-Za-z0-9_-]{1,128}$/.test(s || '') ? s : '';
         const safeColor = (c, dflt = '#DB7944') => /^#[0-9a-fA-F]{6}$/.test(c || '') ? c : dflt;
@@ -1207,12 +1229,11 @@
         const PRONTO_KEY = 'esquentaPerfilPronto';
 
         // ── INGRESSO CONFIRMADO PELO E-MAIL ──
-        // A lista de compradores vive em `ingressos/{hash}` (importada por
-        // tools/importar-ingressos.py), só com o SHA-256 do e-mail — nunca o e-mail. As
-        // regras deixam conferir UM hash por vez (get), nunca listar a coleção. Conferido,
-        // o app grava `vip/{uid}` (privado, só o dono lê), que as regras exigem para
-        // isVIP, coroa no chat e fila de DJ. O hash não vai pro perfil público: copiá-lo
-        // de lá seria o atalho pra virar VIP sem saber o e-mail.
+        // A lista de compradores vive no servidor (importada por tools/importar-ingressos.py),
+        // só com o SHA-256 do e-mail — nunca o e-mail. O app manda o hash, o servidor confere
+        // e vincula à identidade; coroa, chat VIP e fila de DJ dependem desse vínculo, não do
+        // que o navegador diz. O hash fica só neste navegador (refaz o vínculo noutro
+        // aparelho) e nunca vai pro perfil público.
         // O sal precisa ser IGUAL ao de tools/importar-ingressos.py.
         const INGRESSO_SAL = 'auvp-privateday:';
         const normalizarEmail = e => String(e || '').trim().toLowerCase();
@@ -1241,7 +1262,7 @@
         // grava o sorteio na hora: recarregar antes de entrar não troca o boneco
         if (!perfilSalvo) saveProfile();
 
-        // Valores antigos (salvos em perfis no Firestore antes da correção) → equivalente válido no v8
+        // Valores antigos (salvos em perfis antes da correção) → equivalente válido no v8
         const LEGACY_AVATAR = {
             top:   {shortHair:'shortFlat', longHair:'longButNotTooLong', eyepatch:'shortFlat',
                     winterHat2:'winterHat02', winterHat3:'winterHat03', winterHat4:'winterHat04'},
@@ -1550,11 +1571,10 @@
             if (e.contentRect.height < 180) document.getElementById('danceFloor').dataset.pista = 'curta';
         }).observe(document.getElementById('danceFloor'));
 
-        // ── INICIALIZAÇÃO DA UI (chamada após auth OK ou em modo offline) ──
-        // iniciarUI não toca em currentUser — o caller define currentUser antes de chamar
+        // ── INICIALIZAÇÃO DA UI (no fim do script; a sala conecta em seguida) ──
         let uiIniciada = false;
         function iniciarUI() {
-            if (uiIniciada) return; // auth e timeout podem chamar os dois: monta uma vez só
+            if (uiIniciada) return;
             uiIniciada = true;
             buildDanceTiles();
             renderDJBooth();
@@ -1564,60 +1584,27 @@
             renderChat();
             renderQueueForm();
             renderSettingsModal();
-            conectar();
+            abrirSala();
             atualizarConexao();
             // a cortina só sobe com todos os bonecos já carregados — nada de card vazio
             assetsProntos.then(abrirAPista);
         }
 
-        // listeners + heartbeat uma única vez. Chamado também quando a auth resolve
-        // DEPOIS do timeout de 10 s — antes, o app ficava offline até recarregar.
-        let conectado = false;
-        function conectar() {
-            if (conectado || !currentUser || !db) return;
-            conectado = true;
-            setupFirebaseListeners();
-            // confere o ingresso ANTES do primeiro heartbeat: com isVIP sem vínculo, as
-            // regras recusariam a presença inteira e a pessoa sumiria da pista
-            conferirIngressoSalvo().then(medirRelogio).finally(startHeartbeat);
-        }
-
-        // VIP salvo no navegador ainda tem vínculo válido pra este uid? Recria pelo hash
-        // guardado (auth nova, outro dispositivo com o mesmo perfil); sem como provar,
-        // volta a convidado e oferece a confirmação — inclusive para quem "declarou"
-        // ingresso antes da lista existir.
-        async function conferirIngressoSalvo() {
-            if (!localProfile.isVIP || !currentUser || !db) return;
-            try {
-                if ((await getDoc(pdoc('vip', currentUser.uid))).exists()) return;
-                if (localProfile.ingresso) {
-                    await setDoc(pdoc('vip', currentUser.uid), {ingresso: localProfile.ingresso, em: Date.now()});
-                    return;
-                }
-            } catch(e) { console.warn('Ingresso salvo não confere mais com a lista', e); }
-            localProfile.isVIP = false;
-            delete localProfile.ingresso;
-            saveProfile();
-            aplicarStatusIngresso();
-            showToast(`${Icons.ticket} Agora o ingresso é confirmado pelo e-mail da compra.`, null, {
-                acao: {rotulo: 'Confirmar', fn: () => window.abrirConfirmacaoIngresso()}
-            });
-        }
         // faixa "sem conexão" + campos travados com explicação, em vez de botões mudos
         function atualizarConexao() {
-            const online = !!(currentUser && db) && navigator.onLine !== false && conectadoAoServidor && !listenersQuebrados;
+            const online = salaOnline();
             const faixa = document.getElementById('semConexao');
             faixa.classList.toggle('hidden', online);
             faixa.classList.toggle('flex', !online);
             document.getElementById('semConexaoTexto').textContent = navigator.onLine === false
                 ? 'Você está sem internet — a pista volta quando a conexão voltar.'
-                : 'Sem conexão com a pista — por enquanto você só assiste.';
+                : Date.now() < removidoAte ? 'A organização tirou você da pista por um tempo.'
+                : 'Conectando à pista… por enquanto você só assiste.';
             const chat = document.getElementById('chatInput');
             chat.disabled = !online;
             chat.placeholder = online ? 'Mande uma mensagem pra galera...' : 'Sem conexão — o chat volta quando reconectar';
             renderQueueForm();
         }
-        addEventListener('online', atualizarConexao);
         addEventListener('offline', atualizarConexao);
 
         function abrirAPista() {
@@ -1631,78 +1618,246 @@
                 setTimeout(() => showToast(`${Icons.party} Bem-vindo de volta, ${esc(localProfile.name)}! Toque no seu avatar no topo pra mudar o visual.`), 800);
         }
 
-        // Timeout de segurança: se em 10 s a auth não resolver, monta o app mesmo assim
-        // (a cortina continua respeitando o pré-carregamento, com teto próprio)
-        const authTimeout = setTimeout(() => {
-            if (uiIniciada) return;
-            console.warn('Auth timeout – abrindo sem Firebase');
-            currentUser = null;
-            iniciarUI();
-        }, 10000);
+        // ── SALA: CONEXÃO COM O SERVIDOR ──
+        // Uma conexão WebSocket por aba. Caiu? Reconecta sozinha, com espera crescente, e se
+        // reapresenta com a mesma identidade (id + token assinado pelo servidor, guardados
+        // no navegador): recarregar a página não tira ninguém da mesa nem da fila.
+        let ws = null, salaConectada = false, esperaSala = 1000, tentativaSala = null, removidoAte = 0;
+        const salaOnline = () => salaConectada && navigator.onLine !== false;
+        const pedidos = new Map();
+        let seqPedido = 0;
 
-        // ── AUTH ──
-        async function initAuth() {
-            if (!configValida) {
-                // Firebase não configurado – mostra aviso no loading e continua em modo visual
-                const ls = document.getElementById('loadingScreen');
-                ls.innerHTML = `
-                    <img src="${window.__ASSETS.globo}" class="w-20 h-20 mb-5 opacity-50 object-contain">
-                    <h1 class="font-discodiva text-3xl text-[#DB7944] mb-3">Firebase não configurado</h1>
-                    <p class="text-[#FFF7EB]/60 text-sm max-w-xs text-center leading-relaxed">
-                        Para usar o app fora do ambiente Claude, edite o bloco
-                        <code class="text-[#DB7944]">FIREBASE_CONFIG_FALLBACK</code>
-                        no <code class="text-[#DB7944]">index.htm</code>
-                        com os dados do seu projeto Firebase.
-                    </p>
-                    <button onclick="document.getElementById('loadingScreen').style.display='none'"
-                        class="mt-6 px-6 py-2.5 rounded-lg text-sm font-semibold vintage-btn">
-                        Entrar mesmo assim (sem conexão)
-                    </button>`;
-                ls.style.fontFamily = 'Poppins, sans-serif';
-                // não chama iniciarUI aqui — usuário clica no botão
-                document.querySelector('#loadingScreen button')?.addEventListener('click', () => {
-                    clearTimeout(authTimeout);
-                    currentUser = null;
-                    iniciarUI();
-                });
+        function abrirSala() {
+            if (ws || Date.now() < removidoAte) return;
+            let s;
+            try { s = new WebSocket(`${SALA_SERVIDOR}/pista?sala=${SALA}`); }
+            catch(e) { agendarReconexao(); return; }
+            ws = s;
+            s.onopen = () => {
+                esperaSala = 1000;
+                ultimoPong = Date.now(); pingEm = 0;
+                const me = currentUser ? activeUsers.find(u => u.id === currentUser.uid) : null;
+                const pos = me ? {x: me.x, y: me.y} : getSpawnPoint();
+                perfilEnviado = JSON.stringify(perfilPublico());
+                ausenciaEnviada = tabHidden;
+                s.send(JSON.stringify({
+                    t: 'ola', id: store.get('esquentaId') || undefined, token: store.get('esquentaToken') || undefined,
+                    perfil: perfilPublico(), x: pos.x, y: pos.y, away: tabHidden, ingresso: localProfile.ingresso
+                }));
+                medirRelogio(3);
+            };
+            s.onmessage = e => {
+                if (e.data === 'pong') { ultimoPong = Date.now(); return; }
+                let m;
+                try { m = JSON.parse(e.data); } catch { return; }
+                receber(m);
+            };
+            s.onclose = e => caiuSala(s, e.code);
+        }
+        function caiuSala(s, codigo) {
+            if (ws !== s) return;
+            ws = null;
+            const estava = salaConectada;
+            salaConectada = false;
+            pedidos.forEach(p => p.falhou(new Error('A conexão caiu.')));
+            pedidos.clear();
+            if (estava) atualizarConexao();
+            if (codigo === 4000 || codigo === 4003) return; // outra aba ou removido: não insiste
+            agendarReconexao();
+        }
+        function agendarReconexao() {
+            if (tentativaSala) return;
+            tentativaSala = setTimeout(() => { tentativaSala = null; abrirSala(); }, esperaSala * (0.7 + Math.random() * 0.6));
+            esperaSala = Math.min(esperaSala * 2, 30000);
+        }
+        addEventListener('online', () => {
+            atualizarConexao();
+            if (ws) return;
+            clearTimeout(tentativaSala); tentativaSala = null; esperaSala = 1000;
+            abrirSala();
+        });
+
+        // ping a cada 25 s, respondido pelo próprio runtime da Cloudflare (não gasta cota).
+        // Sem pong desde o ping anterior, a conexão morreu sem avisar: derruba e reconecta.
+        let ultimoPong = 0, pingEm = 0;
+        setInterval(() => {
+            if (!ws || ws.readyState !== 1) return;
+            if (pingEm && ultimoPong < pingEm) {
+                const s = ws;
+                try { s.close(); } catch(e) {}
+                caiuSala(s, 1006);
                 return;
             }
+            pingEm = Date.now();
+            ws.send('ping');
+        }, 25000);
 
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token)
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                else
-                    await signInAnonymously(auth);
-            } catch(e) {
-                console.error('Auth error', e);
-                clearTimeout(authTimeout);
-                currentUser = null;
-                iniciarUI(); // abre o app mesmo com falha de auth
-            }
+        function enviar(obj) {
+            if (!ws || ws.readyState !== 1) return false;
+            ws.send(JSON.stringify(obj));
+            return true;
         }
-
-        if (auth) {
-            onAuthStateChanged(auth, u => {
-                if (!u) return;
-                clearTimeout(authTimeout);
-                currentUser = u;
-                if (uiIniciada) { conectar(); atualizarConexao(); } // auth chegou depois do timeout
-                else iniciarUI();
+        // pedido com resposta. Recusa traz o motivo do servidor (ex.: "só quem tem ingresso");
+        // sem conexão ou sem resposta em 8 s também falha, e quem chamou avisa a pessoa
+        function pedir(obj, ms = 8000) {
+            return new Promise((ok, falhou) => {
+                const req = ++seqPedido;
+                if (!salaOnline() || !enviar({...obj, req})) { falhou(new Error('Sem conexão com a pista.')); return; }
+                const timer = setTimeout(() => { pedidos.delete(req); falhou(new Error('A pista não respondeu.')); }, ms);
+                pedidos.set(req, {
+                    ok: r => { clearTimeout(timer); ok(r); },
+                    falhou: e => { clearTimeout(timer); falhou(e); }
+                });
             });
         }
 
-        initAuth();
+        // Desvio do relógio (estilo NTP): o servidor responde a hora dele; ela caiu entre o
+        // envio (c) e a chegada, então desvio ≈ s − (c + chegada)/2. Fica a amostra com a menor
+        // ida e volta. Três amostras ao conectar e uma a cada 5 min.
+        let melhorIdaVolta = Infinity;
+        function medirRelogio(vezes = 1) {
+            for (let i = 0; i < vezes; i++) setTimeout(() => enviar({t: 'hora', c: Date.now()}), i * 1200);
+        }
+        setInterval(() => medirRelogio(), 5 * 60 * 1000);
+        function aplicarHora(m) {
+            const chegada = Date.now(), idaVolta = chegada - m.c;
+            if (!(idaVolta >= 0) || idaVolta > melhorIdaVolta * 1.5) return;
+            melhorIdaVolta = Math.min(melhorIdaVolta, idaVolta);
+            desvioRelogio = m.s - (m.c + chegada) / 2;
+            if (Math.abs(desvioRelogio) > 2000) console.info(`Relógio deste aparelho corrigido em ${(desvioRelogio / 1000).toFixed(1)} s`);
+        }
 
-        // ── HELPERS DE CAMINHO NO FIRESTORE ──
-        const pdoc = (...p) => doc(db, 'artifacts', appId, 'public', 'data', ...p);
-        const pcol = name => collection(db, 'artifacts', appId, 'public', 'data', name);
+        function receber(m) {
+            switch (m.t) {
+                case 'hora': aplicarHora(m); break;
+                case 'bemvindo': entrouNaSala(m); break;
+                case 'tick': aplicarTick(m); break;
+                case 'ok':
+                case 'erro': {
+                    const p = pedidos.get(m.req);
+                    if (!p) break;
+                    pedidos.delete(m.req);
+                    if (m.t === 'ok') p.ok(m);
+                    else p.falhou(Object.assign(new Error(m.texto || m.motivo), {motivo: m.motivo, texto: m.texto}));
+                    break;
+                }
+                case 'eu': aplicarEu(m); break;
+                case 'dm': chegouDM(m.msg); break;
+                case 'papo': chegouPapo(m.papo); break;
+                case 'outraAba':
+                    showToast(`${Icons.alert} A pista foi aberta em outra aba. Esta aqui fica só assistindo.`, null, {
+                        acao: {rotulo: 'Usar esta', fn: () => { esperaSala = 1000; abrirSala(); }}, ms: 15000
+                    });
+                    break;
+                case 'removido':
+                    removidoAte = m.ate || Date.now() + 30 * 60 * 1000;
+                    showToast(`${Icons.alert} A organização tirou você da pista por um tempo.`, null, {erro: true, ms: 12000});
+                    break;
+            }
+        }
 
-        // ── AGENDADOR DE RENDERS ──
-        // Com 300 pessoas chegam ~10 snapshots por segundo (heartbeats). Cada snapshot só
-        // MARCA o que ficou sujo; um único quadro (rAF, no máximo a cada RENDER_MIN_MS)
-        // desenha tudo de uma vez. Antes cada snapshot redesenhava pista, mesa, fila e
-        // player na hora — 20–60% da CPU de um celular só nisso. Cada render ainda compara
-        // uma assinatura e não mexe no DOM se nada visível mudou.
+        // primeira resposta da sala (e a cada reconexão): o estado inteiro de uma vez
+        function entrouNaSala(m) {
+            currentUser = {uid: m.id};
+            store.set('esquentaId', m.id);
+            store.set('esquentaToken', m.token);
+            salaConectada = true;
+            usuarios.clear();
+            m.users.forEach(u => usuarios.set(u.id, u));
+            recalcularAtivos();
+            chatMessages = m.chat || [];
+            queue = (m.fila || []).filter(it => safeVideoId(it.videoId));
+            aplicarPlayer(m.player);
+            festa = m.festa || {videoId: null, n: 0, votei: false};
+            dmMessages = m.dms || [];
+            dmThreads = [];
+            (m.papos || []).forEach(p => { dmThreads.push(p); prevThreadStatus[p.id] = p.status; });
+            aplicarEu(m.eu, true);
+            agendar('chat', 'users', 'fila', 'mesa', 'overlay');
+            renderDM();
+            renderDMRequests();
+            atualizarBadgeDM();
+            atualizarConexao();
+        }
+
+        // ingresso e selo vêm do servidor: o navegador não decide quem é VIP
+        function aplicarEu(eu, entrando = false) {
+            souOrg = !!eu.isOrg;
+            if (entrando && localProfile.isVIP && !eu.isVIP) {
+                // ingresso salvo neste navegador não confere mais (ou é de antes da lista)
+                delete localProfile.ingresso;
+                showToast(`${Icons.ticket} Agora o ingresso é confirmado pelo e-mail da compra.`, null, {
+                    acao: {rotulo: 'Confirmar', fn: () => window.abrirConfirmacaoIngresso()}
+                });
+            }
+            localProfile.isVIP = !!eu.isVIP;
+            saveProfile();
+            aplicarStatusIngresso();
+            atualizarOrgUI();
+            agendar('chat', 'fila', 'overlay');
+        }
+
+        function aplicarPlayer(p) {
+            if (!p) return;
+            const st = p.state || {};
+            // perdeu a mesa com a aba escondida? guarda pra avisar quando voltar
+            if (tabHidden && currentUser && currentVideo?.addedByUid === currentUser.uid && st.addedByUid !== currentUser.uid)
+                perdiAVezAusente = true;
+            // videoId vai parar no src do iframe: formato inválido vira "sem música"
+            currentVideo = {...st, videoId: safeVideoId(st.videoId)};
+            skipVotes = p.skipVotes || null;
+            countdownState = p.countdown || null;
+            playbackState = p.playback || null;
+            // só recria o iframe quando o vídeo de fato muda; votos/contagem atualizam o overlay
+            const key = chaveAtual();
+            if (key !== lastPlayerKey) { lastPlayerKey = key; renderPlayer(); }
+            else agendar('overlay');
+            agendar('mesa', 'users');
+        }
+
+        // tudo que mudou na sala chega agrupado, no máximo 4×/s
+        function aplicarTick(m) {
+            if (m.reset) usuarios.clear();
+            (m.tudo || []).forEach(u => usuarios.set(u.id, u));
+            (m.pos || []).forEach(([id, x, y]) => { const u = usuarios.get(id); if (u) { u.x = x; u.y = y; } });
+            (m.saiu || []).forEach(id => usuarios.delete(id));
+            if (m.reset || m.tudo || m.saiu) recalcularAtivos();
+            else if (m.pos) agendar('users');
+
+            if (m.chat) {
+                const now = Date.now();
+                m.chat.forEach(msg => {
+                    chatMessages.push(msg);
+                    // mensagem nova vira balão de fala sobre o avatar de quem enviou
+                    if (!msg.uid || !msg.text || mutedUids.includes(msg.uid)) return;
+                    chatBubbles[msg.uid] = {text: String(msg.text).slice(0, 90), until: now + 6000, since: now};
+                    if (abaFilaAberta() && msg.uid !== currentUser?.uid)
+                        document.getElementById('chatNovo').classList.remove('hidden');
+                    setTimeout(() => agendar('users'), 6200);
+                });
+                if (chatMessages.length > 50) chatMessages.splice(0, chatMessages.length - 50);
+                agendar('chat', 'users');
+            }
+            if (m.chatApagado) {
+                chatMessages = chatMessages.filter(c => !m.chatApagado.includes(c.id));
+                agendar('chat');
+            }
+            if (m.fila) { queue = m.fila.filter(it => safeVideoId(it.videoId)); agendar('fila', 'mesa'); }
+            if (m.player) aplicarPlayer(m.player);
+            if (m.festa) {
+                festa = {...m.festa, votei: m.festa.videoId === festa.videoId && festa.votei};
+                agendar('overlay', 'mesa');
+            }
+            // a própria reação já apareceu na hora do toque
+            if (m.rx) m.rx.forEach(([emoji, x, y, uid]) => {
+                if (uid !== currentUser?.uid && !mutedUids.includes(uid)) spawnReaction({emoji, x, y});
+            });
+        }
+
+        // ── RENDERS AGENDADOS ──
+        // Com 300 pessoas chegam vários ticks por segundo. Cada tick só MARCA o que ficou
+        // sujo; um único quadro (rAF, no máximo a cada RENDER_MIN_MS) desenha tudo de uma
+        // vez. Cada render ainda compara uma assinatura e não mexe no DOM se nada visível mudou.
         const RENDER_MIN_MS = 250;
         const sujo = new Set();
         let renderAgendado = false, ultimoRender = 0;
@@ -1724,244 +1879,16 @@
             }), espera);
         }
 
-        // ── SAÚDE DA CONEXÃO ──
-        // conectadoAoServidor vem do metadata dos snapshots (fromCache = sem servidor). Sem
-        // servidor, com listener caído ou com o relógio ainda não medido, ninguém é líder:
-        // um celular sem rede se achava o único presente e apagava a fila quando voltava.
-        let conectadoAoServidor = true, listenersQuebrados = false, relogioMedido = false;
-        function registrarServidor(snap) {
-            const antes = conectadoAoServidor;
-            conectadoAoServidor = !snap.metadata.fromCache;
-            if (conectadoAoServidor) listenersQuebrados = false;
-            if (antes !== conectadoAoServidor) atualizarConexao();
-        }
-        let esperaReconexao = 2000, reconexaoAgendada = null;
-        function falhaListener(e) {
-            console.error('Listener do Firestore caiu', e);
-            listenersQuebrados = true;
-            atualizarConexao();
-            if (reconexaoAgendada) return;
-            reconexaoAgendada = setTimeout(() => {
-                reconexaoAgendada = null;
-                esperaReconexao = Math.min(esperaReconexao * 2, 30000);
-                reiniciarListeners();
-            }, esperaReconexao);
-        }
-
-        // Desvio do relógio: grava serverTimestamp e lê de volta do servidor. A hora do
-        // servidor caiu entre t0 e t1, então desvio ≈ srv − (t0+t1)/2 (erro < metade da ida
-        // e volta). Fica a amostra de menor ida e volta. Repete a cada 5 min.
-        let melhorIdaVolta = Infinity, falhasRelogio = 0;
-        async function medirRelogio() {
-            if (!currentUser || !db) return;
-            const ref = pdoc('users', currentUser.uid);
-            try {
-                const t0 = Date.now();
-                await setDoc(ref, {srv: serverTimestamp()}, {merge: true});
-                const t1 = Date.now();
-                const srv = (await getDocFromServer(ref)).get('srv')?.toMillis?.();
-                if (!srv) throw new Error('sem srv');
-                const idaVolta = t1 - t0;
-                if (idaVolta <= melhorIdaVolta * 1.5) {
-                    melhorIdaVolta = Math.min(melhorIdaVolta, idaVolta);
-                    desvioRelogio = srv - (t0 + t1) / 2;
-                }
-                relogioMedido = true;
-                falhasRelogio = 0;
-                if (Math.abs(desvioRelogio) > 2000) console.info(`Relógio deste aparelho corrigido em ${(desvioRelogio / 1000).toFixed(1)} s`);
-            } catch(e) {
-                // sem medir não dá pra liderar; depois de 3 falhas segue com o relógio local
-                if (++falhasRelogio >= 3 && !relogioMedido) { relogioMedido = true; console.warn('Relógio não medido; usando o do aparelho', e); }
-                else setTimeout(medirRelogio, 10000);
-            }
-        }
-
-        // ── PRESENÇA INCREMENTAL ──
-        // Só os documentos que mudaram são processados (docChanges num Map). A consulta tem
-        // corte de tempo fixado na assinatura, então é refeita a cada 5 min com corte novo:
-        // senão o resultado acumula todo mundo que passou pela pista na noite.
-        const ONLINE_MS = 120000;
+        // ── PRESENÇA ──
+        // A pista vem do servidor (quem está conectado); some quem fechou a aba há mais de 20 s
         const usuarios = new Map();
-        let pararUsers = null;
         function recalcularAtivos() {
-            const t = agora();
-            activeUsers = [...usuarios.values()].filter(u => u.lastUpdate && t - u.lastUpdate < ONLINE_MS);
+            activeUsers = [...usuarios.values()];
             agendar('users', 'mesa', 'fila', 'overlay'); // fila: "fora da pista"; overlay: limiar de pular
         }
-        function assinarUsers() {
-            pararUsers?.();
-            const novos = new Map();
-            let primeiro = true;
-            pararUsers = onSnapshot(query(pcol('users'), where('lastUpdate', '>', agora() - ONLINE_MS)), {includeMetadataChanges: true}, snap => {
-                registrarServidor(snap);
-                // na reassinatura o primeiro snapshot traz todo mundo de novo: troca o Map inteiro
-                const alvo = primeiro ? novos : usuarios;
-                snap.docChanges().forEach(ch => {
-                    if (ch.type === 'removed') alvo.delete(ch.doc.id);
-                    else alvo.set(ch.doc.id, {id: ch.doc.id, ...ch.doc.data()});
-                });
-                if (primeiro) {
-                    primeiro = false;
-                    usuarios.clear();
-                    novos.forEach((u, id) => usuarios.set(id, u));
-                }
-                recalcularAtivos();
-            }, falhaListener);
-        }
-        // quem sumiu sem escrever nada sai da pista mesmo sem snapshot novo
-        setInterval(() => { if (usuarios.size) recalcularAtivos(); }, 15000);
 
-        // ── VOTOS "ESSA VAI PRA FESTA!" ──
-        // O player só precisa dos votos da música ATUAL; antes a coleção inteira (que nunca
-        // é apagada) era lida por cada um que entrava. O ranking lê tudo só quando é aberto.
-        let pararVotosFesta = null, votosDoVideo = null;
-        function assinarVotosFesta() {
-            const vid = currentVideo?.videoId || null;
-            if (vid === votosDoVideo) return;
-            votosDoVideo = vid;
-            pararVotosFesta?.();
-            partyVotes = [];
-            agendar('overlay');
-            if (!vid || !db) return;
-            pararVotosFesta = onSnapshot(query(pcol('partyVotes'), where('videoId', '==', vid)), snap => {
-                partyVotes = snap.docs.map(d => ({id:d.id,...d.data()}));
-                agendar('overlay');
-            }, falhaListener);
-        }
-
-        // ── FIREBASE LISTENERS ──
-        // `ouvir` guarda o "desligar" de cada listener: se um cair, reiniciarListeners()
-        // derruba todos e assina de novo (antes o app nem percebia e seguia congelado)
-        let inscricoes = [];
-        const ouvir = (alvo, ...resto) => inscricoes.push(onSnapshot(alvo, ...resto));
-        function reiniciarListeners() {
-            inscricoes.forEach(parar => { try { parar(); } catch(e) {} });
-            inscricoes = [];
-            pararVotosFesta?.(); pararVotosFesta = null; votosDoVideo = undefined;
-            setupFirebaseListeners();
-            assinarVotosFesta();
-        }
-        setInterval(() => { if (conectado) assinarUsers(); }, 5 * 60 * 1000);
-        setInterval(() => { if (conectado) medirRelogio(); }, 5 * 60 * 1000);
-
-        function setupFirebaseListeners() {
-            if (!currentUser || !db) return;
-
-            assinarUsers();
-
-            // só as 50 últimas: baixar a coleção inteira pesava num evento cheio
-            ouvir(query(pcol('chat'), orderBy('timestamp', 'desc'), limit(50)), snap => {
-                const msgs = snap.docs.map(d => ({id:d.id,...d.data()}));
-                msgs.sort((a,b) => a.timestamp - b.timestamp);
-                chatMessages = msgs;
-                // mensagem recente vira balão de fala sobre o avatar de quem enviou
-                const now = Date.now();
-                snap.docChanges().forEach(ch => {
-                    if (ch.type !== 'added') return;
-                    const m = ch.doc.data();
-                    if (!m.uid || !m.text || agora() - m.timestamp > 10000 || mutedUids.includes(m.uid)) return;
-                    chatBubbles[m.uid] = {text: String(m.text).slice(0, 90), until: now + 6000, since: now};
-                    if (abaFilaAberta() && m.uid !== currentUser.uid)
-                        document.getElementById('chatNovo').classList.remove('hidden');
-                    setTimeout(() => agendar('users'), 6200);
-                });
-                agendar('chat', 'users');
-            }, falhaListener);
-
-            ouvir(pcol('queue'), snap => {
-                const q = snap.docs.map(d => ({id:d.id,...d.data()})).filter(it => safeVideoId(it.videoId));
-                q.sort((a,b) => a.timestamp - b.timestamp);
-                queue = q;
-                agendar('fila');
-            }, falhaListener);
-
-            ouvir(pcol('player'), {includeMetadataChanges: true}, snap => {
-                registrarServidor(snap);
-                const docs = snap.docs.map(d => ({id:d.id,...d.data()}));
-                const state = docs.find(s => s.id === 'state');
-                skipVotes      = docs.find(s => s.id === 'skipVotes') || null;
-                countdownState = docs.find(s => s.id === 'countdown') || null;
-                playbackState  = docs.find(s => s.id === 'playback') || null;
-                // perdeu a mesa com a aba escondida? guarda pra avisar quando voltar
-                if (state && tabHidden && currentUser &&
-                    currentVideo?.addedByUid === currentUser.uid && state.addedByUid !== currentUser.uid)
-                    perdiAVezAusente = true;
-                // videoId vai parar no src do iframe: formato inválido vira "sem música"
-                if (state) currentVideo = {...state, videoId: safeVideoId(state.videoId)};
-                // só recria o iframe quando o vídeo de fato muda; votos/contagem atualizam o overlay
-                const key = `${currentVideo?.videoId || 'fallback'}_${currentVideo?.startedAt || 0}`;
-                if (key !== lastPlayerKey) { lastPlayerKey = key; renderPlayer(); }
-                else agendar('overlay');
-                assinarVotosFesta();
-                agendar('mesa', 'users');
-            }, falhaListener);
-
-            // DMs e solicitações: a consulta já vem filtrada por participante — as regras do
-            // Firestore (firestore.rules) recusam ler conversa alheia
-            ouvir(query(pcol('dm'), where('participants', 'array-contains', currentUser.uid)), snap => {
-                dmMessages = snap.docs.map(d => ({id:d.id,...d.data()}))
-                    .filter(m => m.from === currentUser.uid || m.to === currentUser.uid)
-                    .sort((a,b) => a.timestamp - b.timestamp);
-                // mensagem nova de quem não está com o papo aberto: aviso com atalho
-                // (o badge no avatar sozinho passava despercebido, ainda mais no celular)
-                snap.docChanges().forEach(ch => {
-                    if (ch.type !== 'added') return;
-                    const m = ch.doc.data();
-                    if (m.to !== currentUser.uid || m.from === dmOpenWith || mutedUids.includes(m.from)) return;
-                    if (m.timestamp <= dmSessionStart || agora() - m.timestamp > 20000) return;
-                    const de = safeId(m.from);
-                    const nome = activeUsers.find(u => u.id === de)?.name || m.fromName || 'Alguém';
-                    showToast(`${Icons.message} Nova mensagem de ${esc(nome)}`, null, {acao: {rotulo: 'Abrir', fn: () => openDMPanel(de)}});
-                });
-                renderDM();
-                agendar('users');
-                atualizarBadgeDM();
-            }, falhaListener);
-
-            ouvir(query(pcol('dmThreads'), where('participants', 'array-contains', currentUser.uid)), snap => {
-                dmThreads = snap.docs.map(d => ({id:d.id,...d.data()}))
-                    .filter(t => t.a === currentUser.uid || t.b === currentUser.uid);
-                dmThreads.forEach(t => {
-                    const other = t.a === currentUser.uid ? t.b : t.a;
-                    // quem pediu é avisado (e o papo abre) quando o outro lado aceita
-                    if (t.status === 'accepted' && prevThreadStatus[t.id] === 'pending' && t.requestedBy === currentUser.uid) {
-                        const u = activeUsers.find(x => x.id === other);
-                        showToast(`${Icons.ok} ${esc(u?.name || 'Investidor')} aceitou seu papo!`);
-                        openDMPanel(other);
-                    }
-                    prevThreadStatus[t.id] = t.status;
-                });
-                renderDMRequests();
-            }, falhaListener);
-
-            // só as reações mais recentes: quem entra no auge não baixa centenas delas
-            ouvir(query(pcol('reactions'), orderBy('timestamp', 'desc'), limit(30)), snap => {
-                const now = Date.now();
-                snap.docChanges().forEach(ch => {
-                    if (ch.type !== 'added') return;
-                    const r = {id: ch.doc.id, ...ch.doc.data()};
-                    if (seenReactions.has(r.id) || agora() - r.timestamp > 6000 || mutedUids.includes(r.uid)) return;
-                    seenReactions.set(r.id, now);
-                    spawnReaction(r);
-                });
-                if (seenReactions.size > 400)
-                    for (const [id, em] of seenReactions) if (now - em > 60000) seenReactions.delete(id);
-            }, falhaListener);
-        }
-
-        // líder faz a faxina das reações antigas (fora do listener, que agora só vê as 30 últimas)
-        setInterval(async () => {
-            if (!currentUser || !db || !isLeader()) return;
-            try {
-                const velhas = await getDocs(query(pcol('reactions'), where('timestamp', '<', agora() - 120000), limit(100)));
-                velhas.forEach(d => deleteDoc(pdoc('reactions', d.id)).catch(() => {}));
-            } catch(e) {}
-        }, 60000);
-
-        // ── PRESENÇA ──
         // cada visita começa num ponto aleatório da pista (fora da Área VIP e da cabine do DJ)
         let spawnPoint = null;
-        let spawned = false;
         function getSpawnPoint() {
             if (spawnPoint) return spawnPoint;
             let x, y, t = 0;
@@ -1975,28 +1902,18 @@
         }
 
         // ── PRESENÇA ATIVA: quem sai da tela sai da pista ──
-        // A pista depende de quem está de fato olhando: se o DJ minimiza, troca de
-        // aba ou fecha o app, ninguém sobra pra avançar a música e o vídeo fica
-        // preso. Por isso cada cliente publica se está com a aba visível (`away`),
-        // com um prazo de tolerância antes de perder a mesa/o lugar na fila.
-        const AWAY_GRACE_MS     = 45000; // fora da tela além disso = fora da pista
-        const PRESENCE_STALE_MS = 75000; // sem heartbeat por esse tempo = fechou a aba
+        // Se o DJ minimiza, troca de aba ou fecha o app, a música dele não pode prender a
+        // pista. Cada aba avisa se está visível (`away`); passada a tolerância, o servidor
+        // tira a pessoa da mesa e da fila.
+        const AWAY_GRACE_MS = 45000; // fora da tela além disso = fora da pista (igual ao servidor)
         let tabHidden   = document.hidden === true;
-        let hiddenSince = tabHidden ? agora() : 0;
 
-        // "presente" = heartbeat recente E não está fora da tela além da tolerância
-        const isPresent = u => {
-            if (!u || !u.lastUpdate) return false;
-            const now = agora();
-            if (now - u.lastUpdate > PRESENCE_STALE_MS) return false;
-            if (u.away && now - (u.awaySince || u.lastUpdate) > AWAY_GRACE_MS) return false;
-            return true;
-        };
+        // "presente" = na sala E sem estar fora da tela além da tolerância
+        const isPresent = u => !!u && !(u.away && agora() - (u.awaySince || 0) > AWAY_GRACE_MS);
         const presentUser = uid => isPresent(activeUsers.find(u => u.id === uid));
 
         document.addEventListener('visibilitychange', () => {
-            tabHidden   = document.hidden;
-            hiddenSince = tabHidden ? agora() : 0;
+            tabHidden = document.hidden;
             if (!tabHidden) lastSyncSeekAt = 0; // voltou pra tela: realinha a música na hora
             updatePresence(); // a pista sabe na hora que você saiu (ou voltou)
             if (!tabHidden && perdiAVezAusente) {
@@ -2004,32 +1921,20 @@
                 showToast(`${Icons.headphones} Você saiu da tela e passou a vez na mesa. Coloque outra música na fila!`);
             }
         });
-        // fechar/recarregar: melhor esforço de avisar a ausência antes de sumir
-        // (se a escrita não completar, o heartbeat velho resolve pelo PRESENCE_STALE_MS)
-        window.addEventListener('pagehide', () => {
-            tabHidden = true; hiddenSince = agora();
-            updatePresence();
+        window.addEventListener('pagehide', () => { tabHidden = true; updatePresence(); });
+
+        // Perfil e ausência só saem quando mudam (o servidor guarda); posição sai pelo 'mover'.
+        let perfilEnviado = '', ausenciaEnviada = null;
+        const perfilPublico = () => ({
+            name: localProfile.name, color: localProfile.color,
+            avatarConfig: localProfile.avatarConfig, dance: localProfile.dance || ''
         });
-
-        async function updatePresence(x = null, y = null) {
-            if (!currentUser || !db) return;
-            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'users', currentUser.uid);
-            // o hash do ingresso fica só no navegador e em vip/{uid}: no perfil público, qualquer um copiaria
-            const {ingresso: _privado, ...perfilPublico} = localProfile;
-            const data = { ...perfilPublico, lastUpdate: agora(), away: tabHidden, awaySince: tabHidden ? hiddenSince : 0 };
-            if (x !== null && y !== null) { data.x = x; data.y = y; spawned = true; }
-            else {
-                const me = activeUsers.find(u => u.id === currentUser.uid);
-                if (!spawned || !me) { const s = getSpawnPoint(); data.x = s.x; data.y = s.y; }
-                else { data.x = me.x ?? getSpawnPoint().x; data.y = me.y ?? getSpawnPoint().y; }
-                spawned = true;
-            }
-            try { await setDoc(ref, data, {merge:true}); } catch(e) { console.error(e); }
-        }
-
-        function startHeartbeat() {
-            updatePresence();
-            setInterval(() => updatePresence(), 30000);
+        function updatePresence(x = null, y = null) {
+            if (!salaOnline()) return;
+            if (x !== null && y !== null) { enviar({t: 'mover', x, y}); return; }
+            const perfil = JSON.stringify(perfilPublico());
+            if (perfil !== perfilEnviado) { perfilEnviado = perfil; enviar({t: 'perfil', perfil: perfilPublico()}); }
+            if (tabHidden !== ausenciaEnviada) { ausenciaEnviada = tabHidden; enviar({t: 'ausente', v: tabHidden}); }
         }
 
         // ── ÁREA VIP (canto superior direito da pista) ──
@@ -2083,6 +1988,10 @@
             timer = setTimeout(fechar, filaAvisos.length ? Math.min(tempo, 3500) : tempo);
         }
         const avisoErro = oQue => showToast(`${Icons.sad} Não deu pra ${oQue}. Confira a conexão e tente de novo.`, null, {erro: true});
+        // recusa com explicação do servidor ("calma!", "só a organização"...) aparece como veio
+        const avisoFalha = (err, oQue) => err?.texto
+            ? showToast(`${Icons.sad} ${esc(err.texto)}`, null, {erro: true})
+            : avisoErro(oQue);
 
         document.getElementById('danceFloor').addEventListener('click', e => {
             if (!currentUser) return;
@@ -2093,8 +2002,8 @@
                 showToast(`${Icons.crown} Área VIP — só pra quem já garantiu o ingresso!`, TICKETS_URL);
                 return;
             }
-            // anda na hora e grava agrupado: clicar várias vezes não vira uma escrita por clique
-            // (cada escrita é lida por todos da pista)
+            // anda na hora e envia agrupado: clicar várias vezes não vira uma mensagem por clique
+            // (cada mensagem conta na cota do servidor e vai pra pista inteira)
             const me = activeUsers.find(u => u.id === currentUser.uid);
             if (me) { me.x = x; me.y = y; renderUsers(); }
             clearTimeout(escritaPosicao);
@@ -2106,7 +2015,7 @@
 
         // ── PISTA PELO TECLADO ──
         // Com a pista em foco, as setas andam 4% (Shift: 10%). O avatar se move na hora
-        // (otimista) e a escrita no Firestore sai agrupada: segurar a seta não dispara
+        // (otimista) e o envio pro servidor sai agrupado: segurar a seta não dispara
         // uma escrita por tecla.
         const SETAS = {ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]};
         let escritaPosicao = null;
@@ -2200,7 +2109,7 @@
                 reg.el.classList.toggle('na-mesa', isDJ); // o DJ aparece na mesa, não na pista
 
                 // conteúdo só quando algo visível mudou (refazer reinicia os passinhos)
-                const assinatura = JSON.stringify([urlAvatar, etiqueta, isDJ, !!u.isVIP, color, danceCls,
+                const assinatura = JSON.stringify([urlAvatar, etiqueta, isDJ, !!u.isVIP, !!u.isOrg, color, danceCls,
                     unread, bubble?.since || 0, inVipLounge, conversavel]);
                 if (assinatura === reg.assinatura) return;
                 reg.assinatura = assinatura;
@@ -2230,7 +2139,7 @@
        atravessando a pista e cobrindo quem está do lado -->
   <div class="mt-1.5 px-2 py-0.5 rounded text-[10px] max-w-[150px] border flex items-center gap-1 font-light" title="${esc(etiqueta)}" style="background:rgba(0,0,0,.85);border-color:${isDJ?'rgba(255,0,204,.25)':color+'25'}">
     <span class="shrink-0" style="color:${isDJ?'#ff00cc':color}">●</span>
-    <span class="truncate min-w-0">${esc(etiqueta)}</span>${isDJ?`<span class="shrink-0 text-[#ff00cc]">${Icons.headphones}</span>`:''}
+    <span class="truncate min-w-0">${esc(etiqueta)}</span>${u.isOrg?`<span class="shrink-0 text-[#DB7944]" title="Organização" aria-label="Organização">${Icons.org}</span>`:''}${isDJ?`<span class="shrink-0 text-[#ff00cc]">${Icons.headphones}</span>`:''}
   </div>
 </div>`;
             });
@@ -2263,6 +2172,8 @@
             // silenciar: visível no toque; em quem tem mouse, aparece no hover/foco (.chat-mudo)
             const muteBtn = (msg.uid && currentUser && msg.uid !== currentUser.uid)
                 ? `<button type="button" onclick="window.toggleMute('${uidSeguro}')" title="Silenciar ${esc(msg.name)}" aria-label="Silenciar ${esc(msg.name)}" class="chat-mudo text-[12px] leading-none p-1.5 -m-1 rounded transition">${Icons.mute}</button>` : '';
+            const apagarBtn = souOrg
+                ? `<button type="button" onclick="window.admApagarChat('${safeId(msg.id)}')" title="Apagar mensagem" aria-label="Apagar mensagem de ${esc(msg.name)}" class="chat-mudo text-[12px] leading-none p-1.5 -m-1 rounded transition hover:text-[#ff8a80]">${Icons.lixo}</button>` : '';
             // avatar de quem escreveu: a coroa é um selo no canto dele, não um ícone no nome.
             // Quem já saiu da pista não tem avatarConfig conhecido — cai no boneco neutro
             // (CARD_BASE), que já vem pré-carregado e nunca mostra o avatar de outra pessoa.
@@ -2275,8 +2186,9 @@
   <div class="flex-1 min-w-0">
     <div class="flex items-baseline gap-1.5 mb-0.5">
       <span class="font-semibold text-xs tracking-wide truncate" style="color:${cor}">${esc(msg.name)}</span>
+      ${msg.isOrg ? `<span class="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-semibold text-[#DB7944] bg-[#DB7944]/10 border border-[#DB7944]/35 px-1.5 rounded">${Icons.org} Org</span>` : ''}
       <span class="text-[10px] text-[#FFF7EB]/50 shrink-0">${stamp}</span>
-      ${muteBtn}
+      ${muteBtn}${apagarBtn}
     </div>
     <div class="text-xs text-[#FFF7EB]/85 break-words font-light${msg.isVIP?' border-l-2 pl-2':''}" style="${msg.isVIP?`border-color:${cor}`:''}">
       ${esc(msg.text)}
@@ -2307,7 +2219,7 @@
                 const autor = activeUsers.find(x => x.id === msg.uid);
                 const urlAvatar = getAvatarUrl(autor?.avatarConfig || CARD_BASE);
                 const mudo = !!(msg.uid && mutedUids.includes(msg.uid));
-                const chave = `${mudo}|${urlAvatar}|${!!currentUser}`;
+                const chave = `${mudo}|${urlAvatar}|${!!currentUser}|${souOrg}`;
                 let reg = nosDoChat.get(msg.id);
                 if (!reg) {
                     reg = {el: document.createElement('div'), chave: ''};
@@ -2369,7 +2281,7 @@
                 if (!item.title && titleCache[item.videoId] === undefined)
                     fetchTitle(item.videoId).then(t => { if (t) agendar('fila'); });
             });
-            const assinatura = JSON.stringify([currentUser?.uid, !!activeUsers.length, queue.map(it =>
+            const assinatura = JSON.stringify([currentUser?.uid, souOrg, !!activeUsers.length, queue.map(it =>
                 [it.id, it.title || titleCache[it.videoId] || '', it.addedByName, presentUser(it.addedByUid)])]);
             if (assinatura === assinaturaFila) return;
             assinaturaFila = assinatura;
@@ -2397,7 +2309,9 @@
 <div class="flex-1 overflow-hidden">
   ${title ? `<p class="text-[10px] text-[#FFF7EB]/90 truncate font-medium">${esc(title)}</p>` : `<p class="text-[10px] text-[#FFF7EB]/60 truncate italic">Carregando título...</p>`}
   <p class="text-[10px] text-[#FFF7EB]/65 truncate">por <span class="${mine?'text-[#DB7944]':'text-[#FFF7EB]/80'} font-medium">${esc(item.addedByName)}</span>${mine?' <span class="text-[#DB7944]/60">· sua música</span>':''}${fora?' <span class="text-[#ff8a80]" title="Quem some da tela perde a vez">· fora da pista</span>':''}</p>
-</div>`;
+</div>
+${mine || souOrg ? `<button type="button" onclick="window.tirarDaFila('${safeId(item.id)}')" title="${mine ? 'Tirar minha música da fila' : 'Organização: tirar da fila'}" aria-label="${mine ? 'Tirar minha música da fila' : 'Tirar da fila a música de ' + esc(item.addedByName)}"
+  class="shrink-0 w-8 h-8 inline-flex items-center justify-center rounded-full text-[14px] text-[#FFF7EB]/55 hover:text-[#ff8a80] hover:bg-[#FFF7EB]/8 transition">${Icons.close}</button>` : ''}`;
                 c.appendChild(div);
             });
         }
@@ -2454,7 +2368,7 @@
 <div class="absolute inset-0 bg-black/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center gap-2 pointer-events-auto">
   <p class="text-[11px] md:text-xs uppercase tracking-[.25em] text-[#DB7944] font-bold text-center px-4">${Icons.music} ${esc(countdownState?.reason || 'Trocando de música...')}</p>
   <span id="countdownNum" class="font-discodiva text-7xl md:text-8xl text-[#FFF7EB] count-glow">${Math.max(0, Math.ceil((countdownState.endsAt - agora()) / 1000))}</span>
-  ${minhaContagem?.cancelavel && minhaContagem.endsAt === countdownState?.endsAt ? `
+  ${minhaContagemCancelavel() ? `
   <button type="button" onclick="window.cancelarContagem()" class="mt-1 bg-[#FFF7EB] text-[#0a0a0a] text-xs font-semibold px-4 py-2 rounded-full hover:bg-white transition">${Icons.undo} Cancelar, quero continuar</button>` : ''}
 </div>`;
 
@@ -2465,9 +2379,9 @@
             glPlaying = !!(currentVideo?.videoId) || fallbackUnmuted;
             const assinatura = JSON.stringify([currentUser?.uid, currentVideo?.videoId, currentVideo?.addedByUid,
                 currentVideo?.title, validSkipVotes(), skipThreshold(), skipVotes?.votes?.[currentUser?.uid] && skipVotes?.videoId,
-                partyVoteCount(), partyVotes.some(v => v.uid === currentUser?.uid),
+                partyVoteCount(), voteiFesta(), souOrg,
                 Date.now() < playerUnlockUntil ? Math.ceil((playerUnlockUntil - Date.now()) / 1000) : 0,
-                precisaTocar, countdownActive() && countdownState?.endsAt, !!minhaContagem?.cancelavel, fallbackUnmuted]);
+                precisaTocar, countdownActive() && countdownState?.endsAt, minhaContagemCancelavel(), fallbackUnmuted]);
             if (assinatura === assinaturaOverlay) return;
             assinaturaOverlay = assinatura;
             const cd = countdownActive() ? countdownOverlayHtml() : '';
@@ -2478,7 +2392,7 @@
                 const need  = skipThreshold();
                 const iVotedSkip = !!(currentUser && skipVotes?.videoId === currentVideo.videoId && skipVotes?.votes?.[currentUser.uid]);
                 const pCount = partyVoteCount();
-                const iParty = !!(currentUser && partyVotes.some(v => v.videoId === currentVideo.videoId && v.uid === currentUser.uid));
+                const iParty = voteiFesta();
                 const unlocked = Date.now() < playerUnlockUntil;
                 o.innerHTML = `
 ${!isMe ? (unlocked ? `
@@ -2505,6 +2419,11 @@ ${isMe?`<div class="absolute top-2 left-2 bg-[#ff00cc] text-white text-[11px] px
     class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[40px] min-w-[40px] md:min-h-[32px] rounded-full border transition flex items-center justify-center gap-1 shadow-lg ${iVotedSkip?'bg-[#DB7944] border-[#DB7944] text-white cursor-default':'bg-black/80 text-[#FFF7EB] border-[#FFF7EB]/20 hover:bg-[#DB7944] hover:border-[#DB7944]'}">
     <span class="text-[15px] md:text-[13px]">${Icons.play}</span><span class="hidden sm:inline">Pular</span> <span class="font-semibold">${votes}/${need}</span>
   </button>`}
+  ${souOrg && !countdownActive() ? `
+  <button onclick="window.admPular()" title="Organização: passar para a próxima música agora" aria-label="Organização: pular a música"
+    class="pointer-events-auto backdrop-blur-md text-[11px] md:text-xs px-3 py-1.5 min-h-[40px] min-w-[40px] md:min-h-[32px] rounded-full border transition flex items-center justify-center gap-1 shadow-lg bg-[#0B2A47]/90 text-[#FFF7EB] border-[#DB7944]/60 hover:bg-[#DB7944]">
+    <span class="text-[15px] md:text-[13px]">${Icons.org}</span><span class="hidden sm:inline">Pular agora</span>
+  </button>` : ''}
 </div>
 ${precisaTocar ? `
 <button type="button" onclick="window.destravarPlay()" class="pointer-events-auto absolute inset-0 m-auto w-max h-max z-10 bg-[#DB7944] text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-2xl hover:bg-[#c45d1b] transition">${Icons.play} Tocar a música</button>` : ''}
@@ -2554,7 +2473,8 @@ ${cd}`;
         };
 
         // ── VOTOS: PULAR & "ESSA VAI PRA FESTA!" ──
-        // pular exige 50%+1 dos presentes OU 10 votos, o que for menor
+        // pular exige 50%+1 dos presentes OU 10 votos, o que for menor (mesma conta do servidor,
+        // que é quem decide; aqui é só pra mostrar "3/5")
         const skipThreshold = () => {
             const ouvintes = activeUsers.filter(u => isPresent(u) && u.id !== currentVideo?.addedByUid).length;
             return Math.max(1, Math.min(10, Math.floor(ouvintes / 2) + 1));
@@ -2563,95 +2483,44 @@ ${cd}`;
             (skipVotes && currentVideo?.videoId && skipVotes.videoId === currentVideo.videoId)
                 ? Object.keys(skipVotes.votes || {}).length : 0;
         const partyVoteCount = () =>
-            currentVideo?.videoId ? partyVotes.filter(v => v.videoId === currentVideo.videoId).length : 0;
+            currentVideo?.videoId && festa.videoId === currentVideo.videoId ? festa.n : 0;
+        const voteiFesta = () => !!(currentVideo?.videoId && festa.videoId === currentVideo.videoId && festa.votei);
 
         window.voteSkip = async () => {
-            if (!currentUser || !db || !currentVideo?.videoId || countdownActive()) return;
+            if (!currentUser || !currentVideo?.videoId || countdownActive()) return;
             if (skipVotes?.videoId === currentVideo.videoId && skipVotes?.votes?.[currentUser.uid]) return;
-            const vid = currentVideo.videoId, chave = chaveAtual();
-            let total = 0;
-            try {
-                total = await runTransaction(db, async tx => {
-                    const s = await tx.get(pdoc('player', 'skipVotes'));
-                    const d = s.exists() ? s.data() : {};
-                    const votes = d.videoId === vid ? {...(d.votes || {})} : {};
-                    votes[currentUser.uid] = true;
-                    tx.set(pdoc('player', 'skipVotes'), {videoId: vid, votes});
-                    return Object.keys(votes).length;
-                });
-            } catch(err) { console.error(err); avisoErro('registrar seu voto'); return; }
-            if (total >= skipThreshold())
-                startCountdown('A pista votou: próxima música!', () => avancar(chave));
+            try { await pedir({t: 'pular'}); }
+            catch(err) { console.warn(err); avisoErro('registrar seu voto'); }
         };
 
-        // o DJ da vez pode passar a própria vez sem precisar de votação
+        // o DJ da vez pode passar a própria vez sem votação (contagem cancelável)
         window.skipMyTurn = () => {
-            if (!currentUser || !db || !currentVideo?.videoId || countdownActive()) return;
-            if (currentVideo.addedByUid !== currentUser.uid) return;
-            const chave = chaveAtual();
-            startCountdown('O DJ passou a vez!', () => avancar(chave), {cancelavel: true});
+            if (!isCurrentDJ() || countdownActive()) return;
+            pedir({t: 'passarVez'}).catch(() => avisoErro('passar a vez'));
         };
 
         window.votePartySong = async () => {
-            if (!currentUser || !db || !currentVideo?.videoId) return;
+            if (!currentUser || !currentVideo?.videoId || voteiFesta()) return;
             try {
-                await setDoc(pdoc('partyVotes', `${currentVideo.videoId}_${currentUser.uid}`), {
-                    videoId: currentVideo.videoId,
-                    uid: currentUser.uid,
-                    name: localProfile.name,
-                    addedByName: currentVideo.addedByName || null,
-                    timestamp: agora()
-                });
+                const r = await pedir({t: 'festa'});
+                if (r.videoId === festa.videoId) festa.votei = true;
+                agendar('overlay');
                 showToast(`${Icons.fire} Voto registrado! Essa tá mais perto da festa.`);
-            } catch(err) { console.error(err); avisoErro('registrar seu voto'); }
+            } catch(err) { console.warn(err); avisoErro('registrar seu voto'); }
         };
 
         // ── CONTAGEM REGRESSIVA SINCRONIZADA ──
-        // `cancelavel`: só o "Pular minha vez" — toque acidental do DJ não custa a música
-        let minhaContagem = null; // {endsAt, timer, cancelavel} da contagem que EU iniciei
-        // A contagem é reivindicada numa transação: se outra já está correndo, esta não
-        // começa (antes duas pessoas enviando juntas geravam duas contagens e dois avanços).
-        // Ao terminar, só quem iniciou zera o doc — e só se ainda for a contagem dele.
-        async function startCountdown(reason, action, {cancelavel = false} = {}) {
-            if (!db) { action(); return; }
-            if (countdownActive()) return;
-            const endsAt = agora() + COUNTDOWN_MS;
-            const uid = currentUser.uid;
-            let ganhei = false;
-            try {
-                ganhei = await runTransaction(db, async tx => {
-                    const s = await tx.get(pdoc('player', 'countdown'));
-                    if (s.exists() && (s.data().endsAt || 0) > agora()) return false;
-                    tx.set(pdoc('player', 'countdown'), {endsAt, reason, por: uid});
-                    return true;
-                });
-            } catch(e) { console.warn('Contagem não iniciada (sem conexão?)', e); return; }
-            if (!ganhei) return;
-            countdownState = {endsAt, reason, por: uid};
-            const timer = setTimeout(async () => {
-                minhaContagem = null;
-                try { await action(); }
-                finally {
-                    try {
-                        await runTransaction(db, async tx => {
-                            const s = await tx.get(pdoc('player', 'countdown'));
-                            if (s.data()?.por === uid && s.data()?.endsAt === endsAt)
-                                tx.set(pdoc('player', 'countdown'), {endsAt: null, reason: null, por: null});
-                        });
-                    } catch(e) {}
-                }
-            }, COUNTDOWN_MS);
-            minhaContagem = {endsAt, timer, cancelavel};
-            agendar('overlay');
-        }
+        // O servidor abre a contagem (fila entrando, votação, DJ ausente, organização) e troca
+        // a música quando ela termina. Aqui só desenha; "Pular minha vez" pode ser cancelado
+        // por quem pediu (toque acidental do DJ não custa a música).
+        const minhaContagemCancelavel = () =>
+            !!(countdownActive() && countdownState.cancelavel && countdownState.por === currentUser?.uid);
         window.cancelarContagem = async () => {
-            if (!minhaContagem?.cancelavel) return;
-            clearTimeout(minhaContagem.timer);
-            minhaContagem = null;
-            countdownState = {endsAt: null, reason: null};
-            updatePlayerOverlay();
-            try { await setDoc(pdoc('player', 'countdown'), {endsAt: null, reason: null}); } catch(e) {}
-            showToast(`${Icons.thumbs} Tudo certo, a música continua.`);
+            if (!minhaContagemCancelavel()) return;
+            try {
+                await pedir({t: 'cancelar'});
+                showToast(`${Icons.thumbs} Tudo certo, a música continua.`);
+            } catch(e) { avisoErro('cancelar a contagem'); }
         };
 
         // ticker: atualiza o número da contagem e liga/desliga o overlay
@@ -2665,88 +2534,6 @@ ${cd}`;
                 if (el && el.textContent != n) el.textContent = n;
             }
         }, 200);
-
-        // ── LÍDER: menor uid online executa ações automáticas (evita corrida) ──
-        // Prioriza quem está com a aba na frente: aba escondida tem timer estrangulado
-        // pelo navegador e não serviria como líder (as verificações não rodariam a tempo).
-        const isLeader = () => {
-            if (!currentUser || !conectadoAoServidor || listenersQuebrados || !relogioMedido) return false;
-            const presentes = activeUsers.filter(isPresent);
-            const ids = (presentes.length ? presentes : activeUsers).map(u => u.id).sort();
-            return !ids.length || ids[0] === currentUser.uid;
-        };
-
-        // ── FILA NUNCA FICA ÓRFÃ ──
-        // Se quem adicionou fechou a aba (ou caiu no meio da contagem), a música
-        // continua na fila; o líder detecta e coloca pra tocar — o lugar na fila
-        // e o crédito de DJ da pessoa são preservados mesmo com ela offline.
-        setInterval(() => {
-            if (!currentUser || !db) return;
-            if (currentVideo?.videoId) return;   // já tem música na mesa
-            if (!queue.length) return;
-            if (countdownActive() || !isLeader()) return;
-            // só chama pra mesa quem está na tela — músicas de gente ausente saem
-            // da fila dentro do playNextVideo
-            const proximo = queue.find(q => !activeUsers.length || presentUser(q.addedByUid));
-            if (!proximo) return;
-            const nome = proximo.addedByName || 'Investidor';
-            const chave = chaveAtual();
-            startCountdown(`Música de ${nome} entrando na pista!`, () => avancar(chave));
-        }, 4000);
-
-        // ── FAXINA DA FILA: QUEM SAIU DA PISTA PERDE O LUGAR ──
-        // Sem isso a fila acumula músicas de gente que já foi embora e o topo da
-        // lista vira um fantasma. O líder apaga; quem só recarregou a página volta
-        // dentro da tolerância e não perde nada.
-        setInterval(() => {
-            if (!currentUser || !db || !queue.length) return;
-            if (!activeUsers.length || !isLeader()) return;
-            queue.forEach(item => {
-                // sem ingresso, sem mesa (docs antigos, sem o campo, continuam valendo)
-                if (item.addedByVIP === false) { deleteDoc(pdoc('queue', item.id)).catch(() => {}); return; }
-                if (presentUser(item.addedByUid)) return;
-                // respiro pra quem acabou de entrar na fila e ainda não bateu heartbeat
-                if (agora() - (item.timestamp || 0) < AWAY_GRACE_MS) return;
-                deleteDoc(pdoc('queue', item.id)).catch(() => {});
-            });
-        }, 10000);
-
-        // ── O DJ PRECISA FICAR NA PISTA ──
-        // Se quem está na mesa fecha a aba, minimiza ou troca de app, ninguém sobra pra
-        // avançar quando o vídeo acaba (o evento de fim só chega pra quem está com o
-        // player vivo) — e a pista ficaria presa até o limite de 10 min. Passada a
-        // tolerância de ausência, o líder passa a vez pra próxima música.
-        setInterval(() => {
-            if (!currentUser || !db || !currentVideo?.videoId) return;
-            if (countdownActive() || !isLeader()) return;
-            if (!activeUsers.length) return; // sem dados de presença: não chuta
-            // respiro no começo da música: dá tempo do doc de presença do DJ chegar
-            if (agora() - (currentVideo.startedAt || 0) < 30000) return;
-            if (presentUser(currentVideo.addedByUid)) return;
-            const nome = currentVideo.addedByName || 'O DJ';
-            const chave = chaveAtual();
-            startCountdown(`${nome} saiu da pista — próxima música!`, () => avancar(chave));
-        }, 5000);
-
-        // líder confere o que pode ter ficado sem dono: votos de pular acima do limiar (quem
-        // votou por último fechou a aba na contagem) e player parado no fim sem ninguém avançar
-        setInterval(() => {
-            if (!currentUser || !db || !currentVideo?.videoId || countdownActive() || !isLeader()) return;
-            const chave = chaveAtual();
-            if (validSkipVotes() >= skipThreshold()) {
-                startCountdown('A pista votou: próxima música!', () => avancar(chave));
-                return;
-            }
-            if (ytInfo?.state === 0 && Date.now() - (ytInfo.at || 0) > 12000) avancar(chave);
-        }, 5000);
-
-        // ── LIMITE DE 10 MIN POR VÍDEO ──
-        setInterval(() => {
-            if (!currentUser || !db || !currentVideo?.videoId || !currentVideo.startedAt) return;
-            if (agora() - currentVideo.startedAt < MAX_PLAY_MS) return;
-            if (countdownActive() || !isLeader()) return;
-            avancar(chaveAtual());
-        }, 5000);
 
         // ── FIM DE VÍDEO (via YouTube IFrame API por postMessage) ──
         function hookYtEvents() {
@@ -2769,41 +2556,21 @@ ${cd}`;
             });
         }
 
-        // dispara só uma vez por (vídeo, startedAt), mesmo com eventos repetidos
-        let endedHandledKey = null;
+        // O fim do vídeo e o vídeo que não toca (removido, privado, embed bloqueado, região) só
+        // são INFORMADOS ao servidor, uma vez por música. O do DJ vale na hora; o dos outros, se o
+        // DJ não confirmar em alguns segundos (aba dele estrangulada, DJ fora). Sem isso o
+        // vídeo nunca "terminava" e a pista ficava parada até os 10 min.
+        let endedHandledKey = null, erroTratadoKey = null;
         function onVideoEnded() {
-            if (!currentVideo?.videoId) return;
-            // acabou durante uma contagem (que pode ser "fantasma", de quem fechou a aba):
-            // reavalia logo depois que ela terminar, em vez de ignorar o fim
-            if (countdownActive()) { setTimeout(onVideoEnded, Math.max(500, countdownState.endsAt - agora() + 1000)); return; }
-            const key = chaveAtual();
-            if (endedHandledKey === key) return;
-            endedHandledKey = key;
-            const stillSame = () => currentVideo?.videoId &&
-                `${currentVideo.videoId}_${currentVideo.startedAt || 0}` === key && !countdownActive();
-            // 1º: o DJ avança na hora (é quem certamente recebeu o evento de fim)
-            if (isCurrentDJ()) { avancar(key); return; }
-            // 2º: se o DJ não avançou em 4 s, o líder assume
-            setTimeout(() => { if (stillSame() && isLeader()) avancar(key); }, 4000);
-            // 3º: última linha de defesa — qualquer cliente, espalhado entre 9 e 15 s (a
-            // transação garante que só um troca; o espalhamento evita 300 tentativas juntas)
-            setTimeout(() => { if (stillSame()) avancar(key); }, 9000 + Math.random() * 6000);
+            if (!currentVideo?.videoId || endedHandledKey === chaveAtual()) return;
+            endedHandledKey = chaveAtual();
+            enviar({t: 'fim', chave: endedHandledKey});
         }
-        // ── VÍDEO QUE NÃO TOCA (removido, privado, embed bloqueado, região) ──
-        // Sem isso o vídeo nunca "termina" e a pista fica na tela preta até os 10 min.
-        let erroTratadoKey = null;
         function onPlayerError(code) {
-            if (!currentVideo?.videoId || countdownActive()) return;
-            const key = chaveAtual();
-            if (erroTratadoKey === key) return;
-            erroTratadoKey = key;
+            if (!currentVideo?.videoId || erroTratadoKey === chaveAtual()) return;
+            erroTratadoKey = chaveAtual();
             console.warn('YouTube não conseguiu tocar o vídeo (código ' + code + ')');
-            const aindaOMesmo = () => currentVideo?.videoId &&
-                `${currentVideo.videoId}_${currentVideo.startedAt || 0}` === key && !countdownActive();
-            const passar = () => startCountdown('Vídeo indisponível — próxima música!', () => avancar(key));
-            // o DJ resolve na hora; se ele nem está aqui, o líder assume em 6 s
-            if (isCurrentDJ()) { passar(); return; }
-            setTimeout(() => { if (aindaOMesmo() && isLeader()) passar(); }, 6000);
+            enviar({t: 'erroVideo', chave: erroTratadoKey});
         }
 
         window.addEventListener('message', e => {
@@ -2846,8 +2613,8 @@ ${cd}`;
         // e puxavam a pista para trás; recarregar o DJ publicava time 0. Tocando, exige
         // posição fresca (aba escondida congela o player) e que ela tenha andado.
         let ultimaPublicada = null;
-        async function publishPlayback() {
-            if (!isCurrentDJ() || !db || !ytInfo?.tempoEm) return;
+        function publishPlayback() {
+            if (!isCurrentDJ() || !salaOnline() || !ytInfo?.tempoEm) return;
             if (ytInfo.state !== 1 && ytInfo.state !== 2) return;
             const tocando = ytInfo.state === 1;
             if (tocando && Date.now() - ytInfo.tempoEm > 8000) return;
@@ -2855,14 +2622,7 @@ ${cd}`;
             if (tocando && ultimaPublicada?.estado === 'playing' && Math.abs(time - ultimaPublicada.time) < 0.5 &&
                 Date.now() - ultimaPublicada.em > 3000) return; // não andou: anúncio ou travado
             ultimaPublicada = {estado: tocando ? 'playing' : 'paused', time, em: Date.now()};
-            try {
-                await setDoc(pdoc('player', 'playback'), {
-                    videoId: currentVideo.videoId,
-                    state: tocando ? 'playing' : 'paused',
-                    time,
-                    at: agora()
-                });
-            } catch(e) {}
+            enviar({t: 'playback', state: tocando ? 'playing' : 'paused', time});
         }
         setInterval(publishPlayback, 5000); // posição do DJ publicada a cada 5 s (cobre seeks também)
 
@@ -2967,17 +2727,17 @@ ${cd}`;
             const btn = document.getElementById('chatSubmit');
             const text = inp.value.trim();
             if (!text || enviandoChat) return;
-            if (!currentUser || !db) { atualizarConexao(); return; }
+            if (!salaOnline()) { atualizarConexao(); return; }
             enviandoChat = true;
             btn.disabled = true;
             inp.readOnly = true; // readOnly e não disabled: no celular, disabled fecha o teclado
             try {
-                await addDoc(pcol('chat'), {uid:currentUser.uid, name:localProfile.name, isVIP:localProfile.isVIP, color:localProfile.color, text:censor(text), timestamp:agora()});
+                await pedir({t: 'chat', text}); // a censura acontece no servidor
                 inp.value = '';
                 rolarChatAoFim = true;
             } catch(err) {
-                console.error(err);
-                avisoErro('enviar a mensagem'); // o texto continua no campo pra tentar de novo
+                console.warn(err);
+                avisoFalha(err, 'enviar a mensagem'); // o texto continua no campo pra tentar de novo
             } finally {
                 enviandoChat = false;
                 inp.readOnly = false;
@@ -2988,7 +2748,7 @@ ${cd}`;
         // ── FILA ──
         // A mesa de DJ é exclusiva de quem tem ingresso CONFIRMADO pelo e-mail da compra.
         // Aqui a trava é de experiência (explica o porquê e leva à confirmação); quem
-        // garante de verdade são as regras do Firestore, que exigem vip/{uid} na fila.
+        // garante de verdade é o servidor, que recusa a fila sem o vínculo do ingresso.
         const podeSerDJ = () => !!localProfile.isVIP;
         const avisoSemIngresso = () =>
             showToast(`${Icons.headphones} A mesa de DJ é só pra quem tem ingresso do Private Day.`, TICKETS_URL, {
@@ -3000,7 +2760,7 @@ ${cd}`;
             const inp = document.getElementById('videoUrlInput');
             const btn = document.getElementById('queueSubmit');
             const aviso = document.getElementById('queueLocked');
-            const online = !!(currentUser && db) && navigator.onLine !== false;
+            const online = salaOnline();
             const liberado = podeSerDJ() && online;
             inp.disabled = btn.disabled = !liberado;
             inp.placeholder = !podeSerDJ() ? 'Só quem tem ingresso assume a mesa'
@@ -3029,7 +2789,7 @@ ${cd}`;
             e.preventDefault();
             if (enviandoFila) return;
             if (!podeSerDJ()) { avisoSemIngresso(); return; }
-            if (!currentUser || !db) { atualizarConexao(); return; }
+            if (!salaOnline()) { atualizarConexao(); return; }
             const inp = document.getElementById('videoUrlInput');
             const btn = document.getElementById('queueSubmit');
             const videoId = extractYouTubeId(inp.value);
@@ -3044,15 +2804,15 @@ ${cd}`;
             enviandoFila = true;
             btn.disabled = true;
             btn.classList.add('animate-pulse');
-            let docRef, title;
+            let r;
             try {
-                title = await fetchTitle(videoId);
-                // addedByVIP viaja no doc: a checagem na hora de subir pra mesa não depende
-                // de a pessoa estar online para consultar o perfil dela
-                docRef = await addDoc(pcol('queue'), {videoId, title: title || null, addedByName:localProfile.name, addedByUid:currentUser.uid, addedByVIP:true, timestamp:agora()});
+                const title = await fetchTitle(videoId);
+                // com a pista no vídeo da casa, o servidor já abre a contagem com esta música
+                r = await pedir({t: 'fila', videoId, title: title || null});
             } catch(err) {
-                console.error(err);
-                avisoErro('colocar a música na fila');
+                console.warn(err);
+                if (err.texto) erroFila(err.texto);
+                else avisoErro('colocar a música na fila');
                 return;
             } finally {
                 enviandoFila = false;
@@ -3061,73 +2821,26 @@ ${cd}`;
             }
             inp.value = '';
             erroFila('');
-            showToast(!currentVideo?.videoId
+            showToast(r.entraAgora
                 ? `${Icons.music} Boa! Sua música vai entrar na pista agora.`
-                : `${Icons.music} Você entrou na fila — posição ${queue.filter(q => q.id !== docRef.id).length + 1}. Fique na tela pra não perder a vez!`);
-            // Se a pista está no vídeo da casa, faz a contagem e entra com a música do usuário
-            if (!currentVideo?.videoId && !countdownActive()) {
-                const chave = chaveAtual();
-                startCountdown(`Música de ${localProfile.name} entrando na pista!`, () => avancar(chave, {preferido: docRef.id}));
-            }
+                : `${Icons.music} Você entrou na fila — posição ${r.posicao}. Fique na tela pra não perder a vez!`);
         });
 
-        // ── TROCA DE MÚSICA ATÔMICA E CONDICIONAL ──
-        // Numa transação: só avança se o player ainda estiver na música que ESTE cliente viu
-        // (`chaveEsperada`). DJ, líder, "qualquer um aos 9 s", limite de 10 min e contagens
-        // podem chamar ao mesmo tempo: o primeiro troca, os outros viram no-op. Antes, duas
-        // chamadas juntas pulavam duas músicas ou sumiam com a música de alguém. Transação
-        // não roda offline: um celular sem rede não despeja exclusões velhas quando volta.
+        // tirar a própria música da fila; a organização tira qualquer uma
+        window.tirarDaFila = async id => {
+            const item = queue.find(q => q.id === id);
+            if (!item || !currentUser) return;
+            const minha = item.addedByUid === currentUser.uid;
+            if (!minha && !souOrg) return;
+            try { await pedir(minha ? {t: 'sairFila', id} : {t: 'admRemoverFila', id}); }
+            catch(err) { avisoFalha(err, 'tirar a música da fila'); }
+        };
+
+        // ── CHAVE DA MÚSICA ──
+        // Muda a cada troca (o mesmo vídeo tocado de novo tem outro startedAt). Fim de vídeo e
+        // erro vão ao servidor com a chave: aviso atrasado de uma música anterior não pula a atual.
         const chaveDe = v => `${v?.videoId || 'fallback'}_${v?.startedAt || 0}`;
         const chaveAtual = () => chaveDe(currentVideo);
-        async function avancar(chaveEsperada = chaveAtual(), {preferido = null} = {}) {
-            if (!currentUser || !db) return false;
-            // candidatos na ordem da fila (no máximo 10 lidos por transação)
-            const ordem = preferido
-                ? [preferido, ...queue.map(q => q.id).filter(id => id !== preferido)]
-                : queue.map(q => q.id);
-            try {
-                return await runTransaction(db, async tx => {
-                    const estadoSnap = await tx.get(pdoc('player', 'state'));
-                    const atual = estadoSnap.exists() ? estadoSnap.data() : {};
-                    if (chaveDe({videoId: safeVideoId(atual.videoId), startedAt: atual.startedAt}) !== chaveEsperada) return false;
-                    let escolhido = null;
-                    const descartar = [];
-                    for (const id of ordem.slice(0, 10)) {
-                        const s = await tx.get(pdoc('queue', id));
-                        if (!s.exists()) continue; // outro cliente já tirou
-                        const d = s.data();
-                        // fantasma: a música que estava tocando ainda na fila (delete atrasado)
-                        const fantasma = atual.videoId && d.videoId === atual.videoId && (d.timestamp || 0) <= (atual.startedAt || Infinity);
-                        // sem ingresso não toca; quem saiu da tela perde a vez (quem acabou de
-                        // enviar — o preferido — está na tela por definição)
-                        const ausente = id !== preferido && activeUsers.length && !presentUser(d.addedByUid);
-                        if (fantasma || d.addedByVIP === false || !safeVideoId(d.videoId) || ausente) { descartar.push(id); continue; }
-                        escolhido = {id, ...d};
-                        break;
-                    }
-                    if (!escolhido && !atual.videoId && !descartar.length) return false; // já na playlist da casa
-                    descartar.forEach(id => tx.delete(pdoc('queue', id)));
-                    const ts = agora();
-                    if (escolhido) {
-                        const title = escolhido.title || titleCache[escolhido.videoId] || null;
-                        const byName = escolhido.addedByName || 'Investidor', byUid = escolhido.addedByUid;
-                        tx.delete(pdoc('queue', escolhido.id));
-                        tx.set(pdoc('player', 'state'), {videoId: escolhido.videoId, startedAt: ts, addedByName: byName, addedByUid: byUid, title});
-                        tx.set(pdoc('player', 'skipVotes'), {videoId: escolhido.videoId, votes: {}});
-                        tx.set(pdoc('player', 'playback'), {videoId: escolhido.videoId, state: 'playing', time: 0, at: ts});
-                        tx.set(doc(pcol('history')), {videoId: escolhido.videoId, byUid, byName, title, timestamp: ts});
-                    } else if (atual.videoId) {
-                        tx.set(pdoc('player', 'state'), {videoId: null, startedAt: null, addedByName: null, addedByUid: null, title: null});
-                        tx.set(pdoc('player', 'skipVotes'), {videoId: null, votes: {}});
-                    }
-                    return true;
-                });
-            } catch(e) {
-                console.warn('Troca de música não aplicada (sem conexão ou disputa)', e);
-                return false;
-            }
-        }
-        window.playNextVideo = () => avancar(chaveAtual());
 
         // ── CHAT PRIVADO (DM) ──
         const convId = (a, b) => [a, b].sort().join('_');
@@ -3175,7 +2888,6 @@ ${cd}`;
         window.openDM = async uid => {
             const u = activeUsers.find(x => x.id === uid);
             if (!u || !currentUser || uid === currentUser.uid) return;
-            if (!db) { showToast('Firebase não configurado. Chat privado indisponível.'); return; }
             // quem está na Área VIP só recebe papo de quem também está lá
             if (userInVipArea(u) && !meInVipArea()) {
                 showToast(`${Icons.crown} ${esc(u.name)} está na Área VIP — só quem está lá dentro pode puxar papo.`, localProfile.isVIP ? null : TICKETS_URL);
@@ -3192,27 +2904,24 @@ ${cd}`;
                 return;
             }
             try {
-                await setDoc(pdoc('dmThreads', convId(currentUser.uid, uid)), {
-                    a: currentUser.uid, b: uid, participants: [currentUser.uid, uid],
-                    requestedBy: currentUser.uid, requestedByName: localProfile.name,
-                    status: 'pending', timestamp: agora()
-                });
-                showToast(`${Icons.mail} Solicitação de papo enviada para ${esc(u.name)}!`);
-            } catch(err) { console.error(err); avisoErro('enviar o pedido de papo'); }
+                const r = await pedir({t: 'papo', com: uid});
+                if (r.status === 'accepted') openDMPanel(uid);
+                else showToast(`${Icons.mail} Solicitação de papo enviada para ${esc(u.name)}!`);
+            } catch(err) { console.warn(err); avisoFalha(err, 'enviar o pedido de papo'); }
         };
 
         window.acceptDM = async uid => {
-            if (!currentUser || !db) return;
-            try { await setDoc(pdoc('dmThreads', convId(currentUser.uid, uid)), {status: 'accepted'}, {merge: true}); }
-            catch(err) { console.error(err); avisoErro('aceitar o papo'); return; }
+            if (!currentUser) return;
+            try { await pedir({t: 'aceitar', com: uid}); }
+            catch(err) { console.warn(err); avisoFalha(err, 'aceitar o papo'); return; }
             openDMPanel(uid);
             renderDMRequests();
         };
 
         window.declineDM = async uid => {
-            if (!currentUser || !db) return;
-            try { await setDoc(pdoc('dmThreads', convId(currentUser.uid, uid)), {status: 'declined'}, {merge: true}); }
-            catch(err) { console.error(err); avisoErro('recusar o papo'); return; }
+            if (!currentUser) return;
+            try { await pedir({t: 'recusar', com: uid}); }
+            catch(err) { console.warn(err); avisoFalha(err, 'recusar o papo'); return; }
             renderDMRequests();
         };
 
@@ -3271,7 +2980,7 @@ ${cd}`;
             const inp = document.getElementById('dmInput');
             const text = inp.value.trim();
             if (!text || !dmOpenWith || enviandoDM) return;
-            if (!currentUser || !db) { atualizarConexao(); return; }
+            if (!salaOnline()) { atualizarConexao(); return; }
             if (threadFor(dmOpenWith)?.status !== 'accepted') { showToast(`${Icons.hourglass} O papo ainda não foi aceito.`); return; }
             const other = activeUsers.find(x => x.id === dmOpenWith);
             if (userInVipArea(other) && !meInVipArea()) {
@@ -3281,21 +2990,46 @@ ${cd}`;
             enviandoDM = true;
             inp.readOnly = true;
             try {
-                await addDoc(pcol('dm'), {
-                    convId: convId(currentUser.uid, dmOpenWith),
-                    from: currentUser.uid, fromName: localProfile.name, fromColor: localProfile.color,
-                    to: dmOpenWith, participants: [currentUser.uid, dmOpenWith],
-                    text: censor(text), timestamp: agora()
-                });
+                await pedir({t: 'dm', para: dmOpenWith, text});
                 inp.value = '';
             } catch(err) {
-                console.error(err);
-                avisoErro('enviar a mensagem privada');
+                console.warn(err);
+                avisoFalha(err, 'enviar a mensagem privada');
             } finally {
                 enviandoDM = false;
                 inp.readOnly = false;
             }
         });
+
+        // só os dois participantes recebem: o servidor nunca mostra papo alheio (nem à organização)
+        function chegouDM(m) {
+            if (dmMessages.some(x => x.id === m.id)) return;
+            dmMessages.push(m);
+            if (dmMessages.length > 400) dmMessages.splice(0, dmMessages.length - 400);
+            // mensagem nova de quem não está com o papo aberto: aviso com atalho
+            // (o badge no avatar sozinho passava despercebido, ainda mais no celular)
+            if (m.to === currentUser?.uid && m.from !== dmOpenWith && !mutedUids.includes(m.from)) {
+                const de = safeId(m.from);
+                const nome = activeUsers.find(u => u.id === de)?.name || m.fromName || 'Alguém';
+                showToast(`${Icons.message} Nova mensagem de ${esc(nome)}`, null, {acao: {rotulo: 'Abrir', fn: () => openDMPanel(de)}});
+            }
+            renderDM();
+            agendar('users');
+            atualizarBadgeDM();
+        }
+        function chegouPapo(t) {
+            const i = dmThreads.findIndex(x => x.id === t.id);
+            if (i >= 0) dmThreads[i] = t; else dmThreads.push(t);
+            const other = t.a === currentUser?.uid ? t.b : t.a;
+            // quem pediu é avisado (e o papo abre) quando o outro lado aceita
+            if (t.status === 'accepted' && prevThreadStatus[t.id] === 'pending' && t.requestedBy === currentUser?.uid) {
+                const u = activeUsers.find(x => x.id === other);
+                showToast(`${Icons.ok} ${esc(u?.name || 'Investidor')} aceitou seu papo!`);
+                openDMPanel(other);
+            }
+            prevThreadStatus[t.id] = t.status;
+            renderDMRequests();
+        }
 
         function renderDM() {
             if (!dmOpenWith || !currentUser) return;
@@ -3340,21 +3074,13 @@ ${cd}`;
             const vip = VIP_EMOJIS.includes(emoji);
             if (!REACTION_EMOJIS.includes(emoji) && !vip) return;
             if (vip && !meInVipArea()) { showToast(`${Icons.crown} Reação exclusiva de quem está na Área VIP!`); return; }
-            // uma reação a cada 1,2 s por pessoa: cada uma é lida por todos da pista
-            if (Date.now() - ultimaReacaoEnviada < 1200) return;
+            // uma reação a cada 1,5 s por pessoa: cada mensagem recebida conta na cota do servidor
+            if (Date.now() - ultimaReacaoEnviada < 1500) return;
             ultimaReacaoEnviada = Date.now();
-            if (!currentUser || !db) {
-                spawnReaction({emoji, x: 50, y: 60}); // modo offline: só efeito local
-                return;
-            }
-            const me = activeUsers.find(u => u.id === currentUser.uid);
-            try {
-                await addDoc(pcol('reactions'), {
-                    uid: currentUser.uid, emoji,
-                    x: me?.x ?? 50, y: (me?.y ?? 55) - 5,
-                    timestamp: agora()
-                });
-            } catch(e) { console.warn('Reação não enviada', e); }
+            // aparece na hora pra quem tocou; o servidor espalha pros outros (sai do avatar)
+            const me = currentUser ? activeUsers.find(u => u.id === currentUser.uid) : null;
+            spawnReaction({emoji, x: me?.x ?? 50, y: (me?.y ?? 65) - 5});
+            enviar({t: 'reacao', emoji});
         };
 
         // barra de reações VIP: visível só com o avatar dentro do lounge
@@ -3398,12 +3124,7 @@ ${cd}`;
         const CORES_PODIO = ['#ffd24d', '#d9dde3', '#e0965a']; // ouro, prata, bronze
             const rankingOpen = () => !document.getElementById('rankingModal').classList.contains('hidden');
 
-            const djAgg = {};
-            playHistory.forEach(h => {
-                if (!h.byUid) return;
-                (djAgg[h.byUid] ??= {name: h.byName || 'Investidor', n: 0}).n++;
-            });
-            const topDjs = Object.values(djAgg).sort((a,b) => b.n - a.n).slice(0, 5);
+            const topDjs = rankingDados.djs;
             document.getElementById('rankingDjs').innerHTML = topDjs.length ? topDjs.map((d,i) => `
 <div class="flex items-center gap-2 bg-black/30 border border-[#FFF7EB]/8 rounded-lg px-3 py-2">
   <span class="w-7 text-center text-sm font-bold" style="color:${CORES_PODIO[i] || 'rgba(255,247,235,.65)'}">${medals[i]}</span>
@@ -3411,9 +3132,7 @@ ${cd}`;
   <span class="text-[10px] text-[#FFF7EB]/65 whitespace-nowrap">${d.n} música${d.n > 1 ? 's' : ''}</span>
 </div>`).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Ninguém tocou ainda. Solta o som!</p>`;
 
-            const songAgg = {};
-            rankingVotos.forEach(v => { songAgg[v.videoId] = (songAgg[v.videoId] || 0) + 1; });
-            const topSongs = Object.entries(songAgg).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const topSongs = rankingDados.musicas.filter(([vid]) => safeVideoId(vid));
             document.getElementById('rankingSongs').innerHTML = topSongs.length ? topSongs.map(([vid, n], i) => {
                 const t = titleCache[vid];
                 if (t === undefined) fetchTitle(vid).then(() => { if (rankingOpen()) renderRanking(); });
@@ -3426,15 +3145,14 @@ ${cd}`;
 </a>`;
             }).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Nenhum voto "Essa vai pra festa!" ainda.</p>`;
         }
-        // histórico e votos completos só quando o ranking abre (antes: dois listeners da noite toda)
-        let rankingVotos = [], rankingLidoEm = 0;
+        // calculado no servidor e lido só quando o ranking abre
+        let rankingDados = {djs: [], musicas: []}, rankingLidoEm = 0;
         async function carregarRanking() {
-            if (!currentUser || !db || Date.now() - rankingLidoEm < 60000) return;
+            if (!salaOnline() || Date.now() - rankingLidoEm < 30000) return;
             rankingLidoEm = Date.now();
             try {
-                const [hist, votos] = await Promise.all([getDocs(pcol('history')), getDocs(pcol('partyVotes'))]);
-                playHistory = hist.docs.map(d => d.data());
-                rankingVotos = votos.docs.map(d => d.data()).filter(v => safeVideoId(v.videoId));
+                const r = await pedir({t: 'ranking'});
+                rankingDados = {djs: r.djs || [], musicas: r.musicas || []};
             } catch(e) { rankingLidoEm = 0; console.warn('Ranking indisponível', e); }
         }
         document.getElementById('openRankingBtn').addEventListener('click', async () => {
@@ -3455,7 +3173,7 @@ ${cd}`;
                 (b.id === eu) - (a.id === eu) || String(a.name || '').localeCompare(String(b.name || '')));
             const djUid = currentVideo?.videoId ? currentVideo.addedByUid : null;
             // só refaz quando algo visível mudou: refazer a cada heartbeat tirava o foco de quem navega por Tab
-            const assinatura = JSON.stringify(lista.map(u => [u.id, u.name, u.isVIP, u.color, u.id === djUid, isPresent(u), getAvatarUrl(u.avatarConfig)]));
+            const assinatura = JSON.stringify([souOrg, confirmandoRemocao, lista.map(u => [u.id, u.name, u.isVIP, u.isOrg, u.color, u.id === djUid, isPresent(u), getAvatarUrl(u.avatarConfig)])]);
             if (assinatura === assinaturaPresentes) return;
             assinaturaPresentes = assinatura;
             const c = document.getElementById('presentesLista');
@@ -3469,7 +3187,9 @@ ${cd}`;
     ${imgAvatar(getAvatarUrl(u.avatarConfig), `alt="" class="w-8 h-8 rounded-full bg-[#111]" style="box-shadow:0 0 0 1.5px ${cor}"`)}
     ${u.isVIP ? `<span class="vip-crown" style="width:12px;height:12px;top:-4px;right:-4px">${Icons.crown}</span>` : ''}
   </span>
-  <span class="flex-1 min-w-0 text-xs truncate" style="color:${cor}">${esc(u.name)}${souEu ? ' <span class="text-[#FFF7EB]/60">(você)</span>' : ''}${uid === djUid ? ` <span class="text-[#ff00cc]">${Icons.headphones}</span>` : ''}${isPresent(u) ? '' : ' <span class="text-[#FFF7EB]/55">· fora da tela</span>'}</span>
+  <span class="flex-1 min-w-0 text-xs truncate" style="color:${cor}">${esc(u.name)}${souEu ? ' <span class="text-[#FFF7EB]/60">(você)</span>' : ''}${u.isOrg ? ` <span class="text-[#DB7944]" title="Organização">${Icons.org}</span>` : ''}${uid === djUid ? ` <span class="text-[#ff00cc]">${Icons.headphones}</span>` : ''}${isPresent(u) ? '' : ' <span class="text-[#FFF7EB]/55">· fora da tela</span>'}</span>
+  ${souOrg && !souEu && !u.isOrg ? `<button type="button" onclick="window.admExpulsar('${uid}')" aria-label="${confirmandoRemocao === uid ? 'Confirmar: remover' : 'Remover'} ${esc(u.name)} da pista"
+    class="shrink-0 text-[11px] font-semibold px-2.5 py-1.5 rounded-full border transition ${confirmandoRemocao === uid ? 'bg-[#932621] border-[#932621] text-white' : 'border-[#FFF7EB]/20 text-[#FFF7EB]/65 hover:border-[#932621] hover:text-[#ff8a80]'}">${Icons.remover}${confirmandoRemocao === uid ? ' Confirmar' : ''}</button>` : ''}
   ${!souEu && currentUser ? `<button type="button" onclick="window.papoDaLista('${uid}')" aria-label="Puxar papo com ${esc(u.name)}"
     class="shrink-0 text-[11px] font-semibold bg-[#DB7944] text-white px-3 py-1.5 rounded-full hover:bg-[#c45d1b] transition">${Icons.message} Papo</button>` : ''}
 </div>`;
@@ -3477,6 +3197,82 @@ ${cd}`;
             hidratarAvatares(c);
         }
         window.papoDaLista = uid => { fecharDialogo('presentesModal'); window.openDM(uid); };
+
+        // ── ORGANIZAÇÃO ──
+        // Selo e poderes vêm do servidor (e-mail Google conferido contra a lista de admins);
+        // o navegador só mostra os botões. A organização não lê papos privados.
+        let confirmandoRemocao = null; // remover é em dois toques: o primeiro só arma
+        window.admExpulsar = async uid => {
+            if (!souOrg) return;
+            if (confirmandoRemocao !== uid) {
+                confirmandoRemocao = uid;
+                assinaturaPresentes = ''; renderPresentes();
+                setTimeout(() => { if (confirmandoRemocao === uid) { confirmandoRemocao = null; assinaturaPresentes = ''; renderPresentes(); } }, 5000);
+                return;
+            }
+            confirmandoRemocao = null;
+            const nome = activeUsers.find(u => u.id === uid)?.name || 'A pessoa';
+            try {
+                await pedir({t: 'admExpulsar', uid});
+                showToast(`${Icons.remover} ${esc(nome)} saiu da pista por 30 min.`);
+            } catch(err) { avisoFalha(err, 'remover da pista'); }
+            assinaturaPresentes = ''; renderPresentes();
+        };
+        window.admApagarChat = id => pedir({t: 'admApagarChat', id}).catch(err => avisoFalha(err, 'apagar a mensagem'));
+        window.admPular = () => pedir({t: 'admPular'}).catch(err => avisoFalha(err, 'pular a música'));
+
+        function atualizarOrgUI() {
+            const b = document.getElementById('orgHeaderBtn');
+            b.classList.toggle('hidden', !souOrg);
+            b.classList.toggle('flex', souOrg);
+            document.getElementById('orgFora').classList.toggle('hidden', souOrg);
+            document.getElementById('orgDentro').classList.toggle('hidden', !souOrg);
+            assinaturaPresentes = '';
+            renderPresentes();
+        }
+        const erroOrg = msg => {
+            const el = document.getElementById('orgErro');
+            el.textContent = msg || '';
+            el.classList.toggle('hidden', !msg);
+        };
+
+        // Google Identity Services só é baixado quando alguém abre este diálogo
+        let googleCarregando = null;
+        const carregarGoogle = () => googleCarregando ??= new Promise((ok, falhou) => {
+            const s = document.createElement('script');
+            s.src = 'https://accounts.google.com/gsi/client';
+            s.async = true;
+            s.onload = ok;
+            s.onerror = () => { googleCarregando = null; falhou(new Error('Google indisponível')); };
+            document.head.appendChild(s);
+        });
+        window.abrirOrg = async () => {
+            erroOrg('');
+            atualizarOrgUI();
+            abrirDialogo('orgModal');
+            if (souOrg) return;
+            const semConfig = !GOOGLE_CLIENT_ID;
+            document.getElementById('orgSemConfig').classList.toggle('hidden', !semConfig);
+            if (semConfig) return;
+            try {
+                await carregarGoogle();
+                google.accounts.id.initialize({client_id: GOOGLE_CLIENT_ID, callback: entrouComGoogle});
+                google.accounts.id.renderButton(document.getElementById('orgGoogleBtn'),
+                    {theme: 'filled_black', size: 'large', shape: 'pill', text: 'signin_with', locale: 'pt-BR'});
+            } catch(e) { erroOrg('Não deu pra carregar o login do Google. Confira a conexão.'); }
+        };
+        async function entrouComGoogle(resposta) {
+            erroOrg('');
+            try {
+                await pedir({t: 'org', credential: resposta.credential}, 15000);
+                fecharDialogo('orgModal');
+                showToast(`${Icons.org} Selo de Organização ativado. As ferramentas estão no topo da pista.`);
+            } catch(err) { erroOrg(err.texto || 'Não deu pra confirmar agora. Tente de novo.'); }
+        }
+        window.sairOrg = async () => {
+            try { await pedir({t: 'orgSair'}); fecharDialogo('orgModal'); }
+            catch(err) { avisoFalha(err, 'sair da organização'); }
+        };
         document.getElementById('openPresentesBtn').addEventListener('click', () => {
             abrirDialogo('presentesModal');
             assinaturaPresentes = '';
@@ -3486,7 +3282,7 @@ ${cd}`;
         // ── DIÁLOGOS: Esc, clique fora, foco preso e devolvido ──
         // Nenhum painel fechava com Esc nem clicando fora, e o foco ficava pra trás
         // na página: quem usa teclado ou leitor de tela se perdia.
-        const DIALOGOS = ['presentesModal', 'rankingModal'];
+        const DIALOGOS = ['presentesModal', 'rankingModal', 'orgModal'];
         let focoAntesDoDialogo = null;
         function abrirDialogo(id) {
             focoAntesDoDialogo = document.activeElement;
@@ -3865,7 +3661,7 @@ ${cd}`;
         }
 
         // `vip` só é true depois de o e-mail conferir (ou ao reentrar com o status salvo,
-        // que conferirIngressoSalvo() revalida assim que a conexão sobe)
+        // que o servidor revalida assim que a conexão sobe — aplicarEu)
         function enterParty(vip) {
             localProfile.isVIP = vip;
             saveProfile();
@@ -3919,7 +3715,7 @@ ${cd}`;
             if (conferindoIngresso) return;
             const email = normalizarEmail(document.getElementById('emailIngresso').value);
             if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { erroIngresso('Digite um e-mail válido, como voce@exemplo.com.'); return; }
-            if (!currentUser || !db) {
+            if (!salaOnline()) {
                 erroIngresso('Sem conexão pra conferir agora. Entre sem ingresso e confirme depois tocando no seu avatar, no topo.');
                 return;
             }
@@ -3929,12 +3725,15 @@ ${cd}`;
             btn.textContent = 'Conferindo…';
             try {
                 const hash = await hashEmail(email);
-                if (!(await getDoc(pdoc('ingressos', hash))).exists()) {
+                const achou = await pedir({t: 'ingresso', hash}).then(() => true, err => {
+                    if (err.motivo === 'nao_encontrado') return false;
+                    throw err;
+                });
+                if (!achou) {
                     erroIngresso(`Não achamos esse e-mail na lista de ingressos. Confira se é o mesmo da compra — quem comprou agora pode levar um tempinho pra entrar na lista. <a href="${TICKETS_URL}" target="_blank" rel="noopener" class="underline font-semibold">Garantir ingresso</a>`);
                     return;
                 }
-                await setDoc(pdoc('vip', currentUser.uid), {ingresso: hash, em: Date.now()});
-                localProfile.ingresso = hash; // só local: refaz o vínculo se a auth mudar
+                localProfile.ingresso = hash; // só neste navegador: refaz o vínculo noutra identidade
                 document.getElementById('emailIngresso').value = '';
                 mostrarFormIngresso(false);
                 enterParty(true);
@@ -3993,6 +3792,8 @@ ${cd}`;
             enterParty(localProfile.isVIP); // não reabre o link de ingressos
             entrouDireto = true;
         }
+
+        iniciarUI();
     </script>
 </body>
 </html>

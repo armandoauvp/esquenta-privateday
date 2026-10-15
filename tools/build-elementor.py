@@ -15,7 +15,8 @@ preenchidos a partir dele. Embutir o data URI direto em cada `src` repetiria
 ~360 KB por ocorrência (são cinco) e inflaria o arquivo para vários megabytes.
 
 Continuam vindo de CDN (não há como embutir, e o app não funciona sem rede de
-qualquer forma): Tailwind, Google Fonts, SDK do Firebase, DiceBear e o YouTube.
+qualquer forma): Tailwind, Google Fonts, DiceBear e o YouTube. A pista conversa com o
+servidor da Cloudflare (servidor/) por WebSocket.
 """
 
 import base64
@@ -54,27 +55,18 @@ def main() -> None:
     globo = data_uri(RAIZ / "GLOBO.png")
     lettering = data_uri(RAIZ / "LETTERING.png")
 
-    # 1) a tela de "Firebase não configurado" monta o <img> por template string:
-    #    lá o data URI entra por interpolação, não por data-img (o elemento nasce
-    #    depois que o preenchimento inicial já rodou)
-    html = troca_unica(
-        html,
-        '<img src="GLOBO.png" class="w-20 h-20 mb-5 opacity-50 object-contain">',
-        '<img src="${window.__ASSETS.globo}" class="w-20 h-20 mb-5 opacity-50 object-contain">',
-    )
-
-    # 2) imagens estáticas: marcadas para preenchimento a partir de window.__ASSETS
+    # 1) imagens estáticas: marcadas para preenchimento a partir de window.__ASSETS
     html = troca_unica(html, 'src="GLOBO.png"', 'data-img="globo" src=""', esperado=3)
     html = troca_unica(html, 'src="LETTERING.png"', 'data-img="lettering" src=""')
 
-    # 3) lista de pré-carregamento: as mesmas URLs, agora data URI
+    # 2) lista de pré-carregamento: as mesmas URLs, agora data URI
     html = troca_unica(
         html,
         "                'GLOBO.png', 'LETTERING.png',",
         "                window.__ASSETS.globo, window.__ASSETS.lettering,",
     )
 
-    # 4) as imagens em si, uma única vez, antes do módulo (script clássico roda
+    # 3) as imagens em si, uma única vez, antes do módulo (script clássico roda
     #    primeiro: módulos são adiados até o fim do parse)
     injecao = (
         "    <script>\n"

@@ -1,43 +1,48 @@
 #!/usr/bin/env python3
 """
 Importa a lista de ingressos (XLSX ou CSV exportado da plataforma de vendas, ex.: Guru)
-para o Firestore.
+para o servidor da pista (Cloudflare, pasta servidor/).
 
-O app confere o e-mail digitado contra `ingressos/{hash}`. Só o SHA-256 do e-mail
-(com sal) é gravado: o e-mail em texto nunca sai deste computador.
+O app manda o SHA-256 do e-mail digitado e o servidor confere contra esta lista. Só o
+hash (com sal) sai deste computador: o e-mail em texto nunca vai pra lugar nenhum.
 
 Pré-requisitos (uma vez):
-    pip install firebase-admin openpyxl     (openpyxl só para .xlsx)
-    Console do Firebase → Configurações do projeto → Contas de serviço →
-    "Gerar nova chave privada" → salve o JSON FORA do repositório.
+    pip install openpyxl     (só para .xlsx)
+    A chave de admin do servidor (o secret ADMIN_CHAVE, ver docs/deploy.md), passada em
+    --chave-admin ou na variável de ambiente ESQUENTA_ADMIN_CHAVE.
 
 Uso:
-    python3 tools/importar-ingressos.py Guru-Vendas.xlsx --chave ~/auvp-privateday-chave.json
-    python3 tools/importar-ingressos.py Guru-Vendas.xlsx --simular                # só mostra
-    python3 tools/importar-ingressos.py Guru-Vendas.xlsx --chave ... --substituir # remove quem saiu (reembolso)
-    python3 tools/importar-ingressos.py --adicionar fulano@exemplo.com --chave ... # cortesia/convidado
+    python tools/importar-ingressos.py Guru-Vendas.xlsx                  # importa (soma à lista)
+    python tools/importar-ingressos.py Guru-Vendas.xlsx --simular        # só mostra
+    python tools/importar-ingressos.py Guru-Vendas.xlsx --substituir     # tira quem saiu (reembolso)
+    python tools/importar-ingressos.py --adicionar fulano@exemplo.com    # cortesia/convidado
+    python tools/importar-ingressos.py --remover fulano@exemplo.com      # tira um e-mail avulso
 
 E-mails incluídos com --adicionar (cortesias, convidados, equipe) ficam marcados como
-manuais: o --substituir nunca os apaga, mesmo que não estejam na planilha.
+manuais: o --substituir nunca os apaga, mesmo que não estejam na planilha. Quem sai da
+lista perde a coroa e a mesa de DJ na próxima vez que conectar.
 
 A coluna de e-mail é detectada pelo cabeçalho (algo com "mail", ex.: "email contato");
 use --coluna para indicar outra. Se houver coluna "status", só entram vendas aprovadas
 ("Aprovada"/"Completa"); --todos-status desliga esse filtro. No CSV, separador (vírgula
-ou ponto e vírgula) e codificação são detectados. Pode rodar quantas vezes quiser:
-e-mails já importados são só regravados.
+ou ponto e vírgula) e codificação são detectados. Pode rodar quantas vezes quiser.
 """
 
 import argparse
 import csv
 import hashlib
 import io
+import json
+import os
 import pathlib
 import re
 import sys
+import urllib.error
+import urllib.request
 
-# precisam bater com o index.html (INGRESSO_SAL, APP_ID_FALLBACK e normalizarEmail)
+# precisa bater com o index.html (INGRESSO_SAL e normalizarEmail)
 SAL = "auvp-privateday:"
-APP_ID = "auvp-privateday"
+SERVIDOR = "https://esquenta-pista.esquenta-pista-servidor.workers.dev"
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
@@ -105,80 +110,71 @@ def ler_emails(caminho: pathlib.Path, coluna: str | None, todos_status: bool) ->
     return sorted(emails)
 
 
+def enviar(servidor: str, sala: str, chave: str, corpo: dict) -> dict:
+    req = urllib.request.Request(
+        f"{servidor.rstrip('/')}/admin/ingressos?sala={sala}",
+        data=json.dumps(corpo).encode("utf-8"),
+        headers={"authorization": f"Bearer {chave}", "content-type": "application/json",
+                 "user-agent": "importar-ingressos"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        sys.exit(f"ERRO {e.code}: {e.read().decode('utf-8', 'replace')} (confira a --chave-admin)")
+
+
 def main() -> None:
     # console do Windows: acentos legíveis mesmo fora de um terminal UTF-8
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    ap = argparse.ArgumentParser(description="Importa a lista de ingressos para o Firestore.")
+    ap = argparse.ArgumentParser(description="Importa a lista de ingressos para o servidor da pista.")
     ap.add_argument("planilha", type=pathlib.Path, nargs="?", help="XLSX ou CSV exportado da plataforma de vendas")
     ap.add_argument("--adicionar", action="append", metavar="EMAIL", default=[],
                     help="inclui um e-mail avulso (cortesia/convidado); pode repetir. Não é apagado pelo --substituir")
-    ap.add_argument("--chave", type=pathlib.Path, help="JSON da conta de serviço do Firebase")
+    ap.add_argument("--remover", action="append", metavar="EMAIL", default=[],
+                    help="tira um e-mail da lista (inclusive manual); pode repetir")
+    ap.add_argument("--chave-admin", default=os.environ.get("ESQUENTA_ADMIN_CHAVE"),
+                    help="ADMIN_CHAVE do servidor (padrão: variável ESQUENTA_ADMIN_CHAVE)")
+    ap.add_argument("--servidor", default=SERVIDOR, help=f"endereço do servidor (padrão: {SERVIDOR})")
+    ap.add_argument("--sala", default="principal", help="sala (padrão: principal; testes: teste)")
     ap.add_argument("--coluna", help="nome da coluna de e-mail (padrão: detecta pelo cabeçalho)")
     ap.add_argument("--todos-status", action="store_true", help="não filtra pela coluna status")
-    ap.add_argument("--simular", action="store_true", help="só conta e mostra, sem gravar nada")
+    ap.add_argument("--simular", action="store_true", help="só conta e mostra, sem enviar nada")
     ap.add_argument("--substituir", action="store_true",
-                    help="apaga do Firestore os ingressos que não estão nesta planilha (reembolsos)")
+                    help="tira da lista os ingressos que não estão nesta planilha (reembolsos)")
     args = ap.parse_args()
-    if not args.planilha and not args.adicionar:
-        ap.error("informe a planilha ou --adicionar EMAIL")
-    if args.adicionar and args.substituir:
-        ap.error("--substituir só faz sentido com a planilha completa, não com --adicionar")
+    if not args.planilha and not args.adicionar and not args.remover:
+        ap.error("informe a planilha, --adicionar EMAIL ou --remover EMAIL")
+    if args.substituir and not args.planilha:
+        ap.error("--substituir só faz sentido com a planilha completa")
 
     avulsos = [normalizar(e) for e in args.adicionar]
-    for e in avulsos:
+    retirar = [normalizar(e) for e in args.remover]
+    for e in avulsos + retirar:
         if not EMAIL_RE.match(e):
             sys.exit(f"ERRO: e-mail inválido: {e!r}")
     emails = ler_emails(args.planilha, args.coluna, args.todos_status) if args.planilha else []
-    hashes = {hash_email(e) for e in emails}
-    hashes_avulsos = {hash_email(e) for e in avulsos}
     if args.planilha:
         print(f"{len(emails)} e-mail(s) único(s) com ingresso.")
     if avulsos:
         print(f"{len(avulsos)} e-mail(s) avulso(s) a incluir como manual.")
+    if retirar:
+        print(f"{len(retirar)} e-mail(s) a remover.")
     if args.simular:
-        print("Simulação: nada foi gravado.")
+        print("Simulação: nada foi enviado.")
         return
-    if not args.chave:
-        sys.exit("ERRO: informe --chave com o JSON da conta de serviço (ou use --simular).")
+    if not args.chave_admin:
+        sys.exit("ERRO: informe --chave-admin (ou a variável ESQUENTA_ADMIN_CHAVE), ou use --simular.")
 
-    import firebase_admin
-    from firebase_admin import credentials, firestore
-
-    firebase_admin.initialize_app(credentials.Certificate(str(args.chave)))
-    db = firestore.client()
-    col = db.collection("artifacts").document(APP_ID).collection("public") \
-            .document("data").collection("ingressos")
-
-    # manual = incluído com --adicionar; o --substituir não toca nesses
-    existentes = {d.id: bool((d.to_dict() or {}).get("manual")) for d in col.select(["manual"]).stream()}
-    gravacoes = [(h, {"importadoEm": firestore.SERVER_TIMESTAMP}) for h in hashes] + \
-                [(h, {"importadoEm": firestore.SERVER_TIMESTAMP, "manual": True}) for h in hashes_avulsos]
-    lote, n = db.batch(), 0
-    for h, dados in gravacoes:
-        lote.set(col.document(h), dados, merge=True)  # merge: reimportar não apaga a marca de manual
-        n += 1
-        if n % 450 == 0:
-            lote.commit()
-            lote = db.batch()
-    lote.commit()
-    todos = hashes | hashes_avulsos
-    print(f"Gravados: {len(todos)} ({len(todos - set(existentes))} novo(s)).")
-
-    if args.substituir:
-        sobrando = {h for h, manual in existentes.items() if not manual} - hashes
-        lote, n = db.batch(), 0
-        for h in sobrando:
-            lote.delete(col.document(h))
-            n += 1
-            if n % 450 == 0:
-                lote.commit()
-                lote = db.batch()
-        lote.commit()
-        print(f"Removidos (fora da planilha): {len(sobrando)}.")
-        if sobrando:
-            print("Quem já tinha confirmado continua VIP até o vínculo ser refeito "
-                  "(apague a coleção `vip` no console para forçar todo mundo a confirmar de novo).")
+    r = enviar(args.servidor, args.sala, args.chave_admin, {
+        "hashes": [hash_email(e) for e in emails],
+        "manuais": [hash_email(e) for e in avulsos],
+        "remover": [hash_email(e) for e in retirar],
+        "substituir": args.substituir,
+    })
+    print(f"Lista no servidor: {r['ingressos']} ingresso(s) ({r['novos']} novo(s), {r['removidos']} removido(s)).")
 
 
 if __name__ == "__main__":
