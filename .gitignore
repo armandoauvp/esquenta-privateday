@@ -14,3 +14,4 @@ service-account*.json
 servidor/node_modules/
 servidor/.wrangler/
 servidor/.dev.vars
+servidor/.chave-admin-producao
