@@ -12,7 +12,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-16e">
+    <meta name="app-build" content="2026-10-16f">
     <title>Esquenta AUVP Private Day</title>
     <!-- abre as conexões cedo: fontes, avatares, servidor da pista e YouTube entram sem esperar o DNS/TLS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -908,10 +908,6 @@
                 <div class="cfg-painel" data-painel="roupa">
                     <span class="cfg-titulo">Roupa</span>
                     <div id="avatarClothes" class="cfg-grade"></div>
-                    <div id="blocoEstampa">
-                        <span class="cfg-titulo">Estampa da camiseta</span>
-                        <div id="avatarGraphics" class="cfg-grade"></div>
-                    </div>
                     <span class="cfg-titulo">Cor da roupa</span>
                     <div id="avatarClothingColor" class="cfg-cores"></div>
                 </div>
@@ -1105,12 +1101,6 @@
             {v:'raisedExcitedNatural',l:'Empinadas 2'}, {v:'sadConcerned',l:'Tristes'},
             {v:'sadConcernedNatural',l:'Tristes 2'}, {v:'unibrowNatural',l:'Monocelha'},
             {v:'upDown',l:'Sobe e Desce'}, {v:'upDownNatural',l:'Sobe e Desce 2'}
-        ];
-        // estampa da roupa "Camiseta" (clothingGraphic); sem escolha, o DiceBear decide
-        const GRAPHICS = [
-            {v:'bat',l:'Morcego'}, {v:'bear',l:'Urso'}, {v:'cumbia',l:'Cumbia'}, {v:'deer',l:'Cervo'},
-            {v:'diamond',l:'Diamante'}, {v:'hola',l:'Hola'}, {v:'pizza',l:'Pizza'}, {v:'resist',l:'Resist'},
-            {v:'skull',l:'Caveira'}, {v:'skullOutline',l:'Caveira Contorno'}
         ];
         const MOUTHS = [
             {v:'default',l:'Normal'}, {v:'concerned',l:'Preocupado'}, {v:'disbelief',l:'Incrédulo'},
@@ -1311,7 +1301,6 @@
                 accessories: Math.random() < 0.35 ? sorteia(ACCESSORIES.filter(o => o.v)) : '',
                 facialHair:  Math.random() < 0.35 ? sorteia(FACIAL_HAIR.filter(o => o.v)) : '',
                 clothing:   sorteia(CLOTHES),
-                clothingGraphic: sorteia(GRAPHICS),
                 eyes:       sorteia(EYES_FESTA),
                 eyebrows:   sorteia(EYEBROWS),
                 mouth:      sorteia(MOUTHS_FESTA),
@@ -1398,8 +1387,6 @@
                 clothesColor:    okHex(c.clothesColor, '3c4f5c'),
                 backgroundColor: 'transparent'
             };
-            const estampa = okOpt(GRAPHICS, c.clothingGraphic, '');
-            if (params.clothing === 'graphicShirt' && estampa) params.clothingGraphic = estampa;
             if (top === 'noHair') params.topProbability = 0; // careca = sem camada de topo
             else params.top = top;
             const acc = okOpt(ACCESSORIES, c.accessories, '');
@@ -1433,17 +1420,14 @@
             ['avatarEyes', EYES, 'eyes'], ['avatarEyebrows', EYEBROWS, 'eyebrows'],
             ['avatarMouths', MOUTHS, 'mouth'], ['avatarFacialHair', FACIAL_HAIR, 'facialHair'],
             ['avatarTops', TOPS, 'top'], ['avatarAccessories', ACCESSORIES, 'accessories'],
-            ['avatarClothes', CLOTHES, 'clothing'], ['avatarGraphics', GRAPHICS, 'clothingGraphic']
+            ['avatarClothes', CLOTHES, 'clothing']
         ];
         // olhos, sobrancelhas e boca: o boneco inteiro em 46 px escondia a diferença entre
         // as opções — nesses cards a miniatura vem com zoom no rosto
         const CARDS_DO_ROSTO = new Set(['eyes', 'eyebrows', 'mouth']);
         const ZOOM_ROSTO = {scale: 170, translateY: 12};
-        // estampa: o card veste a camiseta e mostra o peito, onde a estampa fica
-        const ZOOM_ESTAMPA = {scale: 200, translateY: -60};
-        const urlDoCard = (chave, valor) => chave === 'clothingGraphic'
-            ? getAvatarUrl({...CARD_BASE, clothing: 'graphicShirt', clothingGraphic: valor}, 72, ZOOM_ESTAMPA)
-            : getAvatarUrl({...CARD_BASE, [chave]: valor}, 72, CARDS_DO_ROSTO.has(chave) ? ZOOM_ROSTO : null);
+        const urlDoCard = (chave, valor) =>
+            getAvatarUrl({...CARD_BASE, [chave]: valor}, 72, CARDS_DO_ROSTO.has(chave) ? ZOOM_ROSTO : null);
 
         // ── FILA DE IMAGENS DO DICEBEAR ──
         // A API do DiceBear tem limite de requisições: pedir as ~80 miniaturas de uma
@@ -3950,7 +3934,6 @@ ${cd}`;
             document.getElementById('blocoCorCabelo').classList.toggle('hidden', TOPS_SEM_CABELO_VISIVEL.includes(c.top));
             document.getElementById('blocoCorAcessorio').classList.toggle('hidden', !c.accessories);
             document.getElementById('blocoCorBarba').classList.toggle('hidden', !c.facialHair);
-            document.getElementById('blocoEstampa').classList.toggle('hidden', c.clothing !== 'graphicShirt');
         }
 
         // ── CONVITE PRO INGRESSO (banner fixo) ──
