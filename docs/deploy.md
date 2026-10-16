@@ -143,6 +143,6 @@ No servidor (`servidor/src/pista.ts`): `MAX_PLAY_MS` (10 min por música), `PAUS
 | Vídeo reinicia para todos ao votar | Regressão: iframe sendo recriado no overlay | Manter o padrão `renderPlayer`/`updatePlayerOverlay` (ver CLAUDE.md) |
 | "Sou da organização" diz "não configurado" | `GOOGLE_CLIENT_ID` vazio no `index.html` | Seguir "Organização" acima |
 | Botão do Google some ou dá erro de origem | Domínio não está nas origens autorizadas do cliente OAuth | Adicionar o domínio no Google Cloud |
-| "Esse e-mail não faz parte da organização" | E-mail fora do secret `ADMINS` | `npx wrangler secret put ADMINS` com a lista completa |
+| "Esse e-mail não faz parte da organização" | E-mail fora do secret `ADMINS` | `npx wrangler secret put ADMINS` com a lista **completa** (o valor substitui o anterior; a lista atual está em `docs/plano.md`) |
 | Deploy na Vercel falha procurando build/`package.json` | Preset de framework detectado errado | Project → Settings → Build and Deployment → Framework Preset: **Other**, com os comandos vazios |
 | O site não reflete o último merge | Deploy ainda em andamento, ou o navegador reaproveitou a cópia antiga | Conferir o deploy no painel da Vercel, dar hard refresh (`Ctrl/Cmd+Shift+R`) e checar o carimbo `build` no rodapé do modal de personalização (`<meta name="app-build">`) |
