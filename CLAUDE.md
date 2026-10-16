@@ -95,6 +95,7 @@ Documentação em `README.md`, `docs/` e `servidor/README.md`. **Numa sessão no
 | `papos` / `dm` | SQLite | pedidos de papo (`status: pending/accepted/declined`) e mensagens privadas — só os dois participantes recebem |
 | `festa` | SQLite | votos "Essa vai pra festa!" (curadoria — nunca apagar) |
 | `historico` | SQLite | músicas que tocaram — base do ranking |
+| `envios` | SQLite | toda música enviada à fila (tocando ou não) — histórico do ranking, onde dá pra votar "vai pra festa" em qualquer uma que já passou pela fila |
 | `ingressos` | SQLite | SHA-256 dos e-mails com sal (`manual` = cortesia, imune ao `--substituir`) |
 | `vip` / `org` / `banidos` | SQLite | vínculo id → ingresso, id → e-mail da organização, bloqueios de 30 min |
 

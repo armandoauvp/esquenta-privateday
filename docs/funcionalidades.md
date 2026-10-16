@@ -142,7 +142,8 @@ Botão ao lado do "Pular". Um clique = um voto por pessoa por música (fica lara
 Botão **🏆 Ranking** no header abre o painel com dois placares ao vivo:
 
 - **🎧 DJs da noite**: quem mais emplacou músicas na mesa (top 5, contado pelo histórico do servidor — toda música que começa a tocar gera um registro).
-- **🔥 Rumo à festa**: as músicas mais votadas em "Essa vai pra festa!" (top 5, com thumbnail, título e link para o YouTube).
+- **🔥 Rumo à festa**: as músicas mais votadas em "Essa vai pra festa!" (top 5, com thumbnail, título e link para o YouTube), cada uma com o botão de voto.
+- **Todas as músicas da noite**: tudo que já foi enviado à fila (até 300, da mais recente para a mais antiga), com quem enviou, se tocou ou só foi enviada, o horário e o total de votos. Dá para votar em qualquer uma, mesmo fora do ar; o voto vale uma vez por pessoa por música, igual ao do player.
 
 ## Convite pro ingresso
 

@@ -72,7 +72,7 @@ Só quem tem ingresso entra, no máximo 3 músicas por pessoa, sem repetir a que
 Todos os horários são do relógio do servidor; o app compara com `agora()`.
 
 ### SQLite da sala
-`estado` (fila e player), `chat`, `dm`, `papos`, `historico` (ranking), `festa` (curadoria "Essa vai pra festa!", **não apagar**), `ingressos` (hashes, com marca `manual`), `vip` (id → hash do ingresso), `org` (id → e-mail), `banidos`.
+`estado` (fila e player), `chat`, `dm`, `papos`, `historico` (músicas que tocaram, ranking), `envios` (toda música enviada à fila, para o histórico do ranking), `festa` (curadoria "Essa vai pra festa!", **não apagar**), `ingressos` (hashes, com marca `manual`), `vip` (id → hash do ingresso), `org` (id → e-mail), `banidos`.
 
 ## Música
 

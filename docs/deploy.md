@@ -62,6 +62,8 @@ npx wrangler secret put ADMINS
 
 Variáveis (em `wrangler.jsonc`, `vars`): `GOOGLE_CLIENT_ID` (ver abaixo) e, opcional, `ORIGENS` (domínios aceitos, separados por vírgula; vazio aceita qualquer um).
 
+> **Depois de um deploy, espere ~1 minuto antes de testar**: a sala pode seguir alguns instantes com o código anterior (o fluxo falhou só nos testes novos logo após o deploy e passou um minuto depois).
+
 > **Não publique o servidor durante o evento.** Um deploy reinicia a sala: a música, a fila e o chat voltam do armazenamento, mas todo mundo reconecta ao mesmo tempo.
 
 ### Onde a sala roda

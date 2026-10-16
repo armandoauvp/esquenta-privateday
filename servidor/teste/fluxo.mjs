@@ -204,6 +204,18 @@ confere(await ana.ate(() => ana.player?.state?.videoId === null), 'fim informado
 // ranking
 r = await ana.pedir({ t: 'ranking' });
 confere(r.t === 'ok' && r.djs.some(d => d.name === 'DJ Robô' && d.n >= 2) && r.musicas.some(([v, n]) => v === VIDEOS[0] && n === 2), 'ranking com DJs e votos');
+const h0 = r.historico?.find(h => h.videoId === VIDEOS[0]), h1 = r.historico?.find(h => h.videoId === VIDEOS[1]);
+confere(h0?.tocou && h0.n === 2 && h0.title === 'Música 1' && h0.by === 'DJ Robô' && h1?.n === 0, 'histórico do ranking com as músicas enviadas e os votos');
+confere(r.votei?.includes(VIDEOS[0]) && !r.votei.includes(VIDEOS[1]), 'ranking diz em quais músicas a pessoa já votou');
+// voto pelo histórico, com a música fora do ar
+r = await ana.pedir({ t: 'festa', videoId: VIDEOS[1] });
+confere(r.t === 'ok' && r.videoId === VIDEOS[1] && r.n === 1, 'voto "vai pra festa" numa música que não está tocando');
+await espera(600);
+r = await ana.pedir({ t: 'festa', videoId: VIDEOS[1] });
+confere(r.n === 1, 'voto repetido pelo histórico não conta de novo');
+await espera(600);
+r = await ana.pedir({ t: 'festa', videoId: 'aaaaaaaaaaa' });
+confere(r.t === 'erro' && r.motivo === 'nao_enviada', 'vídeo que nunca passou pela fila não recebe voto');
 
 // recarregar mantém a identidade e a mesa
 await espera(3100);

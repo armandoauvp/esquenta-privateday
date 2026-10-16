@@ -6,7 +6,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-16b">
+    <meta name="app-build" content="2026-10-16c">
     <title>Esquenta AUVP Private Day</title>
     <!-- abre as conexões cedo: fontes, avatares, servidor da pista e YouTube entram sem esperar o DNS/TLS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -732,6 +732,9 @@
             <div id="rankingDjs" class="space-y-1.5 mb-5"></div>
             <h3 class="text-[10px] font-bold uppercase tracking-[.2em] text-[#ff6600] mb-2"><span data-icone="fire" class="text-[13px] align-middle"></span> Rumo à festa</h3>
             <div id="rankingSongs" class="space-y-1.5"></div>
+            <h3 class="text-[10px] font-bold uppercase tracking-[.2em] text-[#DB7944] mt-5 mb-1"><span data-icone="playlist" class="text-[13px] align-middle"></span> Todas as músicas da noite</h3>
+            <p class="text-[11px] text-[#FFF7EB]/60 mb-2 leading-snug">Tudo que já foi pra fila, da mais recente pra mais antiga. Vote nas que você quer ouvir na festa, mesmo que já tenham tocado.</p>
+            <div id="rankingHistorico" class="space-y-1.5"></div>
         </div>
     </div>
 
@@ -2644,6 +2647,7 @@ ${cd}`;
             try {
                 const r = await pedir({t: 'festa'});
                 if (r.videoId === festa.videoId) festa.votei = true;
+                if (r.videoId) marcarVotoFesta(r.videoId, r.n);
                 agendar('overlay');
                 showToast(`${Icons.fire} Voto registrado! Essa tá mais perto da festa.`);
             } catch(err) { console.warn(err); avisoErro('registrar seu voto'); }
@@ -3340,27 +3344,78 @@ ${cd}`;
   <span class="text-[10px] text-[#FFF7EB]/65 whitespace-nowrap">${d.n} música${d.n > 1 ? 's' : ''}</span>
 </div>`).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Ninguém tocou ainda. Solta o som!</p>`;
 
+            // título: o que veio do servidor, o do cache ou busca (no máximo alguns por vez)
+            let buscas = 0;
+            const tituloDe = (vid, doServidor) => {
+                const t = doServidor || titleCache[vid];
+                if (!t && titleCache[vid] === undefined && buscas++ < 12) fetchTitle(vid).then(() => { if (rankingOpen()) renderRanking(); });
+                return t || 'Vídeo ' + vid;
+            };
+            const porVideo = new Map(rankingDados.historico.map(h => [h.videoId, h]));
             const topSongs = rankingDados.musicas.filter(([vid]) => safeVideoId(vid));
-            document.getElementById('rankingSongs').innerHTML = topSongs.length ? topSongs.map(([vid, n], i) => {
-                const t = titleCache[vid];
-                if (t === undefined) fetchTitle(vid).then(() => { if (rankingOpen()) renderRanking(); });
-                return `
-<a href="https://youtu.be/${vid}" target="_blank" class="flex items-center gap-2 bg-black/30 border border-[#FFF7EB]/8 rounded-lg px-3 py-2 hover:border-[#ff6600]/50 transition">
-  <span class="w-7 text-center text-sm font-bold" style="color:${CORES_PODIO[i] || 'rgba(255,247,235,.65)'}">${medals[i]}</span>
-  <img src="https://img.youtube.com/vi/${vid}/default.jpg" class="w-10 h-7 object-cover rounded"/>
-  <span class="flex-1 text-xs truncate">${esc(t || 'Vídeo ' + vid)}</span>
-  <span class="text-[10px] text-[#ff6600] font-bold whitespace-nowrap">${Icons.fire} ${n}</span>
-</a>`;
-            }).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Nenhum voto "Essa vai pra festa!" ainda.</p>`;
+            document.getElementById('rankingSongs').innerHTML = topSongs.length ? topSongs.map(([vid, n], i) => `
+<div class="flex items-center gap-2 bg-black/30 border border-[#FFF7EB]/8 rounded-lg pl-3 pr-1.5 py-1.5">
+  <span class="w-7 shrink-0 text-center text-sm font-bold" style="color:${CORES_PODIO[i] || 'rgba(255,247,235,.65)'}">${medals[i]}</span>
+  <a href="https://youtu.be/${vid}" target="_blank" rel="noopener" class="flex-1 min-w-0 flex items-center gap-2 hover:text-[#ff6600] transition">
+    <img src="https://img.youtube.com/vi/${vid}/default.jpg" alt="" loading="lazy" class="w-10 h-7 shrink-0 object-cover rounded"/>
+    <span class="text-xs truncate">${esc(tituloDe(vid, porVideo.get(vid)?.title))}</span>
+  </a>
+  ${botaoFestaRanking(vid, n)}
+</div>`).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Nenhum voto "Essa vai pra festa!" ainda.</p>`;
+
+            const lista = rankingDados.historico.filter(h => safeVideoId(h.videoId));
+            const hoje = new Date().toDateString();
+            const quando = ts => {
+                const d = new Date(ts), hora = d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+                return d.toDateString() === hoje ? hora : `${d.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'})} · ${hora}`;
+            };
+            document.getElementById('rankingHistorico').innerHTML = lista.length ? lista.map(h => `
+<div class="flex items-center gap-2 bg-black/30 border border-[#FFF7EB]/8 rounded-lg pl-2 pr-1.5 py-1.5">
+  <a href="https://youtu.be/${h.videoId}" target="_blank" rel="noopener" class="flex-1 min-w-0 flex items-center gap-2 hover:text-[#ff6600] transition">
+    <img src="https://img.youtube.com/vi/${h.videoId}/default.jpg" alt="" loading="lazy" class="w-10 h-7 shrink-0 object-cover rounded"/>
+    <span class="min-w-0">
+      <span class="block text-xs truncate">${esc(tituloDe(h.videoId, h.title))}</span>
+      <span class="block text-[10px] text-[#FFF7EB]/60 truncate">${esc(h.by || 'Investidor')} · ${h.tocou ? 'tocou' : 'enviada'} ${quando(h.ts)}</span>
+    </span>
+  </a>
+  ${botaoFestaRanking(h.videoId, h.n)}
+</div>`).join('') : `<p class="text-xs text-[#FFF7EB]/55 font-light">Nenhuma música na fila ainda.</p>`;
+        }
+        function botaoFestaRanking(vid, n) {
+            const votei = rankingDados.votei.has(vid);
+            return `<button type="button" onclick="window.votarFestaRanking('${vid}')" ${votei ? 'disabled' : ''}
+    title="${votei ? 'Você já votou nessa' : 'Vote pra essa tocar na festa de verdade!'}" aria-label="${votei ? 'Você já votou' : 'Essa vai pra festa!'}: ${n} voto${n === 1 ? '' : 's'}"
+    class="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 min-h-[34px] rounded-full border transition ${votei ? 'bg-[#ff6600] border-[#ff6600] text-white cursor-default' : 'bg-black/40 border-[#FFF7EB]/20 text-[#FFF7EB] hover:bg-[#ff6600] hover:border-[#ff6600]'}">${Icons.fire} ${n}</button>`;
+        }
+        // "Essa vai pra festa!" pelo ranking: vale para qualquer música que já passou pela fila
+        window.votarFestaRanking = async vid => {
+            if (!safeVideoId(vid) || rankingDados.votei.has(vid)) return;
+            try {
+                const r = await pedir(vid === currentVideo?.videoId ? {t: 'festa'} : {t: 'festa', videoId: vid});
+                marcarVotoFesta(vid, r.n);
+                showToast(`${Icons.fire} Voto registrado! Essa tá mais perto da festa.`);
+            } catch(err) { console.warn(err); avisoFalha(err, 'registrar seu voto'); }
+        };
+        // atualiza ranking aberto e o botão do player sem esperar a próxima leitura
+        function marcarVotoFesta(vid, n) {
+            rankingDados.votei.add(vid);
+            if (typeof n === 'number') {
+                rankingDados.historico.forEach(h => { if (h.videoId === vid) h.n = n; });
+                const m = rankingDados.musicas.find(([v]) => v === vid);
+                if (m) m[1] = n; else rankingDados.musicas.push([vid, n]);
+                rankingDados.musicas.sort((a, b) => b[1] - a[1]).splice(5);
+            }
+            if (vid === currentVideo?.videoId) { festa.votei = true; agendar('overlay', 'mesa'); }
+            if (!document.getElementById('rankingModal').classList.contains('hidden')) renderRanking();
         }
         // calculado no servidor e lido só quando o ranking abre
-        let rankingDados = {djs: [], musicas: []}, rankingLidoEm = 0;
+        let rankingDados = {djs: [], musicas: [], historico: [], votei: new Set()}, rankingLidoEm = 0;
         async function carregarRanking() {
-            if (!salaOnline() || Date.now() - rankingLidoEm < 30000) return;
+            if (!salaOnline() || Date.now() - rankingLidoEm < 15000) return;
             rankingLidoEm = Date.now();
             try {
                 const r = await pedir({t: 'ranking'});
-                rankingDados = {djs: r.djs || [], musicas: r.musicas || []};
+                rankingDados = {djs: r.djs || [], musicas: r.musicas || [], historico: r.historico || [], votei: new Set(r.votei || [])};
             } catch(e) { rankingLidoEm = 0; console.warn('Ranking indisponível', e); }
         }
         document.getElementById('openRankingBtn').addEventListener('click', async () => {

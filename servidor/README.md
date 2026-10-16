@@ -58,14 +58,14 @@ Mensagens com `req` recebem `{t:'ok', req, ...}` ou `{t:'erro', req, motivo, tex
 | `chat` | `text` | até 300 caracteres; censurado no servidor |
 | `fila` / `sairFila` | `videoId, title, duracao?` / `id` | só com ingresso; 3 por pessoa; resposta `{posicao, entraAgora}` |
 | `pular`, `passarVez`, `cancelar` | | votação; DJ passa a vez (cancelável por ele) |
-| `festa` | | "Essa vai pra festa!" na música atual |
+| `festa` | `videoId?` | "Essa vai pra festa!" na música atual ou, com `videoId`, em qualquer música que já passou pela fila; resposta `{videoId, n}` |
 | `playback` | `state, time` | só do DJ (ou organização); pausado por mais de 10 s passa a vez |
 | `fim`, `erroVideo` | `chave` | fim do vídeo / vídeo que não toca |
 | `reacao` | `emoji` | sai da posição do avatar |
 | `papo`, `aceitar`, `recusar` | `com` | pedido de papo privado |
 | `dm` | `para, text` | só com papo aceito; até 500 caracteres |
 | `ingresso` | `hash` | SHA-256 do e-mail com sal |
-| `ranking` | | `{djs, musicas}`, cache de 1 min |
+| `ranking` | | `{djs, musicas, historico, votei}`; o histórico tem até 300 músicas enviadas; cache de 15 s, `votei` é por pessoa |
 | `org` / `orgSair` | `credential` | ID token do Google |
 | `admPular`, `admRemoverFila`, `admApagarChat`, `admExpulsar` | `id` / `uid` | só organização |
 
