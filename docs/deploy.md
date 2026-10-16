@@ -124,7 +124,8 @@ No `index.html`:
 |---|---|---|
 | `FALLBACK_VIDEO` + `duracaoFallback` | `5D_Of9Zpsgs`, `5751` | Vídeo da casa (músicas emendadas) em loop quando ninguém está na mesa, com todo mundo no mesmo trecho. Trocou o vídeo? Atualize a duração (em segundos) junto |
 | `SINCRONIA_TOLERANCIA_S` | `2` | Diferença máxima (s) entre o player de cada visitante e a referência antes de realinhar |
-| `TICKETS_URL` | `https://privateday.auvp.com.br/#ingressos` | Link do aviso de boas-vindas de quem entra sem ingresso e do toast da Área VIP |
+| `TICKETS_URL_BASE` | `https://privateday.auvp.com.br/#ingressos` | Link de ingressos (aviso de boas-vindas, Área VIP, fila). Sai com as UTMs da visita (`TICKETS_URL`) |
+| `UTM_PADRAO` | `utm_source=esquenta`, `utm_medium=pista_virtual`, `utm_campaign=privateday2026` | UTMs dos links para a AUVP quando a visita chegou sem campanha |
 | `VIP_ZONE` | `{x1:72, y1:5, x2:98, y2:32}` | Retângulo (%) da Área VIP na pista (igual em `servidor/src/regras.ts`) |
 | `BPM` (bloco WebGL) | `118` | Batida estimada do pulso visual da pista 3D |
 

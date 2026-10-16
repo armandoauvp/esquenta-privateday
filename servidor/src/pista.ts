@@ -569,7 +569,8 @@ export class Pista extends DurableObject<Env> {
         const dj = this.player.state.addedByUid;
         let ouvintes = 0;
         for (const [id] of this.conexoes) if (id !== dj && this.presente(id)) ouvintes++;
-        return Math.max(1, Math.min(10, Math.floor(ouvintes / 2) + 1));
+        // no mínimo 2 votos: com pouca gente, um voto sozinho tirava a música de qualquer DJ
+        return Math.max(2, Math.min(10, Math.floor(ouvintes / 2) + 1));
     }
 
     private votosPular() {

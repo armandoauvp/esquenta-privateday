@@ -98,7 +98,7 @@ Roda em cada alarme (a cada 15 s enquanto há gente ou música, e nos instantes 
 Alarmes sobrevivem à hibernação; os `setTimeout` (só o agrupamento de 250 ms) não precisam.
 
 ### Votação de pular
-Limiar `max(1, min(10, floor(ouvintes/2)+1))`, onde ouvintes são os presentes menos o DJ. Um voto por pessoa por música.
+Limiar `max(2, min(10, floor(ouvintes/2)+1))`, onde ouvintes são os presentes menos o DJ. Um voto por pessoa por música; qualquer pessoa vota, com ou sem ingresso. O mínimo de 2 existe porque, com pouca gente, um voto sozinho tirava a música de qualquer DJ na hora; o próprio DJ passa a vez com `passarVez`.
 
 ### Sincronia: todo mundo no mesmo segundo
 - **Relógio**: o app mede o desvio contra a sala (troca `hora`, estilo NTP: desvio ≈ `s − (c + chegada)/2`, fica a amostra de menor ida e volta; 3 amostras ao conectar e 1 a cada 5 min). Tudo que é compartilhado usa `agora()`.

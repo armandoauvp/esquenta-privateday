@@ -6,7 +6,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-15c">
+    <meta name="app-build" content="2026-10-16a">
     <title>Esquenta AUVP Private Day</title>
     <!-- abre as conexões cedo: fontes, avatares, servidor da pista e YouTube entram sem esperar o DNS/TLS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1086,7 +1086,7 @@
         const SINCRONIA_TOLERANCIA_S = 2;
         const MAX_PLAY_MS  = 10 * 60 * 1000; // todo vídeo é pulado ao completar 10 min
         const COUNTDOWN_MS = 5000;           // contagem regressiva antes de trocar de música
-        const TICKETS_URL  = 'https://privateday.auvp.com.br/#ingressos';
+        const TICKETS_URL_BASE = 'https://privateday.auvp.com.br/#ingressos'; // com UTM: TICKETS_URL
 
         // ── ESTADO ──
         let currentUser = null;
@@ -1137,6 +1137,37 @@
                 try { document.cookie = `${chave}=${encodeURIComponent(valor)}; max-age=31536000; path=/; SameSite=Lax`; } catch(e) {}
             }
         };
+
+        // ── UTM: A ORIGEM DA VISITA VAI JUNTO ATÉ A PÁGINA DE INGRESSOS ──
+        // Lida do endereço do app ou, embutido num iframe do mesmo domínio, da página do site;
+        // guardada no navegador (vale a última campanha que trouxe a pessoa) e colada em todo
+        // link de saída para os sites da AUVP. Sem campanha, vai a UTM_PADRAO, para a venda que
+        // nasce na pista não cair como "direto".
+        const UTM_CHAVES = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+        const UTM_PADRAO = {utm_source: 'esquenta', utm_medium: 'pista_virtual', utm_campaign: 'privateday2026'};
+        const utmDe = busca => {
+            const p = new URLSearchParams(busca), u = {};
+            UTM_CHAVES.forEach(k => { const v = p.get(k)?.trim(); if (v) u[k] = v.slice(0, 120); });
+            return Object.keys(u).length ? u : null;
+        };
+        const utm = (() => {
+            let achada = utmDe(location.search);
+            // iframe de outro domínio não deixa ler o endereço da página: cai no que já estava salvo
+            if (!achada && window.parent !== window) try { achada = utmDe(window.parent.location.search); } catch(e) {}
+            if (achada) { store.set('esquentaUtm', JSON.stringify(achada)); return achada; }
+            try { return JSON.parse(store.get('esquentaUtm') || 'null') || UTM_PADRAO; } catch(e) { return UTM_PADRAO; }
+        })();
+        // só links para os sites da AUVP; YouTube e o resto saem como estão
+        function comUtm(url) {
+            try {
+                const u = new URL(url, location.href);
+                if (!/(^|\.)auvp\.com\.br$/.test(u.hostname)) return url;
+                Object.entries(utm).forEach(([k, v]) => u.searchParams.set(k, v));
+                return u.toString();
+            } catch(e) { return url; }
+        }
+        const TICKETS_URL = comUtm(TICKETS_URL_BASE);
+        document.querySelectorAll('a[href*="auvp.com.br"]').forEach(a => { a.href = comUtm(a.href); });
 
         let mutedUids = [];
         try { mutedUids = JSON.parse(store.get('esquentaMuted') || '[]'); } catch(e) {}
@@ -1543,9 +1574,12 @@
             if (innerWidth < 768) window.setAbaLateral('fila');
             document.getElementById('videoUrlInput').focus();
         };
-        document.getElementById('mesaDJ').addEventListener('click', () => {
+        document.getElementById('mesaDJ').addEventListener('click', ev => {
             const djUid = currentVideo?.videoId ? currentVideo.addedByUid : null;
-            if (djUid && currentUser && djUid !== currentUser.uid) window.openDM(djUid);
+            if (!djUid || !currentUser || djUid === currentUser.uid) return;
+            ev.stopPropagation();
+            if (toqueNaTela(ev)) confirmarPapo(djUid, ev.currentTarget);
+            else window.openDM(djUid);
         });
 
         // área da mesa: ninguém para na frente do tampo (calculada do retângulo real da mesa)
@@ -1988,9 +2022,14 @@
 
         document.getElementById('danceFloor').addEventListener('click', e => {
             if (!currentUser) return;
+            // com o cartão de papo aberto, tocar fora só fecha (não sai andando)
+            if (papoConfirmaUid) { fecharConfirmaPapo(); return; }
             const r = e.currentTarget.getBoundingClientRect();
+            andarPara(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
+        });
+        function andarPara(px, py) {
             // clique em cima da mesa: para logo ao lado dela
-            const {x, y} = foraDaMesa(((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100);
+            const {x, y} = foraDaMesa(Math.min(96, Math.max(4, px)), Math.min(96, Math.max(4, py)));
             if (inVipZone(x, y) && !localProfile.isVIP) {
                 showToast(`${Icons.crown} Área VIP — só pra quem já garantiu o ingresso!`, TICKETS_URL);
                 return;
@@ -2002,7 +2041,60 @@
             clearTimeout(escritaPosicao);
             escritaPosicao = setTimeout(() => updatePresence(x, y), 250);
             document.getElementById('floorHint')?.classList.add('hidden'); // já aprendeu
-        });
+        }
+
+        // ── PAPO NO CELULAR: CONFIRMA ANTES DE PEDIR ──
+        // No toque, o dedo caía em cima de outro avatar quando a pessoa só queria andar, e o
+        // pedido de papo saía sem querer. Com toque, o avatar abre um cartão com "Puxar papo" e
+        // "Andar pra cá"; mouse e teclado continuam indo direto. Papo já aceito abre direto
+        // (abrir o painel não manda nada a ninguém).
+        const toqueNaTela = ev => ev.type !== 'keydown' && (ev.pointerType
+            ? ev.pointerType !== 'mouse'
+            : ev.pointerType === undefined && matchMedia('(pointer: coarse)').matches);
+        let papoConfirmaUid = null;
+        function confirmarPapo(uid, ancora) {
+            const u = activeUsers.find(x => x.id === uid);
+            if (!u) return;
+            if (threadFor(uid)?.status === 'accepted') { window.openDM(uid); return; }
+            const floor = document.getElementById('danceFloor');
+            let c = document.getElementById('papoConfirma');
+            if (!c) {
+                c = document.createElement('div');
+                c.id = 'papoConfirma';
+                c.setAttribute('role', 'dialog');
+                c.className = 'hidden absolute z-[25] w-[236px]'; // a animação fica no miolo: no cartão, brigaria com o translate
+                c.addEventListener('click', e => e.stopPropagation()); // tocar no cartão não move o avatar
+                floor.appendChild(c);
+            }
+            papoConfirmaUid = uid;
+            const recebido = threadFor(uid)?.status === 'pending' && threadFor(uid).requestedBy === uid;
+            const pendente = threadFor(uid)?.status === 'pending' && !recebido;
+            c.setAttribute('aria-label', `Conversar com ${u.name}`);
+            c.innerHTML = `<div class="fade-in-up bg-[#0d0d0d] border border-[#DB7944]/45 rounded-2xl p-2.5 shadow-2xl">
+<p class="text-[11px] text-[#FFF7EB]/80 truncate mb-2 px-0.5"><span class="font-semibold" style="color:${safeColor(u.color)}">${esc(u.name)}</span>${recebido ? ' quer conversar' : ''}</p>
+<div class="flex gap-1.5">
+  <button type="button" data-papo ${pendente ? 'disabled' : ''} class="flex-1 inline-flex items-center justify-center gap-1 bg-[#DB7944] text-white text-[11px] font-semibold px-2 py-2 min-h-[40px] rounded-full whitespace-nowrap disabled:opacity-60">${pendente ? `${Icons.hourglass} Pedido enviado` : `${Icons.message} ${recebido ? 'Aceitar papo' : 'Puxar papo'}`}</button>
+  <button type="button" data-andar class="shrink-0 text-[11px] text-[#FFF7EB]/80 border border-[#FFF7EB]/20 px-2.5 py-2 min-h-[40px] rounded-full whitespace-nowrap">Andar pra cá</button>
+</div></div>`;
+            // ao lado do avatar: em cima, ou embaixo se o avatar está no alto da pista
+            const f = floor.getBoundingClientRect(), a = ancora.getBoundingClientRect();
+            const meio = a.left + a.width / 2 - f.left;
+            c.style.left = `${Math.min(f.width - 122, Math.max(122, meio))}px`;
+            const emCima = a.top - f.top > 96;
+            c.style.top = `${emCima ? a.top - f.top - 8 : a.bottom - f.top + 8}px`;
+            c.style.transform = emCima ? 'translate(-50%, -100%)' : 'translate(-50%, 0)';
+            c.querySelector('[data-papo]').onclick = () => { fecharConfirmaPapo(); window.openDM(uid); };
+            c.querySelector('[data-andar]').onclick = () => {
+                fecharConfirmaPapo();
+                andarPara((meio / f.width) * 100 + 6, ((a.bottom - f.top) / f.height) * 100);
+            };
+            c.classList.remove('hidden');
+            c.querySelector('[data-papo]:not([disabled])')?.focus({preventScroll: true});
+        }
+        function fecharConfirmaPapo() {
+            papoConfirmaUid = null;
+            document.getElementById('papoConfirma')?.classList.add('hidden');
+        }
         // cliques na barra de reações/passinhos não movem o avatar
         document.getElementById('actionBar').addEventListener('click', e => e.stopPropagation());
 
@@ -2083,11 +2175,13 @@
                     el.className = 'absolute transform -translate-x-1/2 -translate-y-1/2 transition-all duration-700 ease-out flex flex-col items-center pointer-events-none';
                     // um listener por avatar, na casca (que nunca é trocada): clique e teclado
                     const abrir = ev => {
-                        if (!ev.target.closest('.avatar-hit') || uid === currentUser?.uid || !currentUser) return;
+                        const alvo = ev.target.closest('.avatar-hit');
+                        if (!alvo || uid === currentUser?.uid || !currentUser) return;
                         if (ev.type === 'keydown' && ev.key !== 'Enter' && ev.key !== ' ') return;
                         ev.preventDefault();
                         ev.stopPropagation();
-                        window.openDM(uid);
+                        if (toqueNaTela(ev)) confirmarPapo(uid, alvo);
+                        else window.openDM(uid);
                     };
                     el.addEventListener('click', abrir);
                     el.addEventListener('keydown', abrir);
@@ -2136,10 +2230,11 @@
   </div>
 </div>`;
             });
-            // quem saiu da pista some
+            // quem saiu da pista some (e leva junto o cartão de papo aberto pra essa pessoa)
             for (const [uid, reg] of avataresNaPista) {
                 if (!vistos.has(uid)) { reg.el.remove(); avataresNaPista.delete(uid); }
             }
+            if (papoConfirmaUid && !vistos.has(papoConfirmaUid)) fecharConfirmaPapo();
             hidratarAvatares(layer);
             updateVipUI();
             if (typeof renderPresentes === 'function') renderPresentes();
@@ -2471,11 +2566,12 @@ ${cd}`;
         };
 
         // ── VOTOS: PULAR & "ESSA VAI PRA FESTA!" ──
-        // pular exige 50%+1 dos presentes OU 10 votos, o que for menor (mesma conta do servidor,
-        // que é quem decide; aqui é só pra mostrar "3/5")
+        // pular exige 50%+1 dos presentes, no mínimo 2 e no máximo 10 votos (mesma conta do
+        // servidor, que é quem decide; aqui é só pra mostrar "1/2"). Com pouca gente, um voto
+        // sozinho pulava a música de qualquer DJ na hora. O próprio DJ passa a vez sozinho.
         const skipThreshold = () => {
             const ouvintes = activeUsers.filter(u => isPresent(u) && u.id !== currentVideo?.addedByUid).length;
-            return Math.max(1, Math.min(10, Math.floor(ouvintes / 2) + 1));
+            return Math.max(2, Math.min(10, Math.floor(ouvintes / 2) + 1));
         };
         const validSkipVotes = () =>
             (skipVotes && currentVideo?.videoId && skipVotes.videoId === currentVideo.videoId)
@@ -2488,7 +2584,7 @@ ${cd}`;
             if (!currentUser || !currentVideo?.videoId || countdownActive()) return;
             if (skipVotes?.videoId === currentVideo.videoId && skipVotes?.votes?.[currentUser.uid]) return;
             try { await pedir({t: 'pular'}); }
-            catch(err) { console.warn(err); avisoErro('registrar seu voto'); }
+            catch(err) { console.warn(err); avisoFalha(err, 'registrar seu voto'); }
         };
 
         // o DJ da vez pode passar a própria vez sem votação (contagem cancelável)
@@ -3374,6 +3470,7 @@ ${cd}`;
             .filter(x => x.offsetParent !== null);
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') {
+                if (papoConfirmaUid) { fecharConfirmaPapo(); return; }
                 if (DIALOGOS.some(fecharDialogo)) return;
                 const menu = document.getElementById('danceMenu');
                 if (!menu.classList.contains('hidden')) {

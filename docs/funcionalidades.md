@@ -59,7 +59,7 @@ No canto inferior direito da pista, a mesa é um pequeno palco:
 
 Estados:
 - **Playlist da casa:** cabine vazia, letreiro "Playlist da casa" e botão **"Assumir a mesa"**. Para quem tem ingresso, o botão leva ao campo da fila; para quem não tem, à confirmação do e-mail.
-- **Público:** tocar no DJ abre o pedido de papo.
+- **Público:** tocar no DJ abre o pedido de papo (no celular, com o cartão de confirmação).
 - **O próprio DJ:** letreiro "Você na mesa" em rosa.
 - **DJ fora da tela:** o avatar fica translúcido.
 
@@ -93,7 +93,7 @@ Quem está com a música tocando vê o botão **"Pular minha vez"** — passa a 
 **Mensagem privada nova**: chega um aviso "Nova mensagem de X" com botão **Abrir**, e um badge 💬 no header soma as não lidas (o clique abre a conversa mais recente).
 
 Para os demais, o botão **"Pular (x/y)"** no canto do player:
-- `x` = votos atuais, `y` = votos necessários: **50%+1 dos presentes ou 10 votos**, o que for menor (mínimo 1).
+- `x` = votos atuais, `y` = votos necessários: **50%+1 dos presentes, no mínimo 2 e no máximo 10**. Todo mundo vota, com ou sem ingresso, mas ninguém tira sozinho a música de outro DJ: só o próprio DJ passa a vez com um toque ("Pular minha vez").
 - Cada pessoa vota uma vez por música (o botão trava depois do voto).
 - Ao atingir o limiar: contagem regressiva de 5 s ("A pista votou: próxima música!") e a música é pulada.
 - Os votos zeram a cada troca de música.
@@ -129,6 +129,7 @@ Botão ao lado do "Pular". Um clique = um voto por pessoa por música (fica lara
 
 ### Chat privado (DM)
 - **Clique no avatar de alguém na pista** para enviar uma **solicitação de papo** (o cursor vira "mãozinha" sobre os avatares).
+- **No celular**, tocar num avatar abre um cartão com **Puxar papo** e **Andar pra cá**: o dedo caía em cima de outra pessoa quando a ideia era só andar, e o pedido saía sem querer. Tocar fora fecha o cartão. Papo já aceito abre direto.
 - A pessoa recebe um **card de solicitação** (canto superior direito) com "Aceitar" / "Recusar". O papo só abre depois do aceite — quem pediu recebe um aviso e o painel abre automaticamente.
 - Clicar em alguém que já te pediu papo equivale a aceitar; recusado, um novo clique reenvia a solicitação.
 - Painel flutuante com bolhas estilo mensageiro (suas mensagens em laranja, as do outro em cinza).
@@ -142,6 +143,10 @@ Botão **🏆 Ranking** no header abre o painel com dois placares ao vivo:
 
 - **🎧 DJs da noite**: quem mais emplacou músicas na mesa (top 5, contado pelo histórico do servidor — toda música que começa a tocar gera um registro).
 - **🔥 Rumo à festa**: as músicas mais votadas em "Essa vai pra festa!" (top 5, com thumbnail, título e link para o YouTube).
+
+## Origem da visita (UTM)
+
+Quem chega com `utm_source`, `utm_medium`, `utm_campaign`, `utm_term` ou `utm_content` no endereço (do app ou da página do site que embute o app) leva essas UTMs para todo link que sai para os sites da AUVP, como o "Garantir ingresso". Elas ficam guardadas no navegador: quem volta depois sem UTM continua com a última campanha que o trouxe. Sem campanha nenhuma, vai a UTM padrão da pista (`utm_source=esquenta&utm_medium=pista_virtual&utm_campaign=privateday2026`), para a venda que nasce aqui não aparecer como acesso direto.
 
 ## Organização
 

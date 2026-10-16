@@ -239,6 +239,10 @@ confere(!voltou?.eu, 'removido não volta antes do prazo');
 await espera(3100);
 await dj.pedir({ t: 'fila', videoId: 'hTWKbfoikeg', title: 'Pausa' });
 confere(await ana.ate(() => ana.player?.state?.videoId === 'hTWKbfoikeg', 9000), 'música nova no ar');
+// um ouvinte só na pista: o voto dele não tira a música do DJ (mínimo de 2 votos)
+r = await ana.pedir({ t: 'pular' });
+await espera(800);
+confere(r.t === 'ok' && !ana.player.countdown && ana.player.state.videoId === 'hTWKbfoikeg', 'um voto sozinho não pula a música de outro DJ');
 const pausouEm = Date.now();
 dj.enviar({ t: 'playback', state: 'paused', time: 12 });
 await espera(5500);
