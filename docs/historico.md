@@ -41,6 +41,14 @@ Registro do que foi feito, por quê e o que se aprendeu. Para o estado atual do 
 - Um processo Node só não segura 500 conexões TLS: no primeiro teste na nuvem apareceram atrasos de até 80 s e 22 quedas, todos do lado do cliente de teste. Divididos em 2 processos de 250, zero problema.
 - O limite de ritmo do servidor recusa a segunda tentativa de ingresso em menos de 2 s (correto; o teste é que precisou esperar).
 
+### Votação, UTM e toque no celular (16/10/2026)
+
+- **Pular**: o primeiro pedido ("quem tem ingresso não consegue pular qualquer música, só a sua") foi lido como "acabar com a votação" e corrigido pelo Armando: todos podem votar; o problema era pular **a qualquer hora**. Com pouca gente na pista o limiar caía para 1, e um voto sozinho trocava a música de qualquer DJ. Agora o limiar é `max(2, …)`; o DJ continua passando a própria vez sozinho.
+- **UTM**: as UTMs da visita (do endereço do app ou da página que o embute) vão em todo link para os sites da AUVP e ficam guardadas no navegador; sem campanha, vai uma UTM padrão da pista.
+- **Celular**: o toque em outro avatar pedia papo na hora e gerava pedidos sem querer. Agora abre um cartão com "Puxar papo" e "Andar pra cá".
+- **Histórico no ranking**: o ranking ganhou "Todas as músicas da noite" (tabela nova `envios`, porque o `historico` só tinha o que tocou) e o voto "vai pra festa" em qualquer música que já passou pela fila. O cache do ranking caiu para 15 s e não é mais invalidado a cada voto: com centenas votando, cada voto refaria a varredura para todo mundo.
+- **Convite pro ingresso**: banner baseado no banner do LearnWorlds (ingresso creme com canhoto vermelho destacável), compacto (61 px no celular, 69 px no desktop), temporário e fechável. Fica no topo do chat porque, no celular, qualquer canto da pista cobriria o globo ou os avatares, e uma faixa no layout encolheria a pista.
+
 ### Limites da mesa (15/10/2026)
 
 Pedidos do Armando: "somente o DJ pode controlar a música, mas se ela ficar pausada por mais de 10 segundos, passa pra próxima" e "com exceção do fallback, qualquer vídeo só pode tocar até 10 minutos; vídeo maior deve ter um disclaimer".

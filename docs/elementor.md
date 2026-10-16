@@ -19,7 +19,7 @@ Ex.: `https://privateday.auvp.com.br/esquenta/esquenta-privateday.html` (via FTP
 
 ```html
 <div class="esquenta-wrap">
-  <iframe
+  <iframe id="esquentaPista"
     src="/esquenta/esquenta-privateday.html"
     title="Esquenta AUVP Private Day"
     allow="autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write"
@@ -36,7 +36,13 @@ Ex.: `https://privateday.auvp.com.br/esquenta/esquenta-privateday.html` (via FTP
     .esquenta-wrap iframe { height: 92vh; min-height: 560px; border-radius: 0; }
   }
 </style>
+<script>
+  // repassa as UTMs da página (ex.: ?utm_source=instagram) para a pista
+  if (location.search) document.getElementById('esquentaPista').src += location.search;
+</script>
 ```
+
+**UTMs**: o script acima repassa a campanha da página para o app, que a cola no link "Garantir ingresso". No mesmo domínio o app também lê a página sozinho, mas o repasse vale até para iframe de outro domínio.
 
 **O atributo `allow` não é opcional**: sem ele o navegador não repassa a permissão de autoplay para o player do YouTube que roda dentro do app, e a música não começa sozinha.
 

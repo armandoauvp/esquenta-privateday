@@ -29,7 +29,7 @@ Documentação em `README.md`, `docs/` e `servidor/README.md`. **Numa sessão no
 1. Ícones SVG (`Icons`) e injeção nos `<span id="icon-*">`
 2. Servidor da pista (`SALA_SERVIDOR`, `SALA`, `GOOGLE_CLIENT_ID`) e relógio corrigido (`agora()`)
 3. Catálogos do avatar (`TOPS`, `EYES`, `AURA_COLORS`, …) e `getAvatarUrl()`
-4. Constantes da pista (`FALLBACK_VIDEO`, `MAX_PLAY_MS`, `TICKETS_URL`) e estado global (`currentVideo`, `queue`, `skipVotes`, `countdownState`, `festa`, `souOrg`, `dmMessages`, …)
+4. Constantes da pista (`FALLBACK_VIDEO`, `MAX_PLAY_MS`, `TICKETS_URL_BASE`) e estado global (`currentVideo`, `queue`, `skipVotes`, `countdownState`, `festa`, `souOrg`, `dmMessages`, …)
 5. Pista (ladrilhos, mesa de DJ), `iniciarUI()`
 6. Sala: `abrirSala()`/`caiuSala()` (WebSocket e reconexão), `enviar`/`pedir`, `medirRelogio`, `receber` → `entrouNaSala`, `aplicarTick`, `aplicarPlayer`, `aplicarEu`
 7. Agendador de renders (`agendar`), presença (`usuarios`, `isPresent`, `updatePresence`)
@@ -49,6 +49,10 @@ Documentação em `README.md`, `docs/` e `servidor/README.md`. **Numa sessão no
 - **Só o DJ mexe no player**: `controls=1` só no iframe do DJ; os demais e o vídeo da casa têm `controls=0&disablekb=1&fs=0` mais a camada de bloqueio do overlay. O DJ publica `playback` na hora em que pausa, retoma ou salta; a sala só aceita `playback` do DJ (ou da organização).
 - **Iframe estável**: `renderPlayer()` recria o iframe **só quando a música muda** (`lastPlayerKey` = `chaveAtual()`); votos/contagem/avisos são desenhados em `#playerOverlay` por `updatePlayerOverlay()`. Nunca redesenhe o iframe em ticks de votos/usuários, senão o vídeo reinicia para todo mundo.
 - **Limites da mesa**: música da fila toca no máximo 10 min (`MAX_PLAY_MS`, a playlist da casa não conta); vídeo mais longo ganha aviso antes de entrar (`medirDuracao` usa um iframe invisível e o handler principal de `message` ignora tudo que não vem do `#ytFrame`). Pausa do DJ por mais de 10 s passa a vez (`PAUSA_MAX_MS`, contagem `tipo: 'pausa'` aos 5 s, cancelada quando o DJ volta a tocar; o DJ vê "Voltar a tocar").
+- **Votação de pular**: todos votam (com ou sem ingresso), limiar `max(2, …)` igual no app (`skipThreshold`) e no servidor (`limiarPular`): um voto sozinho nunca tira a música de outro DJ. Só o próprio DJ passa a vez sozinho.
+- **UTM**: links de saída para os sites da AUVP passam por `comUtm()` (usa as UTMs da visita, guardadas em `esquentaUtm`, ou `UTM_PADRAO`). Link novo para a AUVP no HTML com `href` fixo é reescrito na carga; em template, use `TICKETS_URL`/`comUtm()`.
+- **Convite pro ingresso (`#bannerIngresso`)**: banner em forma de ingresso no topo da área do chat, por cima das mensagens mais antigas (nunca sobre a pista, o player ou o campo). Só pra quem não tem ingresso nem é da organização; regras em `BANNER_INGRESSO` (aparece 40 s depois de entrar, fica 30 s, volta a cada 12 min, no máximo 3 vezes; ✕ esconde 24 h em `esquentaBannerFechadoAte`; some depois do evento). Espera a aba estar à vista e nenhum diálogo aberto. Usa `GLOBO.png` e `LETTERING.png` (o `build-elementor.py` conta essas imagens: mexeu, ajuste o `esperado`).
+- **Papo no celular confirma antes**: tocar num avatar (`toqueNaTela`) abre o cartão `#papoConfirma` ("Puxar papo" / "Andar pra cá") em vez de pedir na hora; mouse e teclado vão direto. Tocar fora fecha sem andar.
 - **Troca condicionada à chave**: `avancar(chave)` na sala só troca se a música ainda for a da chave (`videoId_startedAt`); `fim` e `erroVideo` vão com a chave. Aviso atrasado de uma música anterior vira no-op.
 - **Identidade**: id + token (HMAC com o secret `SEGREDO`) guardados no navegador (`esquentaId`, `esquentaToken`, via `store`) e reapresentados no `ola`. Quem fecha a aba fica 20 s na pista (`GRACE_SAIDA_MS`): recarregar não tira ninguém da mesa nem da fila. A mesma identidade em outra aba derruba a conexão antiga (código 4000, aviso "Usar esta").
 - **Conexão**: `abrirSala()` uma vez; caiu (`caiuSala`), reconecta com espera crescente. Ping de 25 s sem pong derruba e reconecta. `salaOnline()` vale só depois do `bemvindo`; use-o como guarda de toda ação (`if (!salaOnline()) …`). `atualizarConexao()` cuida da faixa `#semConexao` e trava chat e fila com o motivo. O app precisa abrir mesmo sem servidor: só assiste.
@@ -91,6 +95,7 @@ Documentação em `README.md`, `docs/` e `servidor/README.md`. **Numa sessão no
 | `papos` / `dm` | SQLite | pedidos de papo (`status: pending/accepted/declined`) e mensagens privadas — só os dois participantes recebem |
 | `festa` | SQLite | votos "Essa vai pra festa!" (curadoria — nunca apagar) |
 | `historico` | SQLite | músicas que tocaram — base do ranking |
+| `envios` | SQLite | toda música enviada à fila (tocando ou não) — histórico do ranking, onde dá pra votar "vai pra festa" em qualquer uma que já passou pela fila |
 | `ingressos` | SQLite | SHA-256 dos e-mails com sal (`manual` = cortesia, imune ao `--substituir`) |
 | `vip` / `org` / `banidos` | SQLite | vínculo id → ingresso, id → e-mail da organização, bloqueios de 30 min |
 

@@ -72,7 +72,7 @@ Só quem tem ingresso entra, no máximo 3 músicas por pessoa, sem repetir a que
 Todos os horários são do relógio do servidor; o app compara com `agora()`.
 
 ### SQLite da sala
-`estado` (fila e player), `chat`, `dm`, `papos`, `historico` (ranking), `festa` (curadoria "Essa vai pra festa!", **não apagar**), `ingressos` (hashes, com marca `manual`), `vip` (id → hash do ingresso), `org` (id → e-mail), `banidos`.
+`estado` (fila e player), `chat`, `dm`, `papos`, `historico` (músicas que tocaram, ranking), `envios` (toda música enviada à fila, para o histórico do ranking), `festa` (curadoria "Essa vai pra festa!", **não apagar**), `ingressos` (hashes, com marca `manual`), `vip` (id → hash do ingresso), `org` (id → e-mail), `banidos`.
 
 ## Música
 
@@ -98,7 +98,7 @@ Roda em cada alarme (a cada 15 s enquanto há gente ou música, e nos instantes 
 Alarmes sobrevivem à hibernação; os `setTimeout` (só o agrupamento de 250 ms) não precisam.
 
 ### Votação de pular
-Limiar `max(1, min(10, floor(ouvintes/2)+1))`, onde ouvintes são os presentes menos o DJ. Um voto por pessoa por música.
+Limiar `max(2, min(10, floor(ouvintes/2)+1))`, onde ouvintes são os presentes menos o DJ. Um voto por pessoa por música; qualquer pessoa vota, com ou sem ingresso. O mínimo de 2 existe porque, com pouca gente, um voto sozinho tirava a música de qualquer DJ na hora; o próprio DJ passa a vez com `passarVez`.
 
 ### Sincronia: todo mundo no mesmo segundo
 - **Relógio**: o app mede o desvio contra a sala (troca `hora`, estilo NTP: desvio ≈ `s − (c + chegada)/2`, fica a amostra de menor ida e volta; 3 amostras ao conectar e 1 a cada 5 min). Tudo que é compartilhado usa `agora()`.

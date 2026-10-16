@@ -36,10 +36,13 @@ const CHAT_MAX = 50, CHAT_GUARDADO = 300;
 const FILA_POR_PESSOA = 3;
 const RX_POR_TICK = 12;
 const BAN_MS = 30 * 60 * 1000;
-const RANKING_CACHE_MS = 60_000;
+// ranking em cache curto e sem invalidar a cada voto: com centenas votando, cada voto
+// refazia a varredura das tabelas para todo mundo que abrisse o ranking
+const RANKING_CACHE_MS = 15_000;
+const HISTORICO_MAX = 300; // músicas listadas no histórico do ranking
 // intervalo mínimo entre ações da mesma pessoa
 const ESPERA: Record<string, number> = {
-    chat: 1000, dm: 500, reacao: 1200, fila: 3000, festa: 1000, pular: 1000,
+    chat: 1000, dm: 500, reacao: 1200, fila: 3000, festa: 500, pular: 1000,
     papo: 2000, ingresso: 2000, org: 3000, ranking: 2000, playback: 400,
 };
 
@@ -127,6 +130,8 @@ export class Pista extends DurableObject<Env> {
             CREATE INDEX IF NOT EXISTS papos_b ON papos(b);
             CREATE TABLE IF NOT EXISTS historico (ts INTEGER, video TEXT, uid TEXT, nome TEXT, titulo TEXT);
             CREATE TABLE IF NOT EXISTS festa (video TEXT, uid TEXT, ts INTEGER, PRIMARY KEY (video, uid));
+            CREATE INDEX IF NOT EXISTS festa_uid ON festa(uid);
+            CREATE TABLE IF NOT EXISTS envios (ts INTEGER, video TEXT, uid TEXT, nome TEXT, titulo TEXT);
             CREATE TABLE IF NOT EXISTS ingressos (hash TEXT PRIMARY KEY, manual INTEGER DEFAULT 0);
             CREATE TABLE IF NOT EXISTS vip (id TEXT PRIMARY KEY, hash TEXT);
             CREATE TABLE IF NOT EXISTS org (id TEXT PRIMARY KEY, email TEXT);
@@ -454,6 +459,8 @@ export class Pista extends DurableObject<Env> {
             duracao: Number.isFinite(m.duracao) && m.duracao > 0 && m.duracao <= 86400 ? Math.round(m.duracao) : null,
         };
         this.fila.push(item);
+        this.sql.exec('INSERT INTO envios (ts, video, uid, nome, titulo) VALUES (?, ?, ?, ?, ?)',
+            item.timestamp, item.videoId, p.id, p.name, item.title);
         this.filaMudou();
         const entraAgora = !this.player.state.videoId;
         if (entraAgora) this.contagem(`Música de ${p.name} entrando na pista!`, { preferido: item.id });
@@ -569,7 +576,8 @@ export class Pista extends DurableObject<Env> {
         const dj = this.player.state.addedByUid;
         let ouvintes = 0;
         for (const [id] of this.conexoes) if (id !== dj && this.presente(id)) ouvintes++;
-        return Math.max(1, Math.min(10, Math.floor(ouvintes / 2) + 1));
+        // no mínimo 2 votos: com pouca gente, um voto sozinho tirava a música de qualquer DJ
+        return Math.max(2, Math.min(10, Math.floor(ouvintes / 2) + 1));
     }
 
     private votosPular() {
@@ -591,12 +599,25 @@ export class Pista extends DurableObject<Env> {
         this.responder(ws, m);
     }
 
+    // "Essa vai pra festa!": na música que toca ou, pelo ranking, em qualquer música que
+    // já foi enviada à fila (vídeo nunca enviado é recusado: ninguém infla um vídeo qualquer)
     private votarFesta(ws: WebSocket, p: Pessoa, m: any) {
-        const vid = this.player.state.videoId;
+        const atual = this.player.state.videoId;
+        const vid = m.videoId === undefined ? atual : m.videoId;
         if (!vid) return this.recusar(ws, m, 'sem_musica');
+        if (!videoIdValido(vid)) return this.recusar(ws, m, 'video');
+        if (vid !== atual && !this.foiEnviada(vid)) {
+            return this.recusar(ws, m, 'nao_enviada', 'Só dá pra votar em músicas que já passaram pela fila.');
+        }
         const r = this.sql.exec('INSERT OR IGNORE INTO festa (video, uid, ts) VALUES (?, ?, ?)', vid, p.id, Date.now());
-        if (r.rowsWritten) { this.festaN++; this.festaSuja = true; this.ranking = null; this.agendarFlush(); }
-        this.responder(ws, m, { videoId: vid });
+        if (r.rowsWritten && vid === atual) { this.festaN++; this.festaSuja = true; this.agendarFlush(); }
+        const n = vid === atual ? this.festaN : Number(this.sql.exec('SELECT COUNT(*) AS n FROM festa WHERE video = ?', vid).one().n);
+        this.responder(ws, m, { videoId: vid, n });
+    }
+
+    private foiEnviada(vid: string) {
+        return this.sql.exec('SELECT 1 FROM envios WHERE video = ?1 UNION ALL SELECT 1 FROM historico WHERE video = ?1 LIMIT 1', vid)
+            .toArray().length > 0;
     }
 
     private contarFesta() {
@@ -814,9 +835,23 @@ export class Pista extends DurableObject<Env> {
             const musicas = this.sql.exec<{ video: string; n: number }>(
                 'SELECT video, COUNT(*) AS n FROM festa GROUP BY video ORDER BY n DESC LIMIT 5').toArray()
                 .map(r => [r.video, r.n]);
-            this.ranking = { em: Date.now(), dados: { djs, musicas } };
+            // todas as músicas enviadas (e as que tocaram antes de existir o registro de envios),
+            // da mais recente para a mais antiga; título e nome vêm do envio mais recente
+            const historico = this.sql.exec<{ video: string; titulo: string | null; nome: string; ts: number; tocou: number; n: number }>(`
+                SELECT h.video, h.titulo, h.nome, h.ts, h.tocou, COALESCE(f.n, 0) AS n FROM (
+                    SELECT video, titulo, nome, MAX(ts) AS ts, SUM(tocou) AS tocou FROM (
+                        SELECT video, titulo, nome, ts, 1 AS tocou FROM historico
+                        UNION ALL SELECT video, titulo, nome, ts, 0 AS tocou FROM envios
+                    ) GROUP BY video
+                ) h LEFT JOIN (SELECT video, COUNT(*) AS n FROM festa GROUP BY video) f USING (video)
+                ORDER BY h.ts DESC LIMIT ?`, HISTORICO_MAX).toArray()
+                .map(r => ({ videoId: r.video, title: r.titulo, by: r.nome, ts: r.ts, tocou: r.tocou > 0, n: r.n }));
+            this.ranking = { em: Date.now(), dados: { djs, musicas, historico } };
         }
-        this.responder(ws, m, this.ranking.dados as Record<string, unknown>);
+        // em que a pessoa já votou: por pessoa, fora do cache
+        const votei = this.sql.exec<{ video: string }>('SELECT video FROM festa WHERE uid = ?', ws.deserializeAttachment()?.id ?? '')
+            .toArray().map(r => r.video);
+        this.responder(ws, m, { ...(this.ranking.dados as Record<string, unknown>), votei });
     }
 
     // ── ORGANIZAÇÃO (Entrar com Google) ──
