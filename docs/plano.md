@@ -68,7 +68,7 @@ Para o agente executar no navegador (Cowork/Chrome). Explicação para gente em 
 | Tipo de cliente | Aplicativo da Web, nome `Pista do esquenta` |
 | Origens JavaScript autorizadas | `https://esquenta-privateday.vercel.app`, `https://privateday.auvp.com.br`, `http://localhost:5173` (+ domínio próprio, se houver) |
 | URIs de redirecionamento | nenhuma (o login é por pop-up do Google Identity Services) |
-| E-mails da organização | `armando.custodio@auvp.com.br`, `daniel.machado@auvp.com.br`, `daniela.oliveira@auvp.com.br`, `jeniffer.nascimento@auvp.com.br`, `ariadne.carneiro@auvp.com.br` (no secret `ADMINS`) |
+| E-mails da organização | `armando.custodio@auvp.com.br`, `daniel.machado@auvp.com.br`, `daniela.oliveira@auvp.com.br`, `ariadne.carneiro@auvp.com.br` (no secret `ADMINS`) |
 
 **Passos no console**
 

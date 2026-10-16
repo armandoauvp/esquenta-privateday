@@ -174,7 +174,7 @@ export class Pista extends DurableObject<Env> {
         if (url.pathname === '/admin/org' && req.method === 'POST') {
             const { id, email } = await req.json<{ id?: unknown; email?: unknown }>();
             if (!idValido(id)) return new Response('id inválido', { status: 400 });
-            this.sql.exec('INSERT OR REPLACE INTO org (id, email) VALUES (?, ?)', id, texto(email, 120) || 'manual');
+            this.sql.exec('INSERT OR REPLACE INTO org (id, email) VALUES (?, ?)', id, 'manual:' + (texto(email, 120) || 'sem-email'));
             const c = this.conexoes.get(id);
             if (c) { c.p.isOrg = true; this.atualizarEu(c); }
             return Response.json({ ok: true });
@@ -347,7 +347,7 @@ export class Pista extends DurableObject<Env> {
         Object.assign(p, limparPerfil(m.perfil));
         p.away = !!m.away;
         p.awaySince = p.away ? Date.now() : 0;
-        p.isOrg = this.sql.exec('SELECT 1 FROM org WHERE id = ?', id).toArray().length > 0;
+        p.isOrg = this.orgValida(id);
         // vínculo só vale com o ingresso ainda na lista (reembolso tira o VIP)
         p.isVIP = this.sql.exec('SELECT 1 FROM vip JOIN ingressos USING (hash) WHERE vip.id = ?', id).toArray().length > 0;
         // ingresso guardado no navegador refaz o vínculo (outro aparelho, identidade nova)
@@ -856,7 +856,7 @@ export class Pista extends DurableObject<Env> {
 
     // ── ORGANIZAÇÃO (Entrar com Google) ──
     private async entrarOrg(ws: WebSocket, c: Conexao, m: any) {
-        const admins = (this.env.ADMINS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+        const admins = this.admins();
         if (!this.env.GOOGLE_CLIENT_ID || !admins.length) return this.recusar(ws, m, 'sem_config', 'Login da organização ainda não configurado.');
         let email: string | null = null;
         try { email = typeof m.credential === 'string' ? await verificarGoogle(m.credential, this.env.GOOGLE_CLIENT_ID) : null; }
@@ -866,6 +866,20 @@ export class Pista extends DurableObject<Env> {
         c.p.isOrg = true;
         this.atualizarEu(c);
         this.responder(ws, m, { email });
+    }
+
+    // e-mail tirado de ADMINS perde o selo na próxima conexão (o deploy do secret já reconecta todos)
+    private orgValida(id: string) {
+        const r = this.sql.exec<{ email: string }>('SELECT email FROM org WHERE id = ?', id).toArray()[0];
+        if (!r) return false;
+        if (r.email.startsWith('manual:')) return true;
+        if (this.admins().includes(r.email.toLowerCase())) return true;
+        this.sql.exec('DELETE FROM org WHERE id = ?', id);
+        return false;
+    }
+
+    private admins() {
+        return (this.env.ADMINS || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
     }
 
     private sairOrg(ws: WebSocket, c: Conexao, m: any) {

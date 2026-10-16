@@ -234,6 +234,11 @@ confere(r.motivo === 'nao_org', 'quem não é da organização não pula');
 const org = await admin('/admin/org', { id: ana.id, email: 'teste@auvp.dev' });
 confere(org.ok && (await ana.ate(() => ana.eu?.isOrg)), 'selo de organização concedido');
 confere(await beto.ate(() => beto.users.get(ana.id)?.isOrg), 'selo aparece para os outros');
+// a cada conexão o selo é reconferido (e-mail fora de ADMINS perde); o dado pela rota de admin fica
+ana.fechar();
+await espera(1200);
+await ana.conectar();
+confere(ana.eu?.isOrg === true, 'selo dado pela organização continua depois de reconectar');
 const msgBeto = beto.chat.find(c => c.uid === beto.id);
 r = await ana.pedir({ t: 'admApagarChat', id: msgBeto.id });
 confere(r.t === 'ok' && (await dj.ate(() => !dj.chat.some(c => c.id === msgBeto.id))), 'organização apaga mensagem');
