@@ -6,7 +6,7 @@
     <!-- força o navegador a revalidar o HTML em vez de reexibir a versão
          antiga depois de um deploy (a Vercel também manda must-revalidate) -->
     <meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
-    <meta name="app-build" content="2026-10-16c">
+    <meta name="app-build" content="2026-10-16d">
     <title>Esquenta AUVP Private Day</title>
     <!-- abre as conexões cedo: fontes, avatares, servidor da pista e YouTube entram sem esperar o DNS/TLS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -393,8 +393,6 @@
         .ingresso-ticket:hover .ingresso-canhoto, .ingresso-ticket:focus-visible .ingresso-canhoto { background-color: #7A1E1A; }
         .ingresso-globo { transform-origin: 50% 0; animation: ingresso-balanco 6s ease-in-out infinite; }
         @keyframes ingresso-balanco { 0%,100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
-        .ingresso-tempo i { display: block; height: 100%; background: #932621; transform-origin: 0 50%; animation: ingresso-tempo var(--dur, 30s) linear forwards; }
-        @keyframes ingresso-tempo { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 
         /* ── MOVIMENTO REDUZIDO ──
            Quem pede menos movimento no sistema (e celular fraco agradece) fica sem
@@ -404,7 +402,7 @@
             .mesa-holofote, .mesa-fundo i, .mesa-dj img, .mesa-prato,
             .my-turn-badge, .count-glow, .dance-spin, .dance-jump,
             .dance-shake, .dance-moonwalk, .animate-bounce, .animate-pulse,
-            .fade-in-up, .toast-in, .rx-btn, .ingresso-globo, .ingresso-tempo i { animation: none !important; transition: none !important; }
+            .fade-in-up, .toast-in, .rx-btn, .ingresso-globo { animation: none !important; transition: none !important; }
         }
 
         /* pista focável (setas movem o avatar): anel só para quem navega por teclado */
@@ -640,8 +638,8 @@
             </div>
 
             <div id="secChat" class="flex-1 flex flex-col min-h-0 relative">
-            <!-- CONVITE PRO INGRESSO: temporário e fechável, só pra quem não tem ingresso. Fica por
-                 cima das mensagens mais antigas: não cobre a pista, o player, o campo nem as novas -->
+            <!-- CONVITE PRO INGRESSO: fixo no topo do chat, só pra quem não tem ingresso. O chat
+                 ganha um respiro do tamanho dele: não cobre mensagem, pista, player nem campo -->
             <div id="bannerIngresso" class="hidden absolute top-2 inset-x-2 z-10" role="complementary" aria-label="Convite para o ingresso do Private Day">
                 <a id="bannerIngressoLink" href="https://privateday.auvp.com.br/#ingressos" target="_blank" rel="noopener"
                     class="ingresso-ticket flex items-stretch shadow-[0_10px_22px_rgba(0,0,0,.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DB7944]"
@@ -661,8 +659,6 @@
                 </a>
                 <button type="button" id="bannerIngressoFechar" aria-label="Fechar convite do ingresso"
                     class="absolute top-1 right-[100px] w-7 h-7 rounded-full text-[#1A1A1A]/60 hover:text-[#1A1A1A] hover:bg-[#1A1A1A]/8 text-[14px] inline-flex items-center justify-center after:absolute after:-inset-1.5 after:content-['']"><span data-icone="close"></span></button>
-                <!-- quanto tempo falta pra ele sumir sozinho -->
-                <div class="ingresso-tempo absolute left-3 right-[104px] bottom-1 h-[2px] rounded-full bg-[#932621]/20 overflow-hidden" aria-hidden="true"><i></i></div>
             </div>
             <div id="chatMessages" role="log" aria-live="polite" aria-label="Chat ao vivo" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
             <!-- quem está lendo o histórico não é puxado pro fim: um aviso leva até as novas -->
@@ -1661,6 +1657,7 @@
             renderSettingsModal();
             abrirSala();
             atualizarConexao();
+            atualizarBanner();
             // a cortina só sobe com todos os bonecos já carregados — nada de card vazio
             assetsProntos.then(abrirAPista);
         }
@@ -3915,62 +3912,31 @@ ${cd}`;
             document.getElementById('blocoCorBarba').classList.toggle('hidden', !c.facialHair);
         }
 
-        // ── CONVITE PRO INGRESSO (banner temporário e fechável) ──
-        // Só pra quem não tem ingresso nem é da organização. Aparece 40 s depois de entrar na
-        // pista, fica 30 s e some sozinho; volta a cada 12 min, no máximo 3 vezes por visita.
-        // O ✕ esconde por 24 h; clicar no convite também encerra nesta visita. Depois do
-        // evento (BANNER_INGRESSO.ate) não aparece mais.
-        const BANNER_INGRESSO = {
-            primeiraMs: 40000, visivelMs: 30000, intervaloMs: 12 * 60000, maxVezes: 3,
-            fechadoMs: 24 * 60 * 60000, ate: Date.parse('2026-11-08T23:59:59-03:00')
-        };
-        let bannerIniciado = false, bannerVezes = 0, bannerEncerrado = false, bannerTimer = null, bannerSome = null;
-        const bannerFechadoAte = () => Number(store.get('esquentaBannerFechadoAte') || 0);
-        // fim de jogo nesta visita (tem ingresso, fechou, clicou, acabou o prazo) x só não é a hora (modal, aba escondida)
-        const bannerAcabou = () => bannerEncerrado || localProfile.isVIP || souOrg || Date.now() >= BANNER_INGRESSO.ate
-            || Date.now() < bannerFechadoAte() || bannerVezes >= BANNER_INGRESSO.maxVezes;
+        // ── CONVITE PRO INGRESSO (banner fixo) ──
+        // Fixo no topo do chat pra quem não tem ingresso nem é da organização, até o fim do
+        // evento. O chat ganha um respiro em cima do tamanho do banner, então ele não cobre
+        // mensagem nenhuma. O ✕ esconde só nesta visita (volta ao recarregar a página).
+        const BANNER_INGRESSO = {ate: Date.parse('2026-11-08T23:59:59-03:00')};
+        let bannerFechado = false;
         {
             // com a UTM da visita e a marca de onde veio o clique
             const u = new URL(TICKETS_URL);
             if (!u.searchParams.has('utm_content')) u.searchParams.set('utm_content', 'banner_pista');
             document.getElementById('bannerIngressoLink').href = u.toString();
         }
-        function agendarBanner(ms) {
-            clearTimeout(bannerTimer);
-            if (!bannerAcabou()) bannerTimer = setTimeout(mostrarBanner, ms);
-        }
-        function mostrarBanner() {
-            if (bannerAcabou()) return;
-            if (modalOpen || document.hidden || abaFilaAberta() || document.querySelector('[role=dialog]:not(.hidden)')) {
-                agendarBanner(15000); // agora não é a hora: tenta de novo daqui a pouco
-                return;
-            }
-            bannerVezes++;
-            const b = document.getElementById('bannerIngresso');
-            const barra = b.querySelector('.ingresso-tempo i');
-            barra.style.setProperty('--dur', `${BANNER_INGRESSO.visivelMs / 1000}s`);
-            barra.style.animation = 'none'; void barra.offsetWidth; barra.style.animation = ''; // recomeça a barra
-            b.classList.remove('hidden');
-            b.classList.add('fade-in-up');
-            clearTimeout(bannerSome);
-            bannerSome = setTimeout(() => esconderBanner(), BANNER_INGRESSO.visivelMs);
-        }
-        function esconderBanner(encerrar = false) {
-            clearTimeout(bannerSome);
-            if (encerrar) { bannerEncerrado = true; clearTimeout(bannerTimer); }
-            document.getElementById('bannerIngresso').classList.add('hidden');
-            agendarBanner(BANNER_INGRESSO.intervaloMs);
-        }
-        document.getElementById('bannerIngressoFechar').addEventListener('click', () => {
-            store.set('esquentaBannerFechadoAte', String(Date.now() + BANNER_INGRESSO.fechadoMs));
-            esconderBanner(true);
-        });
-        document.getElementById('bannerIngressoLink').addEventListener('click', () => esconderBanner(true));
-        // chamado ao entrar na pista e quando o ingresso/selo muda
+        // chamado na abertura, ao entrar na pista e quando o ingresso/selo muda
         function atualizarBanner() {
-            if (bannerAcabou()) { if (!document.getElementById('bannerIngresso').classList.contains('hidden')) esconderBanner(true); return; }
-            if (!bannerIniciado) { bannerIniciado = true; agendarBanner(BANNER_INGRESSO.primeiraMs); }
+            const b = document.getElementById('bannerIngresso');
+            const mostrar = !bannerFechado && !localProfile.isVIP && !souOrg && Date.now() < BANNER_INGRESSO.ate;
+            b.classList.toggle('hidden', !mostrar);
+            // respiro do tamanho do banner (medido: muda entre celular e desktop)
+            document.getElementById('chatMessages').style.paddingTop = mostrar ? `${b.offsetHeight + 16}px` : '';
         }
+        new ResizeObserver(() => atualizarBanner()).observe(document.getElementById('bannerIngresso'));
+        document.getElementById('bannerIngressoFechar').addEventListener('click', () => {
+            bannerFechado = true;
+            atualizarBanner();
+        });
 
         // ── ENTRAR NA FESTA ──
         // coroa do header + fila de DJ coerentes com o status atual

@@ -127,7 +127,7 @@ No `index.html`:
 | `FALLBACK_VIDEO` + `duracaoFallback` | `5D_Of9Zpsgs`, `5751` | Vídeo da casa (músicas emendadas) em loop quando ninguém está na mesa, com todo mundo no mesmo trecho. Trocou o vídeo? Atualize a duração (em segundos) junto |
 | `SINCRONIA_TOLERANCIA_S` | `2` | Diferença máxima (s) entre o player de cada visitante e a referência antes de realinhar |
 | `TICKETS_URL_BASE` | `https://privateday.auvp.com.br/#ingressos` | Link de ingressos (aviso de boas-vindas, Área VIP, fila). Sai com as UTMs da visita (`TICKETS_URL`) |
-| `BANNER_INGRESSO` | 40 s, 30 s, 12 min, 3 vezes, 24 h, até 08/11/2026 | Quando o convite pro ingresso aparece, por quanto tempo, quantas vezes, quanto tempo o ✕ esconde e até quando vale |
+| `BANNER_INGRESSO.ate` | 08/11/2026 23:59 (Brasília) | Até quando o convite fixo pro ingresso aparece para quem não tem ingresso |
 | `UTM_PADRAO` | `utm_source=esquenta`, `utm_medium=pista_virtual`, `utm_campaign=privateday2026` | UTMs dos links para a AUVP quando a visita chegou sem campanha |
 | `VIP_ZONE` | `{x1:72, y1:5, x2:98, y2:32}` | Retângulo (%) da Área VIP na pista (igual em `servidor/src/regras.ts`) |
 | `BPM` (bloco WebGL) | `118` | Batida estimada do pulso visual da pista 3D |
@@ -143,6 +143,6 @@ No servidor (`servidor/src/pista.ts`): `MAX_PLAY_MS` (10 min por música), `PAUS
 | Vídeo reinicia para todos ao votar | Regressão: iframe sendo recriado no overlay | Manter o padrão `renderPlayer`/`updatePlayerOverlay` (ver CLAUDE.md) |
 | "Sou da organização" diz "não configurado" | `GOOGLE_CLIENT_ID` vazio no `index.html` | Seguir "Organização" acima |
 | Botão do Google some ou dá erro de origem | Domínio não está nas origens autorizadas do cliente OAuth | Adicionar o domínio no Google Cloud |
-| "Esse e-mail não faz parte da organização" | E-mail fora do secret `ADMINS` | `npx wrangler secret put ADMINS` com a lista completa |
+| "Esse e-mail não faz parte da organização" | E-mail fora do secret `ADMINS` | `npx wrangler secret put ADMINS` com a lista **completa** (o valor substitui o anterior; a lista atual está em `docs/plano.md`) |
 | Deploy na Vercel falha procurando build/`package.json` | Preset de framework detectado errado | Project → Settings → Build and Deployment → Framework Preset: **Other**, com os comandos vazios |
 | O site não reflete o último merge | Deploy ainda em andamento, ou o navegador reaproveitou a cópia antiga | Conferir o deploy no painel da Vercel, dar hard refresh (`Ctrl/Cmd+Shift+R`) e checar o carimbo `build` no rodapé do modal de personalização (`<meta name="app-build">`) |

@@ -149,9 +149,8 @@ Botão **🏆 Ranking** no header abre o painel com dois placares ao vivo:
 
 Quem entrou sem ingresso vê, no topo do chat, um convite em forma de ingresso ("Private Day · Últimos ingressos · 7 e 8 de novembro · Garanta o seu ingresso"), que leva à página de ingressos com as UTMs da visita e `utm_content=banner_pista`.
 
-- Aparece 40 s depois de entrar na pista, fica 30 s (com uma barrinha mostrando o tempo) e some sozinho. Volta a cada 12 min, no máximo 3 vezes por visita.
-- O ✕ esconde por 24 h; clicar no convite também encerra nesta visita.
-- Não aparece com a aba escondida, com o modal do avatar ou outro diálogo aberto, nem na aba Fila do celular; nunca cobre a pista, o player ou o campo do chat, só as mensagens mais antigas.
+- Fica fixo no topo do chat. O chat ganha um espaço em cima do tamanho do banner, então ele não cobre nenhuma mensagem, nem a pista, o player ou o campo de digitar.
+- O ✕ esconde só nesta visita: recarregando a página, ele volta.
 - Quem confirma o ingresso (ou é da organização) não vê mais. Depois de 8 de novembro, ninguém vê.
 
 ## Origem da visita (UTM)
