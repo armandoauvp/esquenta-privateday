@@ -56,8 +56,8 @@ def main() -> None:
     lettering = data_uri(RAIZ / "LETTERING.png")
 
     # 1) imagens estáticas: marcadas para preenchimento a partir de window.__ASSETS
-    html = troca_unica(html, 'src="GLOBO.png"', 'data-img="globo" src=""', esperado=3)
-    html = troca_unica(html, 'src="LETTERING.png"', 'data-img="lettering" src=""')
+    html = troca_unica(html, 'src="GLOBO.png"', 'data-img="globo" src=""', esperado=4)
+    html = troca_unica(html, 'src="LETTERING.png"', 'data-img="lettering" src=""', esperado=2)
 
     # 2) lista de pré-carregamento: as mesmas URLs, agora data URI
     html = troca_unica(

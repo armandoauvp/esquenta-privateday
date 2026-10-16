@@ -46,6 +46,7 @@ Registro do que foi feito, por quê e o que se aprendeu. Para o estado atual do 
 - **Pular**: o primeiro pedido ("quem tem ingresso não consegue pular qualquer música, só a sua") foi lido como "acabar com a votação" e corrigido pelo Armando: todos podem votar; o problema era pular **a qualquer hora**. Com pouca gente na pista o limiar caía para 1, e um voto sozinho trocava a música de qualquer DJ. Agora o limiar é `max(2, …)`; o DJ continua passando a própria vez sozinho.
 - **UTM**: as UTMs da visita (do endereço do app ou da página que o embute) vão em todo link para os sites da AUVP e ficam guardadas no navegador; sem campanha, vai uma UTM padrão da pista.
 - **Celular**: o toque em outro avatar pedia papo na hora e gerava pedidos sem querer. Agora abre um cartão com "Puxar papo" e "Andar pra cá".
+- **Convite pro ingresso**: banner baseado no banner do LearnWorlds (ingresso creme com canhoto vermelho destacável), compacto (61 px no celular, 69 px no desktop), temporário e fechável. Fica no topo do chat porque, no celular, qualquer canto da pista cobriria o globo ou os avatares, e uma faixa no layout encolheria a pista.
 
 ### Limites da mesa (15/10/2026)
 

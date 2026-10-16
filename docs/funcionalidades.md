@@ -144,6 +144,15 @@ Botão **🏆 Ranking** no header abre o painel com dois placares ao vivo:
 - **🎧 DJs da noite**: quem mais emplacou músicas na mesa (top 5, contado pelo histórico do servidor — toda música que começa a tocar gera um registro).
 - **🔥 Rumo à festa**: as músicas mais votadas em "Essa vai pra festa!" (top 5, com thumbnail, título e link para o YouTube).
 
+## Convite pro ingresso
+
+Quem entrou sem ingresso vê, no topo do chat, um convite em forma de ingresso ("Private Day · Últimos ingressos · 7 e 8 de novembro · Garanta o seu ingresso"), que leva à página de ingressos com as UTMs da visita e `utm_content=banner_pista`.
+
+- Aparece 40 s depois de entrar na pista, fica 30 s (com uma barrinha mostrando o tempo) e some sozinho. Volta a cada 12 min, no máximo 3 vezes por visita.
+- O ✕ esconde por 24 h; clicar no convite também encerra nesta visita.
+- Não aparece com a aba escondida, com o modal do avatar ou outro diálogo aberto, nem na aba Fila do celular; nunca cobre a pista, o player ou o campo do chat, só as mensagens mais antigas.
+- Quem confirma o ingresso (ou é da organização) não vê mais. Depois de 8 de novembro, ninguém vê.
+
 ## Origem da visita (UTM)
 
 Quem chega com `utm_source`, `utm_medium`, `utm_campaign`, `utm_term` ou `utm_content` no endereço (do app ou da página do site que embute o app) leva essas UTMs para todo link que sai para os sites da AUVP, como o "Garantir ingresso". Elas ficam guardadas no navegador: quem volta depois sem UTM continua com a última campanha que o trouxe. Sem campanha nenhuma, vai a UTM padrão da pista (`utm_source=esquenta&utm_medium=pista_virtual&utm_campaign=privateday2026`), para a venda que nasce aqui não aparecer como acesso direto.
