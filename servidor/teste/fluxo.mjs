@@ -268,6 +268,18 @@ confere(await ana.ate(() => ana.player?.state?.videoId === null, 9000), 'pausada
 const levou = (Date.now() - pausouEm) / 1000;
 confere(levou >= 9.5 && levou <= 12.5, `passou aos ~10 s de pausa (${levou.toFixed(1)} s)`);
 
+// fim avisado por um ouvinte só, com o DJ na pista e calado: não pode virar laço de alarmes
+// (cada alarme gasta 1 requisição da cota) e a música passa depois de 3× o prazo (~24 s)
+await espera(3100);
+await dj.pedir({ t: 'fila', videoId: 'YQHsXMglC9A', title: 'Aviso único' });
+confere(await ana.ate(() => ana.player?.state?.videoId === 'YQHsXMglC9A', 9000), 'música para o aviso único no ar');
+ana.enviar({ t: 'fim', chave: `YQHsXMglC9A_${ana.player.state.startedAt}` });
+await espera(12000);
+confere(ana.player.state.videoId === 'YQHsXMglC9A', 'um aviso só não passa a música antes do prazo');
+confere(await ana.ate(() => ana.player?.state?.videoId !== 'YQHsXMglC9A', 20000, 500), 'sem confirmação do DJ, o aviso único passa a música');
+const est = await admin('/admin/estado');
+confere(est.alarmesPorMinuto < 12, `sem laço de alarmes (${est.alarmesPorMinuto}/min desde que a sala acordou)`);
+
 // --lento: DJ que sai da tela perde a mesa; música de quem está fora sai da fila (~2 min)
 if (process.argv.includes('--lento')) {
     await espera(3100);
