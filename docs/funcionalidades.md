@@ -13,10 +13,11 @@ Quem **já personalizou antes vai direto para a pista** — sem modal na cara de
 - **Abas → subcategorias → uma peça por vez** (igual no celular e no desktop). As abas ficam no topo fixo, com Rosto primeiro, e as subcategorias aparecem em chips logo abaixo:
   - **Rosto** — Pele · Olhos (olhos e sobrancelhas no mesmo painel) · Boca · Barba
   - **Estilo** — Cabelo · Acessórios · Roupa
+- **Catálogo completo do DiceBear (avataaars v8)**: os 34 cabelos (mais "Careca"), as 13 sobrancelhas e todos os olhos, bocas, barbas, acessórios e roupas. A estampa da camiseta não tem escolha (o DiceBear decide). Não existe buzzcut no DiceBear; os mais curtos são Caesar, Caesar com Risca, Curto Redondo e Laterais.
   - **Aura** — cor do brilho do avatar na pista (e do nome no chat)
 
   Só o painel da subcategoria escolhida aparece, com as opções em **grade** (sem faixas de rolagem lateral). Cada aba lembra a última subcategoria aberta.
-- **A cor fica no mesmo painel da peça, e só quando faz sentido**: a cor do chapéu só aparece com chapéu, gorro, hijab ou turbante; a do cabelo some quando ele não aparece (careca, hijab, turbante); a dos acessórios e a da barba só aparecem quando há acessório ou barba.
+- **A cor fica no mesmo painel da peça, e só quando faz sentido**: a cor do chapéu só aparece com chapéu, gorro, hijab, turbante ou o Black com Faixa (a faixa usa essa cor); a do cabelo some quando ele não aparece (careca, hijab, turbante); a dos acessórios e a da barba só aparecem quando há acessório ou barba.
 - **Rosto com zoom**: as miniaturas de olhos, sobrancelhas e boca vêm aproximadas no rosto (`scale`/`translateY` do DiceBear). Em 46 px, o boneco inteiro escondia a diferença entre as opções.
 - **Cor da aura**: paleta com 11 cores (dois tons de laranja — o laranja AUVP `#DB7944` e o neon `#ff6600`).
 - **Botões de entrada** (num rodapé fixo, sempre à vista sem rolar as opções):
