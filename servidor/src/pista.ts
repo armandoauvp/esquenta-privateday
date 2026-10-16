@@ -28,6 +28,9 @@ const COUNTDOWN_MS = 5000;
 const DJ_RESPIRO_MS = 30_000;       // começo da música: dá tempo do DJ carregar
 const FIM_ESPERA_MS = 8000;         // fim informado por quem não é o DJ: espera o DJ confirmar
 const ERRO_ESPERA_MS = 6000;
+// um aviso só (de quem não é o DJ) vale depois de 3× o prazo: com um ouvinte na pista, a
+// música presa esperava um segundo aviso que nunca vinha
+const AVISO_UNICO_FATOR = 3;
 // música do DJ pausada por mais de PAUSA_MAX_MS passa a vez: a contagem abre na metade
 // do caminho (aviso de 5 s) e some se o DJ voltar a tocar
 const PAUSA_MAX_MS = 10_000;
@@ -115,6 +118,8 @@ export class Pista extends DurableObject<Env> {
     private reset = false;
     private timer: ReturnType<typeof setTimeout> | null = null;
     private alarmeEm = 0;
+    private alarmesDisparados = 0; // diagnóstico em /admin/estado: alarme em laço gasta a cota
+    private acordouEm = Date.now();
 
     constructor(ctx: DurableObjectState, env: Env) {
         super(ctx, env);
@@ -139,9 +144,10 @@ export class Pista extends DurableObject<Env> {
         `);
         // salas criadas antes da marca de "manual" (cortesia): a coluna entra depois
         try { this.sql.exec('ALTER TABLE ingressos ADD COLUMN manual INTEGER DEFAULT 0'); } catch { /* já existe */ }
-        for (const r of this.sql.exec<{ chave: string; valor: string }>('SELECT chave, valor FROM estado')) {
+        for (const r of this.sql.exec<{ chave: string; valor: string }>('SELECT chave, valor FROM estado ORDER BY chave DESC')) {
             if (r.chave === 'fila') this.fila = JSON.parse(r.valor);
             if (r.chave === 'player') this.player = JSON.parse(r.valor);
+            if (r.chave === 'avisos') this.carregarAvisos(JSON.parse(r.valor));
         }
         this.chat = this.sql.exec<{ dados: string }>('SELECT dados FROM chat ORDER BY ts DESC LIMIT ?', CHAT_MAX)
             .toArray().map(r => JSON.parse(r.dados)).reverse();
@@ -190,6 +196,9 @@ export class Pista extends DurableObject<Env> {
             return Response.json({
                 conexoes: this.ctx.getWebSockets().length, pessoas: this.conexoes.size,
                 fila: this.fila.length, player: this.player.state, chat: this.chat.length,
+                alarmes: this.alarmesDisparados, acordouEm: new Date(this.acordouEm).toISOString(),
+                alarmesPorMinuto: +(this.alarmesDisparados / Math.max(1, (Date.now() - this.acordouEm) / 60000)).toFixed(2),
+                proximoAlarme: this.alarmeEm ? new Date(this.alarmeEm).toISOString() : null,
                 ingressos: this.sql.exec('SELECT COUNT(*) AS n FROM ingressos').one().n,
             });
         }
@@ -306,6 +315,7 @@ export class Pista extends DurableObject<Env> {
 
     async alarm() {
         this.alarmeEm = 0;
+        this.alarmesDisparados++;
         const agora = Date.now();
         for (const ws of this.ctx.getWebSockets()) {
             const ping = this.ctx.getWebSocketAutoResponseTimestamp(ws)?.getTime() ?? 0;
@@ -540,6 +550,7 @@ export class Pista extends DurableObject<Env> {
         this.fimInformado = { desde: 0, quem: new Set() };
         this.erroInformado = { desde: 0, quem: new Set() };
         this.pausadoDesde = 0;
+        this.salvarAvisos();
         this.festaN = this.contarFesta();
         this.festaSuja = true;
         this.filaSuja = true;
@@ -632,8 +643,8 @@ export class Pista extends DurableObject<Env> {
         if (m.state !== 'playing' && m.state !== 'paused') return;
         const time = Number(m.time);
         if (!Number.isFinite(time) || time < 0 || time > 6 * 3600) return;
+        const mudouEstado = this.player.playback?.state !== m.state || this.player.playback?.videoId !== s.videoId;
         this.player.playback = { videoId: s.videoId, state: m.state, time, at: Date.now() };
-        // posição não precisa sobreviver a um reinício: o DJ republica em 5 s
         this.playerSujo = true;
         if (m.state === 'paused') {
             if (!this.pausadoDesde) { this.pausadoDesde = Date.now(); this.agendarAlarme(); }
@@ -642,6 +653,9 @@ export class Pista extends DurableObject<Env> {
             // voltou a tocar a tempo: a contagem da pausa some
             if (this.player.countdown?.tipo === 'pausa') { this.player.countdown = null; this.playerMudou(); }
         }
+        // a posição de 5 em 5 s não vai pro disco; pausar e retomar vão, senão a sala que
+        // hiberna com o DJ calado (aba escondida) esquece a pausa e o prazo de 10 s
+        if (mudouEstado) this.salvarAvisos();
         this.agendarFlush();
     }
 
@@ -650,6 +664,7 @@ export class Pista extends DurableObject<Env> {
         if (p.id === this.player.state.addedByUid && !this.player.countdown) { this.avancar(m.chave); return; }
         if (!this.fimInformado.desde) this.fimInformado.desde = Date.now();
         this.fimInformado.quem.add(p.id);
+        this.salvarAvisos();
         this.agendarAlarme();
     }
 
@@ -658,6 +673,7 @@ export class Pista extends DurableObject<Env> {
         if (p.id === this.player.state.addedByUid) { this.contagem('Vídeo indisponível — próxima música!'); return; }
         if (!this.erroInformado.desde) this.erroInformado.desde = Date.now();
         this.erroInformado.quem.add(p.id);
+        this.salvarAvisos();
         this.agendarAlarme();
     }
 
@@ -685,10 +701,10 @@ export class Pista extends DurableObject<Env> {
                 } else if (agora - s.startedAt > DJ_RESPIRO_MS && djFora) {
                     this.contagem(`${s.addedByName || 'O DJ'} saiu da pista — próxima música!`);
                 } else if (this.fimInformado.desde && agora - this.fimInformado.desde >= FIM_ESPERA_MS &&
-                    (this.fimInformado.quem.size >= 2 || djFora)) {
+                    (this.fimInformado.quem.size >= 2 || djFora || agora - this.fimInformado.desde >= FIM_ESPERA_MS * AVISO_UNICO_FATOR)) {
                     this.avancar(chave);
                 } else if (this.erroInformado.desde && agora - this.erroInformado.desde >= ERRO_ESPERA_MS &&
-                    (this.erroInformado.quem.size >= 2 || djFora)) {
+                    (this.erroInformado.quem.size >= 2 || djFora || agora - this.erroInformado.desde >= ERRO_ESPERA_MS * AVISO_UNICO_FATOR)) {
                     this.contagem('Vídeo indisponível — próxima música!');
                 } else if (this.pausadoDesde && agora - this.pausadoDesde >= PAUSA_AVISO_MS) {
                     this.contagem('A música ficou pausada — próxima da fila!', { tipo: 'pausa' });
@@ -717,12 +733,14 @@ export class Pista extends DurableObject<Env> {
         if (cd) t.push(cd.endsAt);
         const s = this.player.state;
         if (s.videoId && s.startedAt) t.push(s.startedAt + MAX_PLAY_MS);
-        if (this.fimInformado.desde) t.push(this.fimInformado.desde + FIM_ESPERA_MS);
-        if (this.erroInformado.desde) t.push(this.erroInformado.desde + ERRO_ESPERA_MS);
+        if (this.fimInformado.desde) t.push(this.fimInformado.desde + FIM_ESPERA_MS, this.fimInformado.desde + FIM_ESPERA_MS * AVISO_UNICO_FATOR);
+        if (this.erroInformado.desde) t.push(this.erroInformado.desde + ERRO_ESPERA_MS, this.erroInformado.desde + ERRO_ESPERA_MS * AVISO_UNICO_FATOR);
         if (this.pausadoDesde) t.push(this.pausadoDesde + PAUSA_AVISO_MS);
         for (const c of this.conexoes.values()) if (!c.ws) t.push(c.saiuEm + GRACE_SAIDA_MS + 50);
         if (this.conexoes.size || this.ctx.getWebSockets().length || s.videoId || this.fila.length) t.push(agora + VERIFICAR_MS);
-        return t.length ? Math.max(agora + 20, Math.min(...t)) : null;
+        // só prazos no futuro: o que já venceu acabou de ser avaliado pela ronda
+        const futuros = t.filter(x => x > agora + 100);
+        return futuros.length ? Math.min(...futuros) : null;
     }
 
     private agendarAlarme() {
@@ -999,6 +1017,23 @@ export class Pista extends DurableObject<Env> {
     private derrubar(ws: WebSocket, codigo: number, motivo: string) {
         try { ws.close(codigo, motivo); } catch {}
         this.sair(ws);
+    }
+
+    // avisos de fim/erro, pausa e reprodução: só na memória, a sala hibernando perdia tudo
+    private salvarAvisos() {
+        this.sql.exec('INSERT OR REPLACE INTO estado (chave, valor) VALUES (?, ?)', 'avisos', JSON.stringify({
+            fim: { desde: this.fimInformado.desde, quem: [...this.fimInformado.quem] },
+            erro: { desde: this.erroInformado.desde, quem: [...this.erroInformado.quem] },
+            pausadoDesde: this.pausadoDesde, playback: this.player.playback,
+        }));
+    }
+
+    private carregarAvisos(a: any) {
+        this.fimInformado = { desde: a?.fim?.desde || 0, quem: new Set(a?.fim?.quem || []) };
+        this.erroInformado = { desde: a?.erro?.desde || 0, quem: new Set(a?.erro?.quem || []) };
+        this.pausadoDesde = a?.pausadoDesde || 0;
+        // só vale pra música que ainda está tocando (a carga do player vem antes, na mesma volta)
+        if (a?.playback?.videoId && a.playback.videoId === this.player.state.videoId) this.player.playback = a.playback;
     }
 
     private salvar(chave: 'fila' | 'player') {

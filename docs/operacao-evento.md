@@ -23,7 +23,7 @@ Roteiro para o dia do esquenta. Endereços e comandos em [deploy.md](deploy.md);
 
 - **Moderação** pela própria pista, com o selo de Organização: "Pular agora" no player, ✕ na fila, lixeira no chat, "Remover" em **Na pista agora** (30 min).
 - **Regras automáticas** (não precisa intervir): música da fila toca no máximo 10 min; pausa do DJ por mais de 10 s passa a vez; DJ fora da tela por 45 s perde a mesa; música de quem saiu some da fila; vídeo indisponível é pulado.
-- **Acompanhar** `GET /admin/estado?sala=principal` (com `Authorization: Bearer <ADMIN_CHAVE>`): conexões, pessoas, fila, música atual.
+- **Acompanhar** `GET /admin/estado?sala=principal` (o `alarmesPorMinuto` deve ficar baixo, perto de 4; dezenas ou centenas indicam laço e gastam a cota) (com `Authorization: Bearer <ADMIN_CHAVE>`): conexões, pessoas, fila, música atual.
 - **Cota**: 500 pessoas por 3 h usam ~25–40% das 100 mil requisições do dia. Se as métricas passarem de 80%, a cota zera às 21:00; até lá, pedir à equipe que evite rajadas de reações.
 
 ## Se algo der errado

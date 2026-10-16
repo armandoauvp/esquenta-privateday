@@ -75,6 +75,20 @@ Planilhas do Guru ficam em `C:\Users\armando.neto\Downloads\Editáveis\` (fora d
 - O DJ só publica estados reais (tocando/pausado) com posição fresca; buffering e anúncio puxavam a pista para trás.
 - Relógio corrigido (`agora()`): um PC com o relógio 80 s adiantado se achava o único presente, virava "líder" e apagava a fila. Com o servidor dono da música, esse risco acabou; o relógio continua sendo medido para a sincronia.
 
+## Incidente: cota da Cloudflare em 90% (16/10/2026)
+
+A Cloudflare avisou às 16:12 (Brasília) que o dia já tinha usado 90% das 100 mil requisições de Durable Objects, com uns 15 participantes de teste na pista.
+
+**Causa.** Cada alarme da sala conta como uma requisição. Quando um prazo vencia sem a condição se cumprir (o caso típico: só um ouvinte avisa o fim do vídeo e o DJ, com a aba escondida, não confirma), o próximo alarme era marcado para 20 ms depois, em laço: ~50 alarmes por segundo, ~180 mil por hora, até o DJ sair da tela ou a música bater 10 min. O mesmo acontecia por alguns segundos com a pausa e com o corte de 10 min durante uma contagem.
+
+**Correção.**
+- Alarme nunca é marcado no passado: prazo vencido e não cumprido volta para a ronda de 15 s.
+- Aviso de um ouvinte só (fim de vídeo ou erro) vale depois de 3× o prazo (24 s / 18 s): com um ouvinte na pista, a música ficava presa até os 10 min esperando um segundo aviso.
+- Avisos, início da pausa e estado de reprodução (pausado/tocando) passaram a ser gravados: sem o laço, a sala hiberna nos silêncios e perdia tudo que estava só na memória.
+- `/admin/estado` mostra `alarmes`, `alarmesPorMinuto` e `acordouEm`. Normal: poucos por minuto (a ronda é a cada 15 s).
+
+Depois do deploy, com 15 pessoas na sala: ~4,5 alarmes por minuto.
+
 ## Lições de processo
 
 - Teste de carga com robôs antes de qualquer promessa de capacidade.

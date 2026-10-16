@@ -78,7 +78,7 @@ A Cloudflare não tem Durable Objects na América do Sul. A sala nasce no data c
 | Duração (GB-s) | 13 mil | ~1,4 mil |
 | Linhas gravadas no SQLite | 100 mil | chat, votos, papos, histórico: poucos milhares |
 
-Mensagens enviadas pelo servidor e o ping/pong (respondido pelo runtime) não contam. A cota zera às 00:00 UTC (21:00 em Brasília). Acompanhe em **Workers & Pages → esquenta-pista → Métricas**.
+Mensagens enviadas pelo servidor e o ping/pong (respondido pelo runtime) não contam. **Cada alarme da sala conta 1 requisição**: a ronda normal dá ~4 por minuto; `alarmesPorMinuto` em `/admin/estado` mostra se algo entrou em laço (ver o incidente de 16/10 em [historico.md](historico.md)). A cota zera às 00:00 UTC (21:00 em Brasília). Acompanhe em **Workers & Pages → esquenta-pista → Métricas**.
 
 ## Organização (Entrar com Google)
 
